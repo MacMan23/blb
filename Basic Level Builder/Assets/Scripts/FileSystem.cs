@@ -1,6 +1,6 @@
 ﻿using System;
 using System.IO;
-using System.Collections;
+using System.IO.Compression;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -8,8 +8,7 @@ using UnityEngine;
 using System.Runtime.InteropServices;
 using B83.Win32;
 
-public class FileSystem : MonoBehaviour
-{
+public class FileSystem : MonoBehaviour {
   readonly static public string s_FilenameExtension = ".blb";
   readonly static public string s_RootDirectoryName = "Basic Level Builder";
   readonly static public string s_DateTimeFormat = "h-mm-ss.ff tt, ddd d MMM yyyy";
@@ -160,7 +159,9 @@ public class FileSystem : MonoBehaviour
 
     try
     {
-      File.WriteAllText(fullPath, jsonString);
+      byte[] data = StringCompression.Compress(jsonString);
+
+      File.WriteAllBytes(fullPath, data);
 
       var listToAddTo = autosave ? m_AutosaveList : m_ManualSaveList;
 
@@ -239,7 +240,7 @@ public class FileSystem : MonoBehaviour
     }
     else
     {
-      LoadFromSingleString(text);
+      LoadFromCompressedString(text);
     }
   }
 
@@ -251,8 +252,8 @@ public class FileSystem : MonoBehaviour
 
     try
     {
-      var jsonStrings = File.ReadAllLines(fullPath);
-      LoadFromJsonStrings(jsonStrings);
+      var jsonStrings = File.ReadAllBytes(fullPath);
+      LoadFromCompressedString(jsonStrings);
     }
     catch (Exception e)
     {
@@ -266,14 +267,26 @@ public class FileSystem : MonoBehaviour
     if (GlobalData.AreEffectsUnderway())
       return;
 
-    LoadFromSingleString(level.text);
+    LoadFromCompressedString(level.bytes);
   }
 
 
-  void LoadFromSingleString(string singleString)
+  // Overloaded function to convert a string to a byte array for the decompression in the main function.
+  void LoadFromCompressedString(string CompressedString)
   {
     if (GlobalData.AreEffectsUnderway())
       return;
+
+    LoadFromCompressedString(System.Text.Encoding.UTF8.GetBytes(CompressedString));
+  }
+
+  // Decompresses level data and splits the json lines into an array
+  void LoadFromCompressedString(byte[] CompressedString)
+  {
+    if (GlobalData.AreEffectsUnderway())
+      return;
+
+    string singleString = StringCompression.Decompress(CompressedString);
 
     var strings = singleString.Split(s_LineSeparator, StringSplitOptions.RemoveEmptyEntries);
     LoadFromJsonStrings(strings);
@@ -528,5 +541,30 @@ public class FileSystem : MonoBehaviour
     }
 
     return output;
+  }
+
+
+  public class StringCompression {
+    // Compresses the input data using GZip
+    public static byte[] Compress(string input)
+    {
+      byte[] byteArray = System.Text.Encoding.UTF8.GetBytes(input);
+
+      using MemoryStream ms = new();
+      using (GZipStream sw = new(ms, CompressionMode.Compress))
+      {
+        sw.Write(byteArray, 0, byteArray.Length);
+      }
+      return ms.ToArray();
+    }
+
+    // Decompresses the input data using GZip
+    public static string Decompress(byte[] compressedData)
+    {
+      using MemoryStream ms = new(compressedData);
+      using GZipStream sr = new(ms, CompressionMode.Decompress);
+      using StreamReader reader = new(sr);
+      return reader.ReadToEnd();
+    }
   }
 }
