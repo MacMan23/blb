@@ -207,26 +207,30 @@ public class TileGrid : MonoBehaviour
   }
 
 
+  // Loads a file with no undoing.
   public void LoadFromJsonStrings(string[] jsonStrings)
   {
     var startTime = DateTime.Now;
 
-    BeginBatch("Load Level", incrementOperationCounter: false);
-
-    ClearGrid(false, false);
+    ForceClearGrid();
+    // Clear old grid to use to store the current level data
+    m_OldGrid.Clear();
 
     var successes = 0;
     var failures = 0;
 
     foreach (var jsonString in jsonStrings)
     {
+      // Create this tile for both the old and new grid.
+      // The new grid will create an object, the old will just have the data.
       try
       {
         var element = JsonUtility.FromJson<Element>(jsonString);
         var index = element.m_GridIndex;
         var state = element.ToState();
 
-        AddRequest(index, state, false, false);
+        m_OldGrid.Add(index, element);
+        CreateTile(index, state, false);
 
         ++successes;
       }
@@ -238,6 +242,10 @@ public class TileGrid : MonoBehaviour
         ++failures;
       }
     }
+
+    RecomputeBounds();
+
+    // Create debug output for amount of successes and failures.
 
     var thingWord = failures == 1 ? "thing" : "things";
     var failString = $"{failures} {thingWord}";
@@ -280,10 +288,6 @@ public class TileGrid : MonoBehaviour
         StatusBar.Print("Loading failed because the level seems to be empty.");
       }
     }
-
-    RecomputeBounds();
-
-    EndBatch(createDialogs: false);
   }
 
 

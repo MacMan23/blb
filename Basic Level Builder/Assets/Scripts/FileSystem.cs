@@ -550,8 +550,9 @@ public class FileSystem : MonoBehaviour {
       byte[] byteArray = System.Text.Encoding.UTF8.GetBytes(input);
 
       using MemoryStream ms = new();
-      using GZipStream sw = new(ms, CompressionMode.Compress);
-      sw.Write(byteArray, 0, byteArray.Length);
+      using (GZipStream sw = new(ms, CompressionMode.Compress)){
+        sw.Write(byteArray, 0, byteArray.Length);
+      }
       return ms.ToArray();
     }
 
@@ -574,7 +575,7 @@ public class FileSystem : MonoBehaviour {
     // If on both, ignore.
     // TODO, redo load to use the new version saving.
     // TODO, redo save to use this to only save the diffrences
-    // TODO, redo loading to be simpler and load to both the new and old grid
+    // TODO, redo loading to be simpler and load to both the new and old grid <--
     // TODO, add are you sure, if you load a level with unsaved changes.
     // TODO, fix area placement taking forever
     // TODO, mount a file on load, and SAVE will save to that file.
