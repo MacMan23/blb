@@ -240,7 +240,7 @@ public class FileSystem : MonoBehaviour {
     }
     else
     {
-      LoadFromCompressedString(text);
+      LoadFromCompressedData(text);
     }
   }
 
@@ -253,7 +253,7 @@ public class FileSystem : MonoBehaviour {
     try
     {
       var jsonStrings = File.ReadAllBytes(fullPath);
-      LoadFromCompressedString(jsonStrings);
+      LoadFromCompressedData(jsonStrings);
     }
     catch (Exception e)
     {
@@ -267,29 +267,28 @@ public class FileSystem : MonoBehaviour {
     if (GlobalData.AreEffectsUnderway())
       return;
 
-    LoadFromCompressedString(level.bytes);
+    LoadFromCompressedData(level.bytes);
   }
 
 
   // Overloaded function to convert a string to a byte array for the decompression in the main function.
-  void LoadFromCompressedString(string CompressedString)
+  void LoadFromCompressedData(string compressedString)
   {
-    if (GlobalData.AreEffectsUnderway())
-      return;
-
-    LoadFromCompressedString(System.Text.Encoding.UTF8.GetBytes(CompressedString));
+    LoadFromCompressedData(System.Text.Encoding.UTF8.GetBytes(compressedString));
+  }
+  // Intermidiatarty load function. Calls the rest of the load functions.
+  void LoadFromCompressedData(byte[] compressedString)
+  {
+    LoadFromJsonStrings(JsonStringsFromCompressedString(compressedString));
   }
 
+
   // Decompresses level data and splits the json lines into an array
-  void LoadFromCompressedString(byte[] CompressedString)
+  protected string[] JsonStringsFromCompressedString(byte[] compressedString)
   {
-    if (GlobalData.AreEffectsUnderway())
-      return;
+    string singleString = StringCompression.Decompress(compressedString);
 
-    string singleString = StringCompression.Decompress(CompressedString);
-
-    var strings = singleString.Split(s_LineSeparator, StringSplitOptions.RemoveEmptyEntries);
-    LoadFromJsonStrings(strings);
+    return singleString.Split(s_LineSeparator, StringSplitOptions.RemoveEmptyEntries);
   }
 
 
@@ -544,17 +543,15 @@ public class FileSystem : MonoBehaviour {
   }
 
 
-  public class StringCompression {
+  protected class StringCompression {
     // Compresses the input data using GZip
     public static byte[] Compress(string input)
     {
       byte[] byteArray = System.Text.Encoding.UTF8.GetBytes(input);
 
       using MemoryStream ms = new();
-      using (GZipStream sw = new(ms, CompressionMode.Compress))
-      {
-        sw.Write(byteArray, 0, byteArray.Length);
-      }
+      using GZipStream sw = new(ms, CompressionMode.Compress);
+      sw.Write(byteArray, 0, byteArray.Length);
       return ms.ToArray();
     }
 
@@ -567,4 +564,59 @@ public class FileSystem : MonoBehaviour {
       return reader.ReadToEnd();
     }
   }
+
+
+  void FindDiff(Dictionary<Vector2Int, TileGrid.Element> currentGrid)
+  {
+    // Loop though both grids in tilegrid (new and old)
+    // If there is a tile in new but not old, add `+ {json}` to changelist
+    // If the is a tile in the old but not new, add `- {json}` to changelist
+    // If on both, ignore.
+    // TODO, redo load to use the new version saving.
+    // TODO, redo save to use this to only save the diffrences
+    // TODO, redo loading to be simpler and load to both the new and old grid
+    // TODO, add are you sure, if you load a level with unsaved changes.
+    // TODO, fix area placement taking forever
+    // TODO, mount a file on load, and SAVE will save to that file.
+    
+    /*
+    foreach (var kvp1 in dictionary1)
+    {
+      Vector2Int position = kvp1.Key;
+      Object obj1 = kvp1.Value;
+
+      // Comment: Only dictionary1 has an element at the vec2 position
+      // Comment: obj1 contains the element in dictionary1
+
+      if (dictionary2.TryGetValue(position, out Object obj2))
+      {
+        // Comment: Both dictionaries have an element at the vec2 position
+        // Comment: obj2 contains the element in dictionary2
+      }
+      else
+      {
+        // Comment: Only dictionary1 has an element at the vec2 position
+        // Comment: obj1 contains the element in dictionary1
+      }
+    }
+
+    foreach (var kvp2 in dictionary2)
+    {
+      Vector2Int position = kvp2.Key;
+      Object obj2 = kvp2.Value;
+
+      if (!dictionary1.ContainsKey(position))
+      {
+        // Comment: Only dictionary2 has an element at the vec2 position
+        // Comment: obj2 contains the element in dictionary2
+      }
+      // Note: No need for a comment when both dictionaries have an element, as it's covered in the first loop
+    }*/
+  }
 }
+
+
+
+
+
+

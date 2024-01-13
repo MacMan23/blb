@@ -15,7 +15,7 @@ public class OperationSystem : MonoBehaviour
   public static bool s_Frozen { get; private set; } = false;
   public static Operation s_MostRecentlyPerformedOperation
   {
-    get { return s_Operations[s_Operations.Count - 1]; }
+    get { return s_Operations[^1]; }
   }
 
   public FileSystem m_FileSystem;
@@ -62,6 +62,13 @@ public class OperationSystem : MonoBehaviour
     }
   }
 
+  public static void ClearOperations()
+  {
+    s_Operations.Clear();
+
+    // reset the index
+    s_StackIndex = 0;
+  }
 
   public void SetAutosaving(bool value)
   {

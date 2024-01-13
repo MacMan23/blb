@@ -61,6 +61,9 @@ public class TileGrid : MonoBehaviour
 
 
   Dictionary<Vector2Int, Element> m_Grid = new Dictionary<Vector2Int, Element>();
+  // The old grid from on level load. This grid won't change with the editor.
+  // This is so we don't have to load the level again when save the changes.
+  Dictionary<Vector2Int, Element> m_OldGrid = new Dictionary<Vector2Int, Element>();
   public Transform m_BoundsRoot;
   public Transform m_MaskTransform;
   public Transform m_ColoredOutlineTransform;
@@ -87,8 +90,6 @@ public class TileGrid : MonoBehaviour
   public Vector3 m_MaxBounds = new Vector3(float.MinValue, float.MinValue, 0);
 
   GameObject m_MostRecentlyCreatedTile;
-  List<Vector2Int> m_BatchedIndices;
-
 
   private void Awake()
   {
@@ -118,9 +119,7 @@ public class TileGrid : MonoBehaviour
 
   public Element Get(Vector2Int index)
   {
-    m_Grid.TryGetValue(index, out Element output);
-
-    if (output == null)
+    if (!m_Grid.TryGetValue(index, out Element output))
     {
       output = new Element
       {
@@ -293,12 +292,13 @@ public class TileGrid : MonoBehaviour
     if (beginAndEndBatch)
       BeginBatch("Clear Grid");
 
-    var count = m_Grid.Count;
-    var indices = new Vector2Int[count];
-    m_Grid.Keys.CopyTo(indices, 0);
-
-    for (var i = 0; i < count; ++i)
-      AddRequest(indices[i], TileType.EMPTY);
+    foreach (var i in m_Grid)
+    {
+      // Record the removal of this tile
+      OperationSystem.AddDelta(i.Value, null);
+      Destroy(i.Value.m_GameObject);
+    }
+    m_Grid.Clear();
 
     if (beginAndEndBatch)
       EndBatch();
@@ -308,40 +308,45 @@ public class TileGrid : MonoBehaviour
   }
 
 
+  // Clears the level and OperationSystem
+  public void ForceClearGrid()
+  {
+    foreach (var i in m_Grid)
+    {
+      Destroy(i.Value.m_GameObject);
+    }
+    m_Grid.Clear();
+
+    RecomputeBounds();
+
+    OperationSystem.ClearOperations();
+  } 
+
+
   public void BeginBatch(string name = "Operation", bool incrementOperationCounter = true)
   {
     if (OperationSystem.s_Frozen)
       return;
 
     OperationSystem.BeginOperation(name, incrementOperationCounter);
-    m_BatchedIndices = new List<Vector2Int>();
   }
 
 
   public void AddRequest(Vector2Int gridIndex, TileType tileType, bool cloning = true,
-    bool checkUniqueness = true, bool recomputeBounds = true)
+    bool recomputeBounds = true)
   {
     var state = new TileState
     {
       Type = tileType
     };
 
-    AddRequest(gridIndex, state, cloning, checkUniqueness, recomputeBounds);
+    AddRequest(gridIndex, state, cloning, recomputeBounds);
   }
 
 
-  public void AddRequest(Vector2Int gridIndex, TileState state, bool cloning = true,
-    bool checkUniqueness = true, bool recomputeBounds = true)
+  public void AddRequest(Vector2Int gridIndex, TileState state, bool cloning = true, 
+    bool recomputeBounds = true)
   {
-    if (checkUniqueness)
-    {
-      var unique = ConfirmUniqueness(gridIndex);
-      if (!unique)
-        return;
-
-      m_BatchedIndices.Add(gridIndex);
-    }
-
     AddRequestHelper(gridIndex, state, cloning, recomputeBounds);
   }
 
@@ -421,8 +426,6 @@ public class TileGrid : MonoBehaviour
 
       return;
     }
-
-    m_BatchedIndices = null;
 
     // now, any modal dialogs that want to be spawned by the most
     // recently placed tile will be pushed onto a stack. as long as
@@ -589,16 +592,6 @@ public class TileGrid : MonoBehaviour
     Destroy(gameObjectToDestroy);
     m_Grid.Remove(index);
   }
-
-
-  bool ConfirmUniqueness(Vector2Int gridIndexToCheck)
-  {
-    foreach (var index in m_BatchedIndices)
-      if (index == gridIndexToCheck)
-        return false;
-
-    return true;
-  }
 }
 
 
@@ -610,9 +603,9 @@ public struct TileState
   public Direction Direction;
   public List<Vector2Int> Path;
 
-  public override bool Equals(object rhsObj)
+  public override readonly bool Equals(object rhsObj)
   {
-    if (!(rhsObj is TileState))
+    if (rhsObj is not TileState)
       return false;
 
     var rhs = (TileState)rhsObj;
@@ -645,7 +638,7 @@ public struct TileState
     return !lhs.Equals(rhs);
   }
 
-  public override int GetHashCode()
+  public override readonly int GetHashCode()
   {
     // the bit pattern:
     // tttttttt tttttttt tttttttt ccccccdd
