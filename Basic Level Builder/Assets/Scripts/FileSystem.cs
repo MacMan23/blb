@@ -574,11 +574,11 @@ public class FileSystem : MonoBehaviour {
     // If the is a tile in the old but not new, add `- {json}` to changelist
     // If on both, ignore.
     // TODO, redo load to use the new version saving.
-    // TODO, redo save to use this to only save the diffrences
-    // TODO, redo loading to be simpler and load to both the new and old grid <--
+    // TODO, redo save to use this to only save the diffrences <--
     // TODO, add are you sure, if you load a level with unsaved changes.
     // TODO, fix area placement taking forever
     // TODO, mount a file on load, and SAVE will save to that file.
+    // TODO, Large level creation and deletion still takes a long time.
     
     /*
     foreach (var kvp1 in dictionary1)

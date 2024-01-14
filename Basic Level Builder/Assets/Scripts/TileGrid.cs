@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 
-public class TileGrid : MonoBehaviour
+public class TileGrid : MonoBehaviour 
 {
   [System.Serializable]
   public class Element
@@ -90,6 +90,7 @@ public class TileGrid : MonoBehaviour
   public Vector3 m_MaxBounds = new Vector3(float.MinValue, float.MinValue, 0);
 
   GameObject m_MostRecentlyCreatedTile;
+  List<Vector2Int> m_BatchedIndices;
 
   private void Awake()
   {
@@ -99,7 +100,7 @@ public class TileGrid : MonoBehaviour
     m_MaxBounds.z = m_GridZ;
 
     m_TilesPalette = FindObjectOfType<TilesPalette>();
-    
+
     m_Mask = m_MaskTransform.GetComponent<SpriteMask>();
     m_ColoredOutlineRenderer = m_ColoredOutlineTransform.GetComponent<SpriteRenderer>();
     m_DarkOutlineRenderer = m_DarkOutlineTransform.GetComponent<SpriteRenderer>();
@@ -324,7 +325,7 @@ public class TileGrid : MonoBehaviour
     RecomputeBounds();
 
     OperationSystem.ClearOperations();
-  } 
+  }
 
 
   public void BeginBatch(string name = "Operation", bool incrementOperationCounter = true)
@@ -333,24 +334,34 @@ public class TileGrid : MonoBehaviour
       return;
 
     OperationSystem.BeginOperation(name, incrementOperationCounter);
+    m_BatchedIndices = new List<Vector2Int>();
   }
 
 
-  public void AddRequest(Vector2Int gridIndex, TileType tileType, bool cloning = true,
-    bool recomputeBounds = true)
+  public void AddRequest(Vector2Int gridIndex, TileType tileType, bool cloning = true, 
+    bool checkUniqueness = true, bool recomputeBounds = true)
   {
     var state = new TileState
     {
-      Type = tileType
+      Type = tileTypem_BatchedIndices = new List<Vector2Int>();
     };
 
-    AddRequest(gridIndex, state, cloning, recomputeBounds);
+    AddRequest(gridIndex, state, cloning, checkUniqueness, recomputeBounds);
   }
 
 
-  public void AddRequest(Vector2Int gridIndex, TileState state, bool cloning = true, 
-    bool recomputeBounds = true)
+  public void AddRequest(Vector2Int gridIndex, TileState state, bool cloning = true,
+    bool checkUniqueness = true, bool recomputeBounds = true)
   {
+    if (checkUniqueness)
+    {
+      var unique = ConfirmUniqueness(gridIndex);
+      if (!unique)
+        return;
+
+      m_BatchedIndices.Add(gridIndex);
+    }
+
     AddRequestHelper(gridIndex, state, cloning, recomputeBounds);
   }
 
@@ -431,6 +442,8 @@ public class TileGrid : MonoBehaviour
       return;
     }
 
+    m_BatchedIndices = null;
+
     // now, any modal dialogs that want to be spawned by the most
     // recently placed tile will be pushed onto a stack. as long as
     // a modal dialog is still up and running, it is free to modify
@@ -499,31 +512,28 @@ public class TileGrid : MonoBehaviour
     //   will be colored with the default color rather than white
     // - tiles being created via undo/redo state enactment will have
     //   their proper color and letter
-    var colorCode = newTile.GetComponent<ColorCode>();
-    if (colorCode != null)
+    if (newTile.TryGetComponent<ColorCode>(out var colorCode))
       colorCode.Set(state.Color);
 
-    var tileDirection = newTile.GetComponent<TileDirection>();
-    if (tileDirection != null)
+    if (newTile.TryGetComponent<TileDirection>(out var tileDirection))
       tileDirection.Set(state.Direction);
 
     if (state.Path != null && state.Path.Count > 0)
     {
       var pathMover = newTile.AddComponent<PathMover>();
       pathMover.Setup(state.Path);
-      var rigidbody = newTile.GetComponent<Rigidbody2D>();
-      if (rigidbody == null)
+
+      if (!newTile.TryGetComponent<Rigidbody2D>(out var rigidbody))
         rigidbody = newTile.AddComponent<Rigidbody2D>();
       rigidbody.isKinematic = true;
-      var collider = newTile.GetComponent<Collider2D>();
-      if (collider != null && !collider.isTrigger)
+
+      if (newTile.TryGetComponent<Collider2D>(out var collider) && !collider.isTrigger)
       {
         newTile.AddComponent<ContactParent>();
       }
     }
 
-    var solidEdgeOutliner = newTile.GetComponent<SolidEdgeOutliner>();
-    if (solidEdgeOutliner != null)
+    if (newTile.TryGetComponent<SolidEdgeOutliner>(out var solidEdgeOutliner))
       solidEdgeOutliner.Setup(gridIndex);
 
     if (!cloning)
@@ -595,6 +605,15 @@ public class TileGrid : MonoBehaviour
     // destroy the old game object and remove the element from the grid
     Destroy(gameObjectToDestroy);
     m_Grid.Remove(index);
+  }
+
+  bool ConfirmUniqueness(Vector2Int gridIndexToCheck)
+  {
+    foreach (var index in m_BatchedIndices)
+      if (index == gridIndexToCheck)
+        return false;
+
+    return true;
   }
 }
 
