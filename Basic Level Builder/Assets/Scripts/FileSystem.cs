@@ -7,8 +7,38 @@ using System.Linq;
 using UnityEngine;
 using System.Runtime.InteropServices;
 using B83.Win32;
+using System.Threading;
 
-public class FileSystem : MonoBehaviour {
+public class MainThreadDispatcher
+{
+  private static readonly object s_LockObject = new object();
+  private Queue<System.Action> m_ActionQueue = new Queue<System.Action>();
+  
+  public void Update()
+  {
+    lock (s_LockObject)
+    {
+      // Execute all queued actions on the main thread
+      while (m_ActionQueue.Count > 0)
+      {
+        System.Action action = m_ActionQueue.Dequeue();
+        action.Invoke();
+      }
+    }
+  }
+
+  public void Enqueue(System.Action action)
+  {
+    lock (s_LockObject)
+    {
+      // Enqueue the action to be executed on the main thread
+      m_ActionQueue.Enqueue(action);
+    }
+  }
+}
+
+public class FileSystem : MonoBehaviour
+{
   readonly static public string s_FilenameExtension = ".blb";
   readonly static public string s_RootDirectoryName = "Basic Level Builder";
   readonly static public string s_DateTimeFormat = "h-mm-ss.ff tt, ddd d MMM yyyy";
@@ -31,6 +61,9 @@ public class FileSystem : MonoBehaviour {
   string m_PendingSaveFullPath = "";
   string m_PendingSaveFileName = "";
 
+  private Thread m_SavingThread;
+  private MainThreadDispatcher m_MainThreadDispatcher = new();
+
   [DllImport("__Internal")]
   private static extern void SyncFiles();
 
@@ -42,6 +75,12 @@ public class FileSystem : MonoBehaviour {
 
     m_OverwriteConfirmationDialogAdder = GetComponent<ModalDialogAdder>();
     SetDirectoryName(m_DefaultDirectoryName);
+  }
+
+  void Update()
+  {
+    // Calls the unity functions that the save thread can not 
+    m_MainThreadDispatcher.Update();
   }
 
 
@@ -91,11 +130,35 @@ public class FileSystem : MonoBehaviour {
     Save(false, name);
   }
 
-
   void Save(bool autosave, string name = null)
   {
     if (GlobalData.AreEffectsUnderway())
       return;
+
+    // If we have a thread running
+    if (m_SavingThread != null && m_SavingThread.IsAlive)
+      return;
+
+    // Copy the map data into a buffer to use for the saving thread.
+    m_TileGrid.CopyGridBuffer();
+
+    // Define parameters for the branched thread function
+    object[] parameters = { autosave, name };
+
+    // Create a new thread and pass the ParameterizedThreadStart delegate
+    m_SavingThread = new Thread(new ParameterizedThreadStart(SaveThread));
+
+    m_SavingThread.Start(parameters);
+  }
+
+  void SaveThread(object threadParameters)
+  {
+    // Extract the parameters from the object array
+    object[] parameters = (object[])threadParameters;
+
+    // Now you can access the parameters
+    bool autosave = (bool)parameters[0];
+    string name = (string)parameters[1];
 
     if (autosave)
     {
@@ -116,14 +179,14 @@ public class FileSystem : MonoBehaviour {
         {
           File.Delete(pathToRemove);
 
-          m_AutosaveList.Remove(itemToRemove);
-          Destroy(oldestAutosave.gameObject);
+          m_MainThreadDispatcher.Enqueue(() => m_AutosaveList.Remove(itemToRemove));
+          m_MainThreadDispatcher.Enqueue(() => Destroy(oldestAutosave.gameObject));
           --m_CurrentAutosaveCount;
         }
         catch (Exception e)
         {
           var errorString = $"Error while deleting old autosave. {e.Message} ({e.GetType()})";
-          StatusBar.Print(errorString);
+          m_MainThreadDispatcher.Enqueue(() => StatusBar.Print(errorString));
           Debug.LogError(errorString);
         }
       }
@@ -171,10 +234,10 @@ public class FileSystem : MonoBehaviour {
       var listToAddTo = autosave ? m_AutosaveList : m_ManualSaveList;
 
       if (overwriting)
-        MoveHistoryItemToTop(listToAddTo, fullPath);
+        m_MainThreadDispatcher.Enqueue(() => MoveHistoryItemToTop(listToAddTo, fullPath));
       else
-        AddHistoryItemForFile(listToAddTo, fullPath);
-
+        m_MainThreadDispatcher.Enqueue(() => AddHistoryItemForFile(listToAddTo, fullPath));
+      
       if (autosave)
         ++m_CurrentAutosaveCount;
 
@@ -196,12 +259,13 @@ public class FileSystem : MonoBehaviour {
       var mainColor = "#ffffff99";
       var fileColor = autosave ? "white" : "yellow";
       var timeColor = "#ffffff66";
-      StatusBar.Print($"<color={mainColor}>Saved</color> <color={fileColor}>{fileName}</color> <color={timeColor}>in {durationStr}</color>");
+      m_MainThreadDispatcher.Enqueue(() => 
+      StatusBar.Print($"<color={mainColor}>Saved</color> <color={fileColor}>{fileName}</color> <color={timeColor}>in {durationStr}</color>"));
     }
     catch (Exception e)
     {
       var errorString = $"Error while saving. {e.Message} ({e.GetType()})";
-      StatusBar.Print(errorString);
+      m_MainThreadDispatcher.Enqueue(() => StatusBar.Print(errorString));
       Debug.LogError(errorString);
     }
   }
@@ -291,7 +355,7 @@ public class FileSystem : MonoBehaviour {
       result = StringCompression.Decompress(json);
     else
       result = System.Text.Encoding.UTF8.GetString(json);
-      LoadFromJsonStrings(JsonStringsFromSingleString(result));
+    LoadFromJsonStrings(JsonStringsFromSingleString(result));
   }
 
 
@@ -553,14 +617,16 @@ public class FileSystem : MonoBehaviour {
   }
 
 
-  protected class StringCompression {
+  protected class StringCompression
+  {
     // Compresses the input data using GZip
     public static byte[] Compress(string input)
     {
       byte[] byteArray = System.Text.Encoding.UTF8.GetBytes(input);
 
       using MemoryStream ms = new();
-      using (GZipStream sw = new(ms, CompressionMode.Compress)){
+      using (GZipStream sw = new(ms, CompressionMode.Compress))
+      {
         sw.Write(byteArray, 0, byteArray.Length);
       }
       return ms.ToArray();
@@ -589,7 +655,8 @@ public class FileSystem : MonoBehaviour {
     // TODO, fix area placement taking forever
     // TODO, mount a file on load, and SAVE will save to that file.
     // TODO, Large level creation and deletion still takes a long time.
-    
+    // TODO, multithreading for saving. If needed.
+
     /*
     foreach (var kvp1 in dictionary1)
     {

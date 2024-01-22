@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using UnityEngine;
 
@@ -61,6 +62,7 @@ public class TileGrid : MonoBehaviour
 
 
   Dictionary<Vector2Int, Element> m_Grid = new Dictionary<Vector2Int, Element>();
+  List<KeyValuePair<Vector2Int, Element>> m_GridSaveBuffer;
   // The old grid from on level load. This grid won't change with the editor.
   // This is so we don't have to load the level again when save the changes.
   Dictionary<Vector2Int, Element> m_OldGrid = new Dictionary<Vector2Int, Element>();
@@ -197,12 +199,17 @@ public class TileGrid : MonoBehaviour
   }
 
 
+  public void CopyGridBuffer()
+  {
+    m_GridSaveBuffer = m_Grid.ToList();
+  }
+
   public string ToJsonString()
   {
     var gridStringBuilder = new StringBuilder();
 
-    foreach (var element in m_Grid.Values)
-      gridStringBuilder.AppendLine(JsonUtility.ToJson(element));
+    foreach (var element in m_GridSaveBuffer)
+      gridStringBuilder.AppendLine(JsonUtility.ToJson(element.Value));
 
     return gridStringBuilder.ToString();
   }
