@@ -13,6 +13,7 @@ public class FileSystem : MonoBehaviour {
   readonly static public string s_RootDirectoryName = "Basic Level Builder";
   readonly static public string s_DateTimeFormat = "h-mm-ss.ff tt, ddd d MMM yyyy";
   readonly static string[] s_LineSeparator = new string[] { Environment.NewLine };
+  readonly static bool s_ShouldCompress = true;
 
   public string m_DefaultDirectoryName = "Default Project";
   public UiHistoryItem m_HistoryItemPrefab;
@@ -159,7 +160,11 @@ public class FileSystem : MonoBehaviour {
 
     try
     {
-      byte[] data = StringCompression.Compress(jsonString);
+      byte[] data;
+      if (s_ShouldCompress)
+        data = StringCompression.Compress(jsonString);
+      else
+        data = System.Text.Encoding.UTF8.GetBytes(jsonString);
 
       File.WriteAllBytes(fullPath, data);
 
@@ -214,6 +219,9 @@ public class FileSystem : MonoBehaviour {
       return;
 
     var jsonString = m_TileGrid.ToJsonString();
+    // If we are useing a compression alg for loading/saving, copy this level as a copressed string
+    if (s_ShouldCompress)
+      jsonString = System.Text.Encoding.UTF8.GetString(StringCompression.Compress(jsonString));
 
     var te = new TextEditor();
     te.text = jsonString;
@@ -240,7 +248,7 @@ public class FileSystem : MonoBehaviour {
     }
     else
     {
-      LoadFromCompressedData(text);
+      LoadFromJson(text);
     }
   }
 
@@ -252,8 +260,7 @@ public class FileSystem : MonoBehaviour {
 
     try
     {
-      var jsonStrings = File.ReadAllBytes(fullPath);
-      LoadFromCompressedData(jsonStrings);
+      LoadFromJson(File.ReadAllBytes(fullPath));
     }
     catch (Exception e)
     {
@@ -267,27 +274,30 @@ public class FileSystem : MonoBehaviour {
     if (GlobalData.AreEffectsUnderway())
       return;
 
-    LoadFromCompressedData(level.bytes);
+    LoadFromJson(level.bytes);
   }
 
 
-  // Overloaded function to convert a string to a byte array for the decompression in the main function.
-  void LoadFromCompressedData(string compressedString)
+  // Overloaded function to convert a string to a byte array for the main function.
+  void LoadFromJson(string json)
   {
-    LoadFromCompressedData(System.Text.Encoding.UTF8.GetBytes(compressedString));
+    LoadFromJson(System.Text.Encoding.UTF8.GetBytes(json));
   }
   // Intermidiatarty load function. Calls the rest of the load functions.
-  void LoadFromCompressedData(byte[] compressedString)
+  void LoadFromJson(byte[] json)
   {
-    LoadFromJsonStrings(JsonStringsFromCompressedString(compressedString));
+    string result;
+    if (s_ShouldCompress)
+      result = StringCompression.Decompress(json);
+    else
+      result = System.Text.Encoding.UTF8.GetString(json);
+      LoadFromJsonStrings(JsonStringsFromSingleString(result));
   }
 
 
-  // Decompresses level data and splits the json lines into an array
-  protected string[] JsonStringsFromCompressedString(byte[] compressedString)
+  // Splits the json lines into an array
+  protected string[] JsonStringsFromSingleString(string singleString)
   {
-    string singleString = StringCompression.Decompress(compressedString);
-
     return singleString.Split(s_LineSeparator, StringSplitOptions.RemoveEmptyEntries);
   }
 

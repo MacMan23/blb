@@ -343,7 +343,7 @@ public class TileGrid : MonoBehaviour
   {
     var state = new TileState
     {
-      Type = tileTypem_BatchedIndices = new List<Vector2Int>();
+      Type = tileType 
     };
 
     AddRequest(gridIndex, state, cloning, checkUniqueness, recomputeBounds);
