@@ -14,7 +14,7 @@ public class MainThreadDispatcher
 {
   private static readonly object s_LockObject = new object();
   private Queue<System.Action> m_ActionQueue = new Queue<System.Action>();
-  
+
   // Runs all the Queued up actions in the list
   // Run in a place where only the main thread is run.
   public void Update()
@@ -64,6 +64,8 @@ public class FileSystem : MonoBehaviour
   int m_CurrentAutosaveCount = 0;
   string m_PendingSaveFullPath = "";
   string m_PendingSaveFileName = "";
+
+  string m_MountedSaveFile = "";
 
   // A thread to run when saving should be performed.
   // Only one save thread is run at once.
@@ -146,27 +148,6 @@ public class FileSystem : MonoBehaviour
     if (m_SavingThread != null && m_SavingThread.IsAlive)
       return;
 
-    // Copy the map data into a buffer to use for the saving thread.
-    m_TileGrid.CopyGridBuffer();
-
-    // Define parameters for the branched thread function
-    object[] parameters = { autosave, name };
-
-    // Create a new thread and pass the ParameterizedThreadStart delegate
-    m_SavingThread = new Thread(new ParameterizedThreadStart(SaveThread));
-
-    m_SavingThread.Start(parameters);
-  }
-
-  void SaveThread(object threadParameters)
-  {
-    // Extract the parameters from the object array
-    object[] parameters = (object[])threadParameters;
-
-    // Access the parameters
-    bool autosave = (bool)parameters[0];
-    string name = (string)parameters[1];
-
     if (autosave)
     {
       // first of all, if m_MaxAutosaveCount <= 0, then no autosaving
@@ -186,14 +167,14 @@ public class FileSystem : MonoBehaviour
         {
           File.Delete(pathToRemove);
 
-          m_MainThreadDispatcher.Enqueue(() => m_AutosaveList.Remove(itemToRemove));
-          m_MainThreadDispatcher.Enqueue(() => Destroy(oldestAutosave.gameObject));
+          m_AutosaveList.Remove(itemToRemove);
+          Destroy(oldestAutosave.gameObject);
           --m_CurrentAutosaveCount;
         }
         catch (Exception e)
         {
           var errorString = $"Error while deleting old autosave. {e.Message} ({e.GetType()})";
-          m_MainThreadDispatcher.Enqueue(() => StatusBar.Print(errorString));
+          StatusBar.Print(errorString);
           Debug.LogError(errorString);
         }
       }
@@ -221,9 +202,32 @@ public class FileSystem : MonoBehaviour
     WriteHelper(m_PendingSaveFullPath, false, m_PendingSaveFileName, true);
   }
 
-
   void WriteHelper(string fullPath, bool autosave, string fileName, bool overwriting)
   {
+    // Copy the map data into a buffer to use for the saving thread.
+    m_TileGrid.CopyGridBuffer();
+
+    // Define parameters for the branched thread function
+    object[] parameters = { fullPath, autosave, fileName, overwriting };
+
+    // Create a new thread and pass the ParameterizedThreadStart delegate
+    m_SavingThread = new Thread(new ParameterizedThreadStart(WriteHelperThread));
+
+    m_SavingThread.Start(parameters);
+  }
+
+  void WriteHelperThread(object threadParameters)
+  {
+    // Extract the parameters from the object array
+    object[] parameters = (object[])threadParameters;
+
+    // Access the parameters
+    string fullPath = (string)parameters[0];
+    bool autosave = (bool)parameters[1];
+    string fileName = (string)parameters[2];
+    bool overwriting = (bool)parameters[3];
+
+
     var startTime = DateTime.Now;
 
     var jsonString = m_TileGrid.ToJsonString();
@@ -244,7 +248,7 @@ public class FileSystem : MonoBehaviour
         m_MainThreadDispatcher.Enqueue(() => MoveHistoryItemToTop(listToAddTo, fullPath));
       else
         m_MainThreadDispatcher.Enqueue(() => AddHistoryItemForFile(listToAddTo, fullPath));
-      
+
       if (autosave)
         ++m_CurrentAutosaveCount;
 
@@ -266,7 +270,7 @@ public class FileSystem : MonoBehaviour
       var mainColor = "#ffffff99";
       var fileColor = autosave ? "white" : "yellow";
       var timeColor = "#ffffff66";
-      m_MainThreadDispatcher.Enqueue(() => 
+      m_MainThreadDispatcher.Enqueue(() =>
       StatusBar.Print($"<color={mainColor}>Saved</color> <color={fileColor}>{fileName}</color> <color={timeColor}>in {durationStr}</color>"));
     }
     catch (Exception e)
@@ -331,10 +335,13 @@ public class FileSystem : MonoBehaviour
 
     try
     {
+      m_MountedSaveFile = fullPath;
       LoadFromJson(File.ReadAllBytes(fullPath));
     }
     catch (Exception e)
     {
+      // File not loaded, remove file mount
+      m_MountedSaveFile = "";
       Debug.LogError($"Error while loading. {e.Message} ({e.GetType()})");
     }
   }
@@ -660,7 +667,7 @@ public class FileSystem : MonoBehaviour
     // TODO, redo save to use this to only save the diffrences <--
     // TODO, add are you sure, if you load a level with unsaved changes.
     // TODO, fix area placement taking forever
-    // TODO, mount a file on load, and SAVE will save to that file.
+    // TODO, mount a file on load, and SAVE will save to that file. <--
     // TODO, Large level creation and deletion still takes a long time.
 
     /*
