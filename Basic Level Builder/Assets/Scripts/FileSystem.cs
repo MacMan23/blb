@@ -9,11 +9,14 @@ using System.Runtime.InteropServices;
 using B83.Win32;
 using System.Threading;
 
+// A list of actions in a queue for use by threads to store unity internal related functions that must be run on the main thread.
 public class MainThreadDispatcher
 {
   private static readonly object s_LockObject = new object();
   private Queue<System.Action> m_ActionQueue = new Queue<System.Action>();
   
+  // Runs all the Queued up actions in the list
+  // Run in a place where only the main thread is run.
   public void Update()
   {
     lock (s_LockObject)
@@ -27,6 +30,7 @@ public class MainThreadDispatcher
     }
   }
 
+  // Add a function call to the queue
   public void Enqueue(System.Action action)
   {
     lock (s_LockObject)
@@ -61,7 +65,10 @@ public class FileSystem : MonoBehaviour
   string m_PendingSaveFullPath = "";
   string m_PendingSaveFileName = "";
 
+  // A thread to run when saving should be performed.
+  // Only one save thread is run at once.
   private Thread m_SavingThread;
+  // A queue of events that the saving thread will enqueue for the main thread
   private MainThreadDispatcher m_MainThreadDispatcher = new();
 
   [DllImport("__Internal")]
@@ -156,7 +163,7 @@ public class FileSystem : MonoBehaviour
     // Extract the parameters from the object array
     object[] parameters = (object[])threadParameters;
 
-    // Now you can access the parameters
+    // Access the parameters
     bool autosave = (bool)parameters[0];
     string name = (string)parameters[1];
 
@@ -655,7 +662,6 @@ public class FileSystem : MonoBehaviour
     // TODO, fix area placement taking forever
     // TODO, mount a file on load, and SAVE will save to that file.
     // TODO, Large level creation and deletion still takes a long time.
-    // TODO, multithreading for saving. If needed.
 
     /*
     foreach (var kvp1 in dictionary1)
