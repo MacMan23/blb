@@ -382,9 +382,6 @@ public class FileSystem : MonoBehaviour
 
   void LoadFromJsonStrings(string[] jsonStrings)
   {
-    if (GlobalData.AreEffectsUnderway())
-      return;
-
     m_TileGrid.LoadFromJsonStrings(jsonStrings);
   }
 
@@ -705,6 +702,8 @@ public class FileSystem : MonoBehaviour
     }*/
   }
 }
+
+
 
 
 
