@@ -9,8 +9,7 @@ using System.Runtime.InteropServices;
 using B83.Win32;
 using System.Threading;
 
-public class FileSystem : MonoBehaviour
-{
+public class FileSystem : MonoBehaviour {
   readonly static public string s_FilenameExtension = ".blb";
   readonly static public string s_RootDirectoryName = "Basic Level Builder";
   readonly static public string s_DateTimeFormat = "h-mm-ss.ff tt, ddd d MMM yyyy";
@@ -147,51 +146,51 @@ public class FileSystem : MonoBehaviour
       }
     }
 
-    #region Create/find the file path
-    var fullPath = m_MountedSaveFilePath;
-    // If we have no mounted save file
-    if (fullPath.Equals(""))
+    string fullPath;
+    // If we are doing a SAVE AS
+    if (name != null)
     {
-      string fileName;
-      // If we are doing a SAVE AS
-      if (name != null)
-        fileName = name + s_FilenameExtension;
-      else
-        fileName = GenerateFileName(autosave);
-      fullPath = Path.Combine(m_CurrentDirectoryPath, fileName);
+      fullPath = Path.Combine(m_CurrentDirectoryPath, name + s_FilenameExtension);
 
-      // Mount the saved file if it is a manual save
-      if (!autosave)
-        m_MountedSaveFilePath = fullPath;
-    }
-    #endregion
+      // Give prompt if we are going to write to and existing file
+      if (File.Exists(fullPath))
+      {
+        m_PendingSaveFullPath = fullPath;
 
-    if (File.Exists(fullPath))
-    {
-      m_PendingSaveFullPath = fullPath;
-
-      m_OverwriteConfirmationDialogAdder.RequestDialogsAtCenterWithStrings(
-        Path.GetFileName(fullPath));
+        m_OverwriteConfirmationDialogAdder.RequestDialogsAtCenterWithStrings(
+          Path.GetFileName(fullPath));
+        return;
+      }
     }
     else
     {
-      WriteHelper(fullPath, autosave, false);
+      // If we have no mounted save file
+      if (m_MountedSaveFilePath.Equals(""))
+        // TODO, put the auto saves into the mounted file
+        fullPath = Path.Combine(m_CurrentDirectoryPath, GenerateFileName(autosave));
+      else
+        fullPath = m_MountedSaveFilePath;
     }
+    // Mount the saved file if it is a manual save
+    if (!autosave)
+      m_MountedSaveFilePath = fullPath;
+
+    WriteHelper(fullPath, autosave);
   }
 
 
   public void ConfirmOverwrite()
   {
-    WriteHelper(m_PendingSaveFullPath, false, true);
+    WriteHelper(m_PendingSaveFullPath, false);
   }
 
-  void WriteHelper(string fullPath, bool autosave, bool overwriting)
+  void WriteHelper(string fullPath, bool autosave)
   {
     // Copy the map data into a buffer to use for the saving thread.
     m_TileGrid.CopyGridBuffer();
 
     // Define parameters for the branched thread function
-    object[] parameters = { fullPath, autosave, overwriting };
+    object[] parameters = { fullPath, autosave };
 
     // Create a new thread and pass the ParameterizedThreadStart delegate
     m_SavingThread = new Thread(new ParameterizedThreadStart(WriteHelperThread));
@@ -207,7 +206,7 @@ public class FileSystem : MonoBehaviour
     // Access the parameters
     string fullPath = (string)parameters[0];
     bool autosave = (bool)parameters[1];
-    bool overwriting = (bool)parameters[3];
+    bool overwriting = File.Exists(fullPath);
 
     var startTime = DateTime.Now;
 
@@ -617,8 +616,7 @@ public class FileSystem : MonoBehaviour
   }
 
 
-  protected class StringCompression
-  {
+  protected class StringCompression {
     // Compresses the input data using GZip
     public static byte[] Compress(string input)
     {
