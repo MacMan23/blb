@@ -231,7 +231,6 @@ public class TileGrid : MonoBehaviour
   public string GetDiffrences()
   {
     StringBuilder diffrences = new();
-    diffrences.AppendLine("+");
 
     bool same;
     foreach (var kvp1 in m_Grid)
