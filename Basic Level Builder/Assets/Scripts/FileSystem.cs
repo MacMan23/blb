@@ -704,55 +704,25 @@ public class FileSystem : MonoBehaviour {
       }
     }
   }
-
-  string FindDiff(Dictionary<Vector2Int, TileGrid.Element> currentGrid, Dictionary<Vector2Int, TileGrid.Element> oldGrid)
-  {
-    // Loop though both grids in tilegrid (new and old)
-    // If there is a tile in new but not old, add `+ {json}` to changelist
-    // If the is a tile in the old but not new, add `- {json}` to changelist
-    // If on both, ignore.
-    // TODO, redo load to use the new version saving.
-    // TODO, redo save to use this to only save the diffrences <--
-    // TODO, add are you sure, if you load a level with unsaved changes.
-    // TODO, fix area placement taking forever
-    // TODO, Large level creation and deletion still takes a long time.
-    // TODO, game exit or file load "Are you sure" when there are unsaved changes or no file is mounted
-    // TODO, store the m_latestLevelVersion when loading a level
-    // TODO, make sure that when the mounted file is set to null, the level version is set to 0
-
-    StringBuilder diffrences = new();
-    diffrences.AppendLine("+");
-
-    bool same;
-    foreach (var kvp1 in currentGrid)
-    {
-      Vector2Int position = kvp1.Key;
-      TileGrid.Element obj1 = kvp1.Value;
-
-      if (oldGrid.TryGetValue(position, out TileGrid.Element obj2))
-      {
-        same = obj1.Equals(obj2);
-
-        // Removed element so we don't check it again in the next loop
-        oldGrid.Remove(position);
-
-        if (same)
-          continue;
-      }
-      diffrences.AppendLine(JsonUtility.ToJson(obj1));
-    }
-
-    diffrences.AppendLine("-");
-
-    // Every tile left in the old grid will be removed
-    foreach (var kvp2 in oldGrid)
-    {
-      diffrences.AppendLine(JsonUtility.ToJson(kvp2.Key));
-    }
-
-    return diffrences.ToString();
-  }
 }
+
+// JSON format
+// @1
+// {data}
+// @2
+// +
+// {added/overwritting blockes}
+// -
+// {0,1} // Tile to remove
+
+// TODO, redo load to use the new version saving. <---
+// TODO, add are you sure, if you load a level with unsaved changes.
+// TODO, fix area placement taking forever
+// TODO, Large level creation and deletion still takes a long time.
+// TODO, game exit or file load "Are you sure" when there are unsaved changes or no file is mounted
+// TODO, store the m_latestLevelVersion when loading a level
+// TODO, make sure that when the mounted file is set to null, the level version is set to 0
+
 
 
 
