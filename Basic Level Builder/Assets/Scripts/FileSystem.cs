@@ -8,7 +8,6 @@ using UnityEngine;
 using System.Runtime.InteropServices;
 using B83.Win32;
 using System.Threading;
-using System.Text;
 
 public class FileSystem : MonoBehaviour {
   readonly static public string s_FilenameExtension = ".blb";
@@ -407,6 +406,131 @@ public class FileSystem : MonoBehaviour {
     m_TileGrid.LoadFromJsonStrings(jsonStrings);
   }
 
+  Dictionary<Vector2Int, TileGrid.Element> FlattenLevelStringToGrid(string[] level)
+  {
+    // JSON format
+    // @1
+    // {data}
+    // @2
+    // {added/overwritting blockes}
+    // -
+    // {0,1} // Tile to remove
+
+    // JSON format
+    // @1 ##:##:## ##/##/##
+    // {data}
+    // @2
+    // {added/overwritting blockes}
+    // -
+    // {0,1} // Tile to remove
+
+    // TODO, Maybe move this error checkign fails/successes into TileGrid LoadFromJsonStrings
+    // TODO, possibly get the level version from here
+    var startTime = DateTime.Now;
+    Dictionary<Vector2Int, TileGrid.Element> tiles = new();
+    var successes = 0;
+    var failures = 0;
+
+    // 0 = add
+    // 1 = add/overwrite
+    // 2 = subtract
+    int readMode = 0;
+
+    foreach (var jsonString in level)
+    {
+      // Start of a new version
+      if (jsonString[0] == '@')
+      {
+        // Start of addition/overwrite mode
+        if (jsonString[1] != '1')
+          readMode = 1;
+        continue;
+      }
+      // Start of subtraction mode
+      else if (jsonString[0] == '-')
+      {
+        readMode = 2;
+        continue;
+      }
+
+      try
+      {
+        // normal add mode
+        if (readMode == 0)
+        {
+          var element = JsonUtility.FromJson<TileGrid.Element>(jsonString);
+          tiles.Add(element.m_GridIndex, element);
+        }
+        // add/overwrite
+        else if (readMode == 1)
+        {
+          var element = JsonUtility.FromJson<TileGrid.Element>(jsonString);
+          tiles[element.m_GridIndex] = element;
+        }
+        // Remove
+        else
+        {
+          tiles.Remove(JsonUtility.FromJson<Vector2Int>(jsonString));
+        }
+
+        ++successes;
+      }
+      catch (System.ArgumentException e)
+      {
+        Debug.LogError($"Failed to parse the line \"{jsonString}\" " +
+          $"as a grid element. {e.Message} ({e.GetType()})");
+
+        ++failures;
+      }
+    }
+
+
+    // Create debug output for amount of successes and failures.
+
+    var thingWord = failures == 1 ? "thing" : "things";
+    var failString = $"{failures} {thingWord}";
+
+    if (successes > 0)
+    {
+      var successWord = successes == 1 ? "success" : "successes";
+      var successString = $"{successes} {successWord}";
+      var additionalString = "";
+
+      if (failures > 0)
+      {
+        additionalString = $" (and {failString} we didn't recognize...)";
+      }
+
+      var duration = DateTime.Now - startTime;
+      var h = duration.Hours; // If this is greater than 0, we got beeg problems
+      var m = duration.Minutes;
+      var s = Math.Round(duration.TotalSeconds % 60.0, 2);
+
+      var durationStr = "";
+      if (h > 0)
+        durationStr += $"{h}h ";
+      if (m > 0)
+        durationStr += $"{m}m ";
+      durationStr += $"{s}s";
+
+      var c = "#ffffff66";
+
+      StatusBar.Print($"Level loaded with {successString}{additionalString} <color={c}>in {durationStr}</color>");
+    }
+    else
+    {
+      if (failures > 0)
+      {
+        StatusBar.Print($"This level seems to be invalid (containing {failString} we didn't recognize).");
+      }
+      else
+      {
+        StatusBar.Print("Loading failed because the level seems to be empty.");
+      }
+    }
+
+    return tiles;
+  }
 
   void SetDirectoryName(string name)
   {
@@ -710,7 +834,6 @@ public class FileSystem : MonoBehaviour {
 // @1
 // {data}
 // @2
-// +
 // {added/overwritting blockes}
 // -
 // {0,1} // Tile to remove
@@ -722,7 +845,7 @@ public class FileSystem : MonoBehaviour {
 // TODO, game exit or file load "Are you sure" when there are unsaved changes or no file is mounted
 // TODO, store the m_latestLevelVersion when loading a level
 // TODO, make sure that when the mounted file is set to null, the level version is set to 0
-
+// TODO, save the file version save time
 
 
 
