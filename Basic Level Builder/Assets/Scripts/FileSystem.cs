@@ -8,6 +8,7 @@ using UnityEngine;
 using System.Runtime.InteropServices;
 using B83.Win32;
 using System.Threading;
+using System.Text;
 
 public class FileSystem : MonoBehaviour {
   readonly static public string s_FilenameExtension = ".blb";
@@ -32,6 +33,7 @@ public class FileSystem : MonoBehaviour {
   string m_PendingSaveFullPath = "";
 
   string m_MountedSaveFilePath = "";
+  int m_latestLevelVersion = 0;
 
   // A thread to run when saving should be performed.
   // Only one save thread is run at once.
@@ -171,9 +173,6 @@ public class FileSystem : MonoBehaviour {
       else
         fullPath = m_MountedSaveFilePath;
     }
-    // Mount the saved file if it is a manual save
-    if (!autosave)
-      m_MountedSaveFilePath = fullPath;
 
     WriteHelper(fullPath, autosave);
   }
@@ -200,6 +199,8 @@ public class FileSystem : MonoBehaviour {
 
   void WriteHelperThread(object threadParameters)
   {
+    var startTime = DateTime.Now;
+
     // Extract the parameters from the object array
     object[] parameters = (object[])threadParameters;
 
@@ -208,9 +209,39 @@ public class FileSystem : MonoBehaviour {
     bool autosave = (bool)parameters[1];
     bool overwriting = File.Exists(fullPath);
 
-    var startTime = DateTime.Now;
 
-    var jsonString = m_TileGrid.ToJsonString();
+
+    #region Add level changes to level data
+    // TODO, Just copying the old level to a new file can be optimized
+    string jsonString;
+
+    string diffrences = m_TileGrid.GetDiffrences();
+    string oldLevel = RawDataToJsonString(File.ReadAllBytes(fullPath));
+
+    // Optimized code
+    // Check if we are writing to a file where we are adding on to our old version with our new additions
+    if ((overwriting || !m_MountedSaveFilePath.Equals("")) && !diffrences.Equals(""))
+    {
+      // Record changes as a new version
+      jsonString = $"{oldLevel}\n@{++m_latestLevelVersion}\n{diffrences}";
+    }
+    else
+    {
+      // We have no new changes so, just copy the file
+      if (!m_MountedSaveFilePath.Equals("") || overwriting)
+      {
+        jsonString = oldLevel;
+      }
+      // We have no history/mounted file
+      else
+      {
+        jsonString = $"@{++m_latestLevelVersion}\n{m_TileGrid.ToJsonString()}";
+      }
+    }
+
+    // Mount to this file
+    m_MountedSaveFilePath = fullPath;
+    #endregion
 
     try
     {
@@ -221,10 +252,6 @@ public class FileSystem : MonoBehaviour {
         data = System.Text.Encoding.UTF8.GetBytes(jsonString);
 
       File.WriteAllBytes(fullPath, data);
-
-      // Check if we have no mounted save
-      if (m_MountedSaveFilePath.Equals(""))
-        m_MountedSaveFilePath = fullPath;
 
       var listToAddTo = autosave ? m_AutosaveList : m_ManualSaveList;
 
@@ -269,6 +296,11 @@ public class FileSystem : MonoBehaviour {
   public void CancelOverwrite()
   {
     m_PendingSaveFullPath = "";
+  }
+
+  int GetLevelVersion(string fullFilePath)
+  {
+    return 0;
   }
 
 
@@ -343,6 +375,13 @@ public class FileSystem : MonoBehaviour {
     LoadFromJson(level.bytes);
   }
 
+  string RawDataToJsonString(byte[] json)
+  {
+    if (s_ShouldCompress)
+      return StringCompression.Decompress(json);
+    else
+      return System.Text.Encoding.UTF8.GetString(json);
+  }
 
   // Overloaded function to convert a string to a byte array for the main function.
   void LoadFromJson(string json)
@@ -352,12 +391,7 @@ public class FileSystem : MonoBehaviour {
   // Intermidiatarty load function. Calls the rest of the load functions.
   void LoadFromJson(byte[] json)
   {
-    string result;
-    if (s_ShouldCompress)
-      result = StringCompression.Decompress(json);
-    else
-      result = System.Text.Encoding.UTF8.GetString(json);
-    LoadFromJsonStrings(JsonStringsFromSingleString(result));
+    LoadFromJsonStrings(JsonStringsFromSingleString(RawDataToJsonString(json)));
   }
 
 
@@ -671,7 +705,7 @@ public class FileSystem : MonoBehaviour {
     }
   }
 
-  void FindDiff(Dictionary<Vector2Int, TileGrid.Element> currentGrid)
+  string FindDiff(Dictionary<Vector2Int, TileGrid.Element> currentGrid, Dictionary<Vector2Int, TileGrid.Element> oldGrid)
   {
     // Loop though both grids in tilegrid (new and old)
     // If there is a tile in new but not old, add `+ {json}` to changelist
@@ -683,40 +717,40 @@ public class FileSystem : MonoBehaviour {
     // TODO, fix area placement taking forever
     // TODO, Large level creation and deletion still takes a long time.
     // TODO, game exit or file load "Are you sure" when there are unsaved changes or no file is mounted
+    // TODO, store the m_latestLevelVersion when loading a level
+    // TODO, make sure that when the mounted file is set to null, the level version is set to 0
 
-    /*
-    foreach (var kvp1 in dictionary1)
+    StringBuilder diffrences = new();
+    diffrences.AppendLine("+");
+
+    bool same;
+    foreach (var kvp1 in currentGrid)
     {
       Vector2Int position = kvp1.Key;
-      Object obj1 = kvp1.Value;
+      TileGrid.Element obj1 = kvp1.Value;
 
-      // Comment: Only dictionary1 has an element at the vec2 position
-      // Comment: obj1 contains the element in dictionary1
+      if (oldGrid.TryGetValue(position, out TileGrid.Element obj2))
+      {
+        same = obj1.Equals(obj2);
 
-      if (dictionary2.TryGetValue(position, out Object obj2))
-      {
-        // Comment: Both dictionaries have an element at the vec2 position
-        // Comment: obj2 contains the element in dictionary2
+        // Removed element so we don't check it again in the next loop
+        oldGrid.Remove(position);
+
+        if (same)
+          continue;
       }
-      else
-      {
-        // Comment: Only dictionary1 has an element at the vec2 position
-        // Comment: obj1 contains the element in dictionary1
-      }
+      diffrences.AppendLine(JsonUtility.ToJson(obj1));
     }
 
-    foreach (var kvp2 in dictionary2)
-    {
-      Vector2Int position = kvp2.Key;
-      Object obj2 = kvp2.Value;
+    diffrences.AppendLine("-");
 
-      if (!dictionary1.ContainsKey(position))
-      {
-        // Comment: Only dictionary2 has an element at the vec2 position
-        // Comment: obj2 contains the element in dictionary2
-      }
-      // Note: No need for a comment when both dictionaries have an element, as it's covered in the first loop
-    }*/
+    // Every tile left in the old grid will be removed
+    foreach (var kvp2 in oldGrid)
+    {
+      diffrences.AppendLine(JsonUtility.ToJson(kvp2.Key));
+    }
+
+    return diffrences.ToString();
   }
 }
 

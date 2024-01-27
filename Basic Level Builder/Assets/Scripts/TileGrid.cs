@@ -38,6 +38,20 @@ public class TileGrid : MonoBehaviour
         tileDirection.m_Element = this;
     }
 
+    public bool Equals(Element other)
+    {
+      if (m_GridIndex != other.m_GridIndex)
+        return false;
+      if (m_Type != other.m_Type)
+        return false;
+      if (m_TileColor != other.m_TileColor)
+        return false;
+      if (m_Direction != other.m_Direction)
+        return false;
+      if (m_Path.SequenceEqual(other.m_Path))
+        return false;
+      return true;
+    }
 
     public TileState ToState()
     {
@@ -214,6 +228,40 @@ public class TileGrid : MonoBehaviour
     return gridStringBuilder.ToString();
   }
 
+  public string GetDiffrences()
+  {
+    StringBuilder diffrences = new();
+    diffrences.AppendLine("+");
+
+    bool same;
+    foreach (var kvp1 in m_Grid)
+    {
+      Vector2Int position = kvp1.Key;
+      TileGrid.Element obj1 = kvp1.Value;
+
+      if (m_OldGrid.TryGetValue(position, out TileGrid.Element obj2))
+      {
+        same = obj1.Equals(obj2);
+
+        // Removed element so we don't check it again in the next loop
+        m_OldGrid.Remove(position);
+
+        if (same)
+          continue;
+      }
+      diffrences.AppendLine(JsonUtility.ToJson(obj1));
+    }
+
+    diffrences.AppendLine("-");
+
+    // Every tile left in the old grid will be removed
+    foreach (var kvp2 in m_OldGrid)
+    {
+      diffrences.AppendLine(JsonUtility.ToJson(kvp2.Key));
+    }
+
+    return diffrences.ToString();
+  }
 
   // Loads a file with no undoing.
   public void LoadFromJsonStrings(string[] jsonStrings)
