@@ -9,38 +9,6 @@ using System.Runtime.InteropServices;
 using B83.Win32;
 using System.Threading;
 
-// A list of actions in a queue for use by threads to store unity internal related functions that must be run on the main thread.
-public class MainThreadDispatcher
-{
-  private static readonly object s_LockObject = new object();
-  private Queue<System.Action> m_ActionQueue = new Queue<System.Action>();
-
-  // Runs all the Queued up actions in the list
-  // Run in a place where only the main thread is run.
-  public void Update()
-  {
-    lock (s_LockObject)
-    {
-      // Execute all queued actions on the main thread
-      while (m_ActionQueue.Count > 0)
-      {
-        System.Action action = m_ActionQueue.Dequeue();
-        action.Invoke();
-      }
-    }
-  }
-
-  // Add a function call to the queue
-  public void Enqueue(System.Action action)
-  {
-    lock (s_LockObject)
-    {
-      // Enqueue the action to be executed on the main thread
-      m_ActionQueue.Enqueue(action);
-    }
-  }
-}
-
 public class FileSystem : MonoBehaviour
 {
   readonly static public string s_FilenameExtension = ".blb";
@@ -63,9 +31,8 @@ public class FileSystem : MonoBehaviour
   string m_CurrentDirectoryPath;
   int m_CurrentAutosaveCount = 0;
   string m_PendingSaveFullPath = "";
-  string m_PendingSaveFileName = "";
 
-  string m_MountedSaveFile = "";
+  string m_MountedSaveFilePath = "";
 
   // A thread to run when saving should be performed.
   // Only one save thread is run at once.
@@ -180,35 +147,51 @@ public class FileSystem : MonoBehaviour
       }
     }
 
-    var fileName = name == null ? GenerateFileName(autosave) : name + s_FilenameExtension;
-    var fullPath = Path.Combine(m_CurrentDirectoryPath, fileName);
+    #region Create/find the file path
+    var fullPath = m_MountedSaveFilePath;
+    // If we have no mounted save file
+    if (fullPath.Equals(""))
+    {
+      string fileName;
+      // If we are doing a SAVE AS
+      if (name != null)
+        fileName = name + s_FilenameExtension;
+      else
+        fileName = GenerateFileName(autosave);
+      fullPath = Path.Combine(m_CurrentDirectoryPath, fileName);
+
+      // Mount the saved file if it is a manual save
+      if (!autosave)
+        m_MountedSaveFilePath = fullPath;
+    }
+    #endregion
 
     if (File.Exists(fullPath))
     {
       m_PendingSaveFullPath = fullPath;
-      m_PendingSaveFileName = fileName;
 
-      m_OverwriteConfirmationDialogAdder.RequestDialogsAtCenterWithStrings(fileName);
+      m_OverwriteConfirmationDialogAdder.RequestDialogsAtCenterWithStrings(
+        Path.GetFileName(fullPath));
     }
     else
     {
-      WriteHelper(fullPath, autosave, fileName, false);
+      WriteHelper(fullPath, autosave, false);
     }
   }
 
 
   public void ConfirmOverwrite()
   {
-    WriteHelper(m_PendingSaveFullPath, false, m_PendingSaveFileName, true);
+    WriteHelper(m_PendingSaveFullPath, false, true);
   }
 
-  void WriteHelper(string fullPath, bool autosave, string fileName, bool overwriting)
+  void WriteHelper(string fullPath, bool autosave, bool overwriting)
   {
     // Copy the map data into a buffer to use for the saving thread.
     m_TileGrid.CopyGridBuffer();
 
     // Define parameters for the branched thread function
-    object[] parameters = { fullPath, autosave, fileName, overwriting };
+    object[] parameters = { fullPath, autosave, overwriting };
 
     // Create a new thread and pass the ParameterizedThreadStart delegate
     m_SavingThread = new Thread(new ParameterizedThreadStart(WriteHelperThread));
@@ -224,9 +207,7 @@ public class FileSystem : MonoBehaviour
     // Access the parameters
     string fullPath = (string)parameters[0];
     bool autosave = (bool)parameters[1];
-    string fileName = (string)parameters[2];
     bool overwriting = (bool)parameters[3];
-
 
     var startTime = DateTime.Now;
 
@@ -241,6 +222,10 @@ public class FileSystem : MonoBehaviour
         data = System.Text.Encoding.UTF8.GetBytes(jsonString);
 
       File.WriteAllBytes(fullPath, data);
+
+      // Check if we have no mounted save
+      if (m_MountedSaveFilePath.Equals(""))
+        m_MountedSaveFilePath = fullPath;
 
       var listToAddTo = autosave ? m_AutosaveList : m_ManualSaveList;
 
@@ -271,7 +256,7 @@ public class FileSystem : MonoBehaviour
       var fileColor = autosave ? "white" : "yellow";
       var timeColor = "#ffffff66";
       m_MainThreadDispatcher.Enqueue(() =>
-      StatusBar.Print($"<color={mainColor}>Saved</color> <color={fileColor}>{fileName}</color> <color={timeColor}>in {durationStr}</color>"));
+      StatusBar.Print($"<color={mainColor}>Saved</color> <color={fileColor}>{Path.GetFileName(fullPath)}</color> <color={timeColor}>in {durationStr}</color>"));
     }
     catch (Exception e)
     {
@@ -323,6 +308,8 @@ public class FileSystem : MonoBehaviour
     }
     else
     {
+      // There is no file loaded from, so mount no files
+      m_MountedSaveFilePath = "";
       LoadFromJson(text);
     }
   }
@@ -335,13 +322,13 @@ public class FileSystem : MonoBehaviour
 
     try
     {
-      m_MountedSaveFile = fullPath;
+      m_MountedSaveFilePath = fullPath;
       LoadFromJson(File.ReadAllBytes(fullPath));
     }
     catch (Exception e)
     {
       // File not loaded, remove file mount
-      m_MountedSaveFile = "";
+      m_MountedSaveFilePath = "";
       Debug.LogError($"Error while loading. {e.Message} ({e.GetType()})");
     }
   }
@@ -352,6 +339,8 @@ public class FileSystem : MonoBehaviour
     if (GlobalData.AreEffectsUnderway())
       return;
 
+    // There is no file loaded from, so mount no files
+    m_MountedSaveFilePath = "";
     LoadFromJson(level.bytes);
   }
 
@@ -653,6 +642,36 @@ public class FileSystem : MonoBehaviour
     }
   }
 
+  // A list of actions in a queue for use by threads to store unity internal related functions that must be run on the main thread.
+  public class MainThreadDispatcher {
+    private static readonly object s_LockObject = new object();
+    private Queue<System.Action> m_ActionQueue = new Queue<System.Action>();
+
+    // Runs all the Queued up actions in the list
+    // Run in a place where only the main thread is run.
+    public void Update()
+    {
+      lock (s_LockObject)
+      {
+        // Execute all queued actions on the main thread
+        while (m_ActionQueue.Count > 0)
+        {
+          System.Action action = m_ActionQueue.Dequeue();
+          action.Invoke();
+        }
+      }
+    }
+
+    // Add a function call to the queue
+    public void Enqueue(System.Action action)
+    {
+      lock (s_LockObject)
+      {
+        // Enqueue the action to be executed on the main thread
+        m_ActionQueue.Enqueue(action);
+      }
+    }
+  }
 
   void FindDiff(Dictionary<Vector2Int, TileGrid.Element> currentGrid)
   {
@@ -664,8 +683,8 @@ public class FileSystem : MonoBehaviour
     // TODO, redo save to use this to only save the diffrences <--
     // TODO, add are you sure, if you load a level with unsaved changes.
     // TODO, fix area placement taking forever
-    // TODO, mount a file on load, and SAVE will save to that file. <--
     // TODO, Large level creation and deletion still takes a long time.
+    // TODO, game exit or file load "Are you sure" when there are unsaved changes or no file is mounted
 
     /*
     foreach (var kvp1 in dictionary1)
