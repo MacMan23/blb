@@ -29,12 +29,10 @@ public class TileGrid : MonoBehaviour
       m_Path = state.Path;
       m_GameObject = gameObject;
 
-      var colorCode = gameObject.GetComponent<ColorCode>();
-      if (colorCode != null)
+      if (gameObject.TryGetComponent<ColorCode>(out var colorCode))
         colorCode.m_Element = this;
 
-      var tileDirection = gameObject.GetComponent<TileDirection>();
-      if (tileDirection != null)
+      if (gameObject.TryGetComponent<TileDirection>(out var tileDirection))
         tileDirection.m_Element = this;
     }
 
@@ -75,11 +73,11 @@ public class TileGrid : MonoBehaviour
   }
 
 
-  Dictionary<Vector2Int, Element> m_Grid = new Dictionary<Vector2Int, Element>();
+  Dictionary<Vector2Int, Element> m_Grid = new();
   List<KeyValuePair<Vector2Int, Element>> m_GridSaveBuffer;
   // The old grid from on level load. This grid won't change with the editor.
   // This is so we don't have to load the level again when save the changes.
-  Dictionary<Vector2Int, Element> m_OldGrid = new Dictionary<Vector2Int, Element>();
+  Dictionary<Vector2Int, Element> m_OldGrid = new();
   public Transform m_BoundsRoot;
   public Transform m_MaskTransform;
   public Transform m_ColoredOutlineTransform;
@@ -89,7 +87,7 @@ public class TileGrid : MonoBehaviour
 
   Transform m_Transform;
 
-  Dictionary<TileType, Transform> m_Roots = new Dictionary<TileType, Transform>();
+  Dictionary<TileType, Transform> m_Roots = new();
 
   TilesPalette m_TilesPalette;
   SpriteMask m_Mask;
@@ -101,9 +99,9 @@ public class TileGrid : MonoBehaviour
   readonly float m_GridZ = 0;
 
   [HideInInspector]
-  public Vector3 m_MinBounds = new Vector3(float.MaxValue, float.MaxValue, 0);
+  public Vector3 m_MinBounds = new(float.MaxValue, float.MaxValue, 0);
   [HideInInspector]
-  public Vector3 m_MaxBounds = new Vector3(float.MinValue, float.MinValue, 0);
+  public Vector3 m_MaxBounds = new(float.MinValue, float.MinValue, 0);
 
   GameObject m_MostRecentlyCreatedTile;
   List<Vector2Int> m_BatchedIndices;
@@ -228,19 +226,22 @@ public class TileGrid : MonoBehaviour
     return gridStringBuilder.ToString();
   }
 
+  // This should only be called once per save, as we are destorying saved data and overwriting it.
   public string GetDiffrences()
   {
     StringBuilder diffrences = new();
 
     bool same;
-    foreach (var kvp1 in m_Grid)
+    Vector2Int position;
+    Element currentElement;
+    foreach (var kvp in m_GridSaveBuffer)
     {
-      Vector2Int position = kvp1.Key;
-      TileGrid.Element obj1 = kvp1.Value;
+      position = kvp.Key;
+      currentElement = kvp.Value;
 
-      if (m_OldGrid.TryGetValue(position, out TileGrid.Element obj2))
+      if (m_OldGrid.TryGetValue(position, out Element oldElement))
       {
-        same = obj1.Equals(obj2);
+        same = currentElement.Equals(oldElement);
 
         // Removed element so we don't check it again in the next loop
         m_OldGrid.Remove(position);
@@ -248,16 +249,19 @@ public class TileGrid : MonoBehaviour
         if (same)
           continue;
       }
-      diffrences.AppendLine(JsonUtility.ToJson(obj1));
+      diffrences.AppendLine(JsonUtility.ToJson(currentElement));
     }
 
     diffrences.AppendLine("-");
 
     // Every tile left in the old grid will be removed
-    foreach (var kvp2 in m_OldGrid)
+    foreach (var kvp in m_OldGrid)
     {
-      diffrences.AppendLine(JsonUtility.ToJson(kvp2.Key));
+      diffrences.AppendLine(JsonUtility.ToJson(kvp.Key));
     }
+
+    // Updates old grid to be the "new" grid
+    m_OldGrid = m_GridSaveBuffer.ToDictionary(pair => pair.Key, pair => pair.Value);
 
     return diffrences.ToString();
   }
@@ -351,11 +355,11 @@ public class TileGrid : MonoBehaviour
     if (beginAndEndBatch)
       BeginBatch("Clear Grid");
 
-    foreach (var i in m_Grid)
+    foreach (var kvp in m_Grid)
     {
       // Record the removal of this tile
-      OperationSystem.AddDelta(i.Value, null);
-      Destroy(i.Value.m_GameObject);
+      OperationSystem.AddDelta(kvp.Value, null);
+      Destroy(kvp.Value.m_GameObject);
     }
     m_Grid.Clear();
 
@@ -370,9 +374,9 @@ public class TileGrid : MonoBehaviour
   // Clears the level and OperationSystem
   public void ForceClearGrid()
   {
-    foreach (var i in m_Grid)
+    foreach (var kvp in m_Grid)
     {
-      Destroy(i.Value.m_GameObject);
+      Destroy(kvp.Value.m_GameObject);
     }
     m_Grid.Clear();
 
@@ -652,8 +656,7 @@ public class TileGrid : MonoBehaviour
 
   void EraseTileHelper(Vector2Int index, GameObject gameObjectToDestroy)
   {
-    var solidEdgeOutliner = gameObjectToDestroy.GetComponent<SolidEdgeOutliner>();
-    if (solidEdgeOutliner != null)
+    if (gameObjectToDestroy.TryGetComponent<SolidEdgeOutliner>(out var solidEdgeOutliner))
       solidEdgeOutliner.Erase(index);
 
     // destroy the old game object and remove the element from the grid

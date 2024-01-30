@@ -8,8 +8,10 @@ using UnityEngine;
 using System.Runtime.InteropServices;
 using B83.Win32;
 using System.Threading;
+using UnityEditor.PackageManager;
 
-public class FileSystem : MonoBehaviour {
+public class FileSystem : MonoBehaviour
+{
   readonly static public string s_FilenameExtension = ".blb";
   readonly static public string s_RootDirectoryName = "Basic Level Builder";
   readonly static public string s_DateTimeFormat = "h-mm-ss.ff tt, ddd d MMM yyyy";
@@ -74,6 +76,16 @@ public class FileSystem : MonoBehaviour {
     m_DragAndDropHook.OnDroppedFiles -= OnDroppedFiles;
   }
 
+  void UnloadMountedFile()
+  {
+    m_MountedSaveFilePath = "";
+    m_latestLevelVersion = 0;
+  }
+
+  bool IsFileMounted()
+  {
+    return IsFileMounted();
+  }
 
   void OnDroppedFiles(List<string> paths, POINT dropPoint)
   {
@@ -211,46 +223,81 @@ public class FileSystem : MonoBehaviour {
 
 
     #region Add level changes to level data
-    // TODO, Just copying the old level to a new file can be optimized
-    string jsonString;
+    // Edge cases
+    // #: Overwriting, MountedFile, Diffrences, Saving to mounted file
+    // 1: 1, 0, 0, 0 (Save as; we are writing to an existing file, yet we have no mounted file. Thus we just save our editor level) [TileGrid]
+    // 2: 1, 1, 0, 0 (Overwrite save to our mounted file or another file. No changes, so just copy our file over) [File copy]
+    // 3: 1, 1, 1, 0 (Overwrite save to our mounted file or another file. Add changes to mounted file string) [oldSave + diff] or [File copy + diff]
+    // 4: 0, 1, 0, 0 (Save as; Copy our mounted file to a new file) [File copy]
+    // 5: 0, 1, 1, 0 (Save as; Copy our level with the diffrences added to a new file) [oldSave + diff] or [File copy + diff]
+    // 6: 0, 0, 0, 0 (Save as; Write editor level to file) [TileGrid]
+    // 7: 1, 0, 0, 1 (Not possible. We can't write to a mounted file if it isn't mounted) [error]
+    // 8: 1, 1, 0, 1 (Skip, We are saving to our own file, yet we have no diffrences) [return]
+    // 9: 1, 1, 1, 1 (Save to our file with the diffrences) [oldSave + diff]
+    // We can't have diffrences if we don't have a mounted file
+    // We can only save to the mounted file if the file exist, meaning overwriting is true.
 
-    string diffrences = m_TileGrid.GetDiffrences();
-    string oldLevel = RawDataToJsonString(File.ReadAllBytes(fullPath));
+    // Cases by result
+    // [TileGrid] - #1,6
+    // [File copy] - #2,4
+    // [oldSave + diff] or [File copy + diff] - #3,5,9
+    // [oldSave + diff] - #9
+    // [error] - #7
+    // [return] - #8
 
-    // Optimized code
-    // Check if we are writing to a file where we are adding on to our old version with our new additions
-    if ((overwriting || !m_MountedSaveFilePath.Equals("")) && !diffrences.Equals(""))
+    bool copyFile = false;
+    string jsonString = "";
+    if (IsFileMounted())
     {
-      // Record changes as a new version
-      jsonString = $"{oldLevel}\n@{++m_latestLevelVersion}\n{diffrences}";
+      string diffrences = m_TileGrid.GetDiffrences();
+      if (diffrences.Equals(""))
+      {
+        if (overwriting && fullPath.Equals(m_MountedSaveFilePath))
+          return; // #8
+      }
+      else
+      {
+        if (!overwriting || !fullPath.Equals(m_MountedSaveFilePath))
+        {
+          // #2,4
+          copyFile = true;
+          return;
+        }
+        else
+        {
+          // #3,9,5
+          string oldLevel = RawDataToJsonString(File.ReadAllBytes(m_MountedSaveFilePath));
+          jsonString = $"{oldLevel}\n@{++m_latestLevelVersion}\n{diffrences}";
+        }
+      }
     }
     else
     {
-      // We have no new changes so, just copy the file
-      if (!m_MountedSaveFilePath.Equals("") || overwriting)
-      {
-        jsonString = oldLevel;
-      }
-      // We have no history/mounted file
-      else
-      {
-        jsonString = $"@{++m_latestLevelVersion}\n{m_TileGrid.ToJsonString()}";
-      }
+      // #1,6
+      jsonString = $"@{++m_latestLevelVersion}\n{m_TileGrid.ToJsonString()}";
     }
 
     // Mount to this file
     m_MountedSaveFilePath = fullPath;
     #endregion
 
+
     try
     {
-      byte[] data;
-      if (s_ShouldCompress)
-        data = StringCompression.Compress(jsonString);
+      if (copyFile)
+      {
+        File.Copy(m_MountedSaveFilePath, fullPath, true);
+      }
       else
-        data = System.Text.Encoding.UTF8.GetBytes(jsonString);
+      {
+        byte[] data;
+        if (s_ShouldCompress)
+          data = StringCompression.Compress(jsonString);
+        else
+          data = System.Text.Encoding.UTF8.GetBytes(jsonString);
 
-      File.WriteAllBytes(fullPath, data);
+        File.WriteAllBytes(fullPath, data);
+      }
 
       var listToAddTo = autosave ? m_AutosaveList : m_ManualSaveList;
 
@@ -291,18 +338,14 @@ public class FileSystem : MonoBehaviour {
     }
   }
 
-
   public void CancelOverwrite()
   {
     m_PendingSaveFullPath = "";
   }
 
-  int GetLevelVersion(string fullFilePath)
-  {
-    return 0;
-  }
-
-
+  // Deprecated for now untill real use is found.
+  // Will need update for save versioning.
+  [Obsolete]
   public void CopyToClipboard()
   {
     if (GlobalData.AreEffectsUnderway())
@@ -322,6 +365,9 @@ public class FileSystem : MonoBehaviour {
   }
 
 
+  // Deprecated for now untill real use is found.
+  // Will need update for save versioning.
+  [Obsolete]
   public void LoadFromClipboard()
   {
     if (GlobalData.AreEffectsUnderway())
@@ -338,8 +384,6 @@ public class FileSystem : MonoBehaviour {
     }
     else
     {
-      // There is no file loaded from, so mount no files
-      m_MountedSaveFilePath = "";
       LoadFromJson(text);
     }
   }
@@ -358,7 +402,7 @@ public class FileSystem : MonoBehaviour {
     catch (Exception e)
     {
       // File not loaded, remove file mount
-      m_MountedSaveFilePath = "";
+      UnloadMountedFile();
       Debug.LogError($"Error while loading. {e.Message} ({e.GetType()})");
     }
   }
@@ -370,7 +414,7 @@ public class FileSystem : MonoBehaviour {
       return;
 
     // There is no file loaded from, so mount no files
-    m_MountedSaveFilePath = "";
+    UnloadMountedFile();
     LoadFromJson(level.bytes);
   }
 
@@ -412,15 +456,7 @@ public class FileSystem : MonoBehaviour {
     // @1
     // {data}
     // @2
-    // {added/overwritting blockes}
-    // -
-    // {0,1} // Tile to remove
-
-    // JSON format
-    // @1 ##:##:## ##/##/##
-    // {data}
-    // @2
-    // {added/overwritting blockes}
+    // {added/overwritting blocks}
     // -
     // {0,1} // Tile to remove
 
@@ -431,43 +467,32 @@ public class FileSystem : MonoBehaviour {
     var successes = 0;
     var failures = 0;
 
-    // 0 = add
-    // 1 = add/overwrite
-    // 2 = subtract
-    int readMode = 0;
+    bool addTiles = true;
 
     foreach (var jsonString in level)
     {
       // Start of a new version
       if (jsonString[0] == '@')
       {
-        // Start of addition/overwrite mode
-        if (jsonString[1] != '1')
-          readMode = 1;
+        addTiles = true;
         continue;
       }
       // Start of subtraction mode
       else if (jsonString[0] == '-')
       {
-        readMode = 2;
+        addTiles = false;
         continue;
       }
 
       try
       {
-        // normal add mode
-        if (readMode == 0)
-        {
-          var element = JsonUtility.FromJson<TileGrid.Element>(jsonString);
-          tiles.Add(element.m_GridIndex, element);
-        }
-        // add/overwrite
-        else if (readMode == 1)
+        // Add/Overwrite tiles
+        if (addTiles)
         {
           var element = JsonUtility.FromJson<TileGrid.Element>(jsonString);
           tiles[element.m_GridIndex] = element;
         }
-        // Remove
+        // Remove tiles
         else
         {
           tiles.Remove(JsonUtility.FromJson<Vector2Int>(jsonString));
@@ -774,7 +799,8 @@ public class FileSystem : MonoBehaviour {
   }
 
 
-  protected class StringCompression {
+  protected class StringCompression
+  {
     // Compresses the input data using GZip
     public static byte[] Compress(string input)
     {
@@ -799,7 +825,8 @@ public class FileSystem : MonoBehaviour {
   }
 
   // A list of actions in a queue for use by threads to store unity internal related functions that must be run on the main thread.
-  public class MainThreadDispatcher {
+  public class MainThreadDispatcher
+  {
     private static readonly object s_LockObject = new object();
     private Queue<System.Action> m_ActionQueue = new Queue<System.Action>();
 
@@ -831,10 +858,10 @@ public class FileSystem : MonoBehaviour {
 }
 
 // JSON format
-// @1
+// @1 ##:##:## ##/##/##
 // {data}
 // @2
-// {added/overwritting blockes}
+// {added/overwritting blocks}
 // -
 // {0,1} // Tile to remove
 
