@@ -8,7 +8,6 @@ using UnityEngine;
 using System.Runtime.InteropServices;
 using B83.Win32;
 using System.Threading;
-using UnityEditor.PackageManager;
 
 public class FileSystem : MonoBehaviour
 {
@@ -76,15 +75,20 @@ public class FileSystem : MonoBehaviour
     m_DragAndDropHook.OnDroppedFiles -= OnDroppedFiles;
   }
 
-  void UnloadMountedFile()
+  void UnmountFile()
   {
     m_MountedSaveFilePath = "";
     m_latestLevelVersion = 0;
   }
 
+  void MountFile(string filepath)
+  {
+    m_MountedSaveFilePath = filepath;
+  }
+
   bool IsFileMounted()
   {
-    return IsFileMounted();
+    return !String.IsNullOrEmpty(m_MountedSaveFilePath);
   }
 
   void OnDroppedFiles(List<string> paths, POINT dropPoint)
@@ -177,12 +181,11 @@ public class FileSystem : MonoBehaviour
     }
     else
     {
-      // If we have no mounted save file
-      if (m_MountedSaveFilePath.Equals(""))
+      if (IsFileMounted())
+        fullPath = m_MountedSaveFilePath;
+      else
         // TODO, put the auto saves into the mounted file
         fullPath = Path.Combine(m_CurrentDirectoryPath, GenerateFileName(autosave));
-      else
-        fullPath = m_MountedSaveFilePath;
     }
 
     WriteHelper(fullPath, autosave);
@@ -231,29 +234,27 @@ public class FileSystem : MonoBehaviour
     // 4: 0, 1, 0, 0 (Save as; Copy our mounted file to a new file) [File copy]
     // 5: 0, 1, 1, 0 (Save as; Copy our level with the diffrences added to a new file) [oldSave + diff] or [File copy + diff]
     // 6: 0, 0, 0, 0 (Save as; Write editor level to file) [TileGrid]
-    // 7: 1, 0, 0, 1 (Not possible. We can't write to a mounted file if it isn't mounted) [error]
-    // 8: 1, 1, 0, 1 (Skip, We are saving to our own file, yet we have no diffrences) [return]
-    // 9: 1, 1, 1, 1 (Save to our file with the diffrences) [oldSave + diff]
+    // 7: 1, 1, 0, 1 (Skip, We are saving to our own file, yet we have no diffrences) [return]
+    // 8: 1, 1, 1, 1 (Save to our file with the diffrences) [oldSave + diff]
     // We can't have diffrences if we don't have a mounted file
     // We can only save to the mounted file if the file exist, meaning overwriting is true.
+    // We can't save to the mounted file if we have no mounted file
 
     // Cases by result
     // [TileGrid] - #1,6
     // [File copy] - #2,4
-    // [oldSave + diff] or [File copy + diff] - #3,5,9
-    // [oldSave + diff] - #9
-    // [error] - #7
-    // [return] - #8
+    // [oldSave + diff] - #3,5,8
+    // [return] - #7
 
     bool copyFile = false;
     string jsonString = "";
     if (IsFileMounted())
     {
       string diffrences = m_TileGrid.GetDiffrences();
-      if (diffrences.Equals(""))
+      if (String.IsNullOrEmpty(diffrences))
       {
         if (overwriting && fullPath.Equals(m_MountedSaveFilePath))
-          return; // #8
+          return; // #7
       }
       else
       {
@@ -261,11 +262,10 @@ public class FileSystem : MonoBehaviour
         {
           // #2,4
           copyFile = true;
-          return;
         }
         else
         {
-          // #3,9,5
+          // #3,8,5
           string oldLevel = RawDataToJsonString(File.ReadAllBytes(m_MountedSaveFilePath));
           jsonString = $"{oldLevel}\n@{++m_latestLevelVersion}\n{diffrences}";
         }
@@ -277,8 +277,7 @@ public class FileSystem : MonoBehaviour
       jsonString = $"@{++m_latestLevelVersion}\n{m_TileGrid.ToJsonString()}";
     }
 
-    // Mount to this file
-    m_MountedSaveFilePath = fullPath;
+    MountFile(fullPath);
     #endregion
 
 
@@ -356,7 +355,7 @@ public class FileSystem : MonoBehaviour
     if (s_ShouldCompress)
       jsonString = System.Text.Encoding.UTF8.GetString(StringCompression.Compress(jsonString));
 
-    var te = new TextEditor();
+    TextEditor te = new();
     te.text = jsonString;
     te.SelectAll();
     te.Copy();
@@ -396,13 +395,13 @@ public class FileSystem : MonoBehaviour
 
     try
     {
-      m_MountedSaveFilePath = fullPath;
+      MountFile(fullPath);
       LoadFromJson(File.ReadAllBytes(fullPath));
     }
     catch (Exception e)
     {
       // File not loaded, remove file mount
-      UnloadMountedFile();
+      UnmountFile();
       Debug.LogError($"Error while loading. {e.Message} ({e.GetType()})");
     }
   }
@@ -414,7 +413,7 @@ public class FileSystem : MonoBehaviour
       return;
 
     // There is no file loaded from, so mount no files
-    UnloadMountedFile();
+    UnmountFile();
     LoadFromJson(level.bytes);
   }
 

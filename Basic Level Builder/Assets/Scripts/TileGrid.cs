@@ -231,17 +231,14 @@ public class TileGrid : MonoBehaviour
   {
     StringBuilder diffrences = new();
 
-    bool same;
-    Vector2Int position;
-    Element currentElement;
     foreach (var kvp in m_GridSaveBuffer)
     {
-      position = kvp.Key;
-      currentElement = kvp.Value;
+      Vector2Int position = kvp.Key;
+      Element currentElement = kvp.Value;
 
       if (m_OldGrid.TryGetValue(position, out Element oldElement))
       {
-        same = currentElement.Equals(oldElement);
+        bool same = currentElement.Equals(oldElement);
 
         // Removed element so we don't check it again in the next loop
         m_OldGrid.Remove(position);
