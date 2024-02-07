@@ -8,7 +8,7 @@ using UnityEngine;
 using System.Runtime.InteropServices;
 using B83.Win32;
 using System.Threading;
-using UnityEditor.PackageManager;
+using System.Text.RegularExpressions;
 
 public class FileSystem : MonoBehaviour
 {
@@ -16,7 +16,7 @@ public class FileSystem : MonoBehaviour
   readonly static public string s_RootDirectoryName = "Basic Level Builder";
   readonly static public string s_DateTimeFormat = "h-mm-ss.ff tt, ddd d MMM yyyy";
   readonly static string[] s_LineSeparator = new string[] { Environment.NewLine };
-  readonly static bool s_ShouldCompress = true;
+  readonly static bool s_ShouldCompress = false;
 
   public string m_DefaultDirectoryName = "Default Project";
   public UiHistoryItem m_HistoryItemPrefab;
@@ -76,15 +76,41 @@ public class FileSystem : MonoBehaviour
     m_DragAndDropHook.OnDroppedFiles -= OnDroppedFiles;
   }
 
-  void UnloadMountedFile()
+  // Check if any file got deleted when we were off the game
+  private void OnApplicationFocus(bool focus)
+  {
+    if (focus)
+    {
+      if (IsFileMounted() && !File.Exists(m_MountedSaveFilePath))
+      {
+        var errorString = $"Error: File with path \"{m_MountedSaveFilePath}\" could not be found." + Environment.NewLine +
+               "Loaded level has been saved with the same name.";
+        StatusBar.Print(errorString);
+        Debug.LogWarning(errorString);
+        var tempPath = Path.GetFileNameWithoutExtension(m_MountedSaveFilePath);
+        UnmountFile();
+        SaveAs(tempPath);
+      }
+
+      m_ManualSaveList.ValidateAllItems();
+      m_AutosaveList.ValidateAllItems();
+    }
+  }
+
+  void UnmountFile()
   {
     m_MountedSaveFilePath = "";
     m_latestLevelVersion = 0;
   }
 
+  void MountFile(string filepath)
+  {
+    m_MountedSaveFilePath = filepath;
+  }
+
   bool IsFileMounted()
   {
-    return IsFileMounted();
+    return !String.IsNullOrEmpty(m_MountedSaveFilePath);
   }
 
   void OnDroppedFiles(List<string> paths, POINT dropPoint)
@@ -159,7 +185,7 @@ public class FileSystem : MonoBehaviour
       }
     }
 
-    string fullPath;
+    string fullPath = "";
     // If we are doing a SAVE AS
     if (name != null)
     {
@@ -177,12 +203,29 @@ public class FileSystem : MonoBehaviour
     }
     else
     {
-      // If we have no mounted save file
-      if (m_MountedSaveFilePath.Equals(""))
+      if (IsFileMounted())
+      {
+        if (File.Exists(m_MountedSaveFilePath))
+        {
+          fullPath = m_MountedSaveFilePath;
+        }
+        else
+        {
+          // Because of the file validation on application focus, this SHOULD never happen.
+          // But to be save incase the file is deleted while playing the game, do this
+          // TODO, get this error to overwrite or concat with the saved message
+          var errorString = $"Error: File with path \"{m_MountedSaveFilePath}\" could not be found." + Environment.NewLine +
+            "A new file has been made for this save.";
+          StatusBar.Print(errorString);
+          Debug.LogWarning(errorString);
+          RemoveHistoryItem(m_ManualSaveList, m_MountedSaveFilePath);
+          UnmountFile();
+        }
+      }
+
+      if (!IsFileMounted() || !File.Exists(m_MountedSaveFilePath))
         // TODO, put the auto saves into the mounted file
         fullPath = Path.Combine(m_CurrentDirectoryPath, GenerateFileName(autosave));
-      else
-        fullPath = m_MountedSaveFilePath;
     }
 
     WriteHelper(fullPath, autosave);
@@ -227,58 +270,53 @@ public class FileSystem : MonoBehaviour
     // #: Overwriting, MountedFile, Diffrences, Saving to mounted file
     // 1: 1, 0, 0, 0 (Save as; we are writing to an existing file, yet we have no mounted file. Thus we just save our editor level) [TileGrid]
     // 2: 1, 1, 0, 0 (Overwrite save to our mounted file or another file. No changes, so just copy our file over) [File copy]
-    // 3: 1, 1, 1, 0 (Overwrite save to our mounted file or another file. Add changes to mounted file string) [oldSave + diff] or [File copy + diff]
+    // 3: 1, 1, 1, 0 (Overwrite save to our mounted file or another file. Add changes to mounted file string) [oldSave + diff]
     // 4: 0, 1, 0, 0 (Save as; Copy our mounted file to a new file) [File copy]
-    // 5: 0, 1, 1, 0 (Save as; Copy our level with the diffrences added to a new file) [oldSave + diff] or [File copy + diff]
+    // 5: 0, 1, 1, 0 (Save as; Copy our level with the diffrences added to a new file) [oldSave + diff]
     // 6: 0, 0, 0, 0 (Save as; Write editor level to file) [TileGrid]
-    // 7: 1, 0, 0, 1 (Not possible. We can't write to a mounted file if it isn't mounted) [error]
-    // 8: 1, 1, 0, 1 (Skip, We are saving to our own file, yet we have no diffrences) [return]
-    // 9: 1, 1, 1, 1 (Save to our file with the diffrences) [oldSave + diff]
+    // 7: 1, 1, 0, 1 (Skip, We are saving to our own file, yet we have no diffrences) [return]
+    // 8: 1, 1, 1, 1 (Save to our file with the diffrences) [oldSave + diff]
     // We can't have diffrences if we don't have a mounted file
     // We can only save to the mounted file if the file exist, meaning overwriting is true.
+    // We can't save to the mounted file if we have no mounted file
 
-    // Cases by result
-    // [TileGrid] - #1,6
-    // [File copy] - #2,4
-    // [oldSave + diff] or [File copy + diff] - #3,5,9
-    // [oldSave + diff] - #9
-    // [error] - #7
-    // [return] - #8
-
+    // If we will be copying the mounted file over to a diffrent file
     bool copyFile = false;
-    string jsonString = "";
+    string fileData = "";
+    string diffrences = m_TileGrid.GetDiffrences();
+
+    // If we are writting to our own file yet we have no changes, skip the save
+    if (overwriting && IsFileMounted() && fullPath.Equals(m_MountedSaveFilePath) && String.IsNullOrEmpty(diffrences))
+    {
+      // #7
+      return;
+    }
+
     if (IsFileMounted())
     {
-      string diffrences = m_TileGrid.GetDiffrences();
-      if (diffrences.Equals(""))
+      if (String.IsNullOrEmpty(diffrences))
       {
-        if (overwriting && fullPath.Equals(m_MountedSaveFilePath))
-          return; // #8
+        // #2, 4
+        // We have no changes to write, but we are writting to some file that isn't our own
+        // So just copy our file to the destination file
+        copyFile = true;
       }
       else
       {
-        if (!overwriting || !fullPath.Equals(m_MountedSaveFilePath))
-        {
-          // #2,4
-          copyFile = true;
-          return;
-        }
-        else
-        {
-          // #3,9,5
-          string oldLevel = RawDataToJsonString(File.ReadAllBytes(m_MountedSaveFilePath));
-          jsonString = $"{oldLevel}\n@{++m_latestLevelVersion}\n{diffrences}";
-        }
+        // #3, 5, 8
+        // We have changes to add to any file
+        // Add the changes to the old data and pass to file for writing/overwriting
+        string oldLevel = RawDataToJsonString(File.ReadAllBytes(m_MountedSaveFilePath));
+        fileData = $"{oldLevel}@{++m_latestLevelVersion}" + Environment.NewLine + $"{diffrences}";
       }
     }
     else
     {
-      // #1,6
-      jsonString = $"@{++m_latestLevelVersion}\n{m_TileGrid.ToJsonString()}";
+      // #6, 1
+      // We a writing to some file for the first time
+      // Write the initial level data to the file
+      fileData = $"@{++m_latestLevelVersion}" + Environment.NewLine + $"{m_TileGrid.ToJsonString()}";
     }
-
-    // Mount to this file
-    m_MountedSaveFilePath = fullPath;
     #endregion
 
 
@@ -292,12 +330,14 @@ public class FileSystem : MonoBehaviour
       {
         byte[] data;
         if (s_ShouldCompress)
-          data = StringCompression.Compress(jsonString);
+          data = StringCompression.Compress(fileData);
         else
-          data = System.Text.Encoding.UTF8.GetBytes(jsonString);
+          data = System.Text.Encoding.UTF8.GetBytes(fileData);
 
         File.WriteAllBytes(fullPath, data);
       }
+
+      MountFile(fullPath);
 
       var listToAddTo = autosave ? m_AutosaveList : m_ManualSaveList;
 
@@ -356,7 +396,7 @@ public class FileSystem : MonoBehaviour
     if (s_ShouldCompress)
       jsonString = System.Text.Encoding.UTF8.GetString(StringCompression.Compress(jsonString));
 
-    var te = new TextEditor();
+    TextEditor te = new();
     te.text = jsonString;
     te.SelectAll();
     te.Copy();
@@ -396,13 +436,13 @@ public class FileSystem : MonoBehaviour
 
     try
     {
-      m_MountedSaveFilePath = fullPath;
+      MountFile(fullPath);
       LoadFromJson(File.ReadAllBytes(fullPath));
     }
     catch (Exception e)
     {
       // File not loaded, remove file mount
-      UnloadMountedFile();
+      UnmountFile();
       Debug.LogError($"Error while loading. {e.Message} ({e.GetType()})");
     }
   }
@@ -414,7 +454,7 @@ public class FileSystem : MonoBehaviour
       return;
 
     // There is no file loaded from, so mount no files
-    UnloadMountedFile();
+    UnmountFile();
     LoadFromJson(level.bytes);
   }
 
@@ -447,7 +487,8 @@ public class FileSystem : MonoBehaviour
 
   void LoadFromJsonStrings(string[] jsonStrings)
   {
-    m_TileGrid.LoadFromJsonStrings(jsonStrings);
+    //m_TileGrid.LoadFromJsonStrings(jsonStrings);
+    m_TileGrid.LoadFromDictonary(FlattenLevelStringToGrid(jsonStrings));
   }
 
   Dictionary<Vector2Int, TileGrid.Element> FlattenLevelStringToGrid(string[] level)
@@ -461,33 +502,34 @@ public class FileSystem : MonoBehaviour
     // {0,1} // Tile to remove
 
     // TODO, Maybe move this error checkign fails/successes into TileGrid LoadFromJsonStrings
-    // TODO, possibly get the level version from here
     var startTime = DateTime.Now;
-    Dictionary<Vector2Int, TileGrid.Element> tiles = new();
     var successes = 0;
     var failures = 0;
 
-    bool addTiles = true;
+    Dictionary<Vector2Int, TileGrid.Element> tiles = new();
+
+    bool addTilesMode = true;
 
     foreach (var jsonString in level)
     {
-      // Start of a new version
-      if (jsonString[0] == '@')
-      {
-        addTiles = true;
-        continue;
-      }
-      // Start of subtraction mode
-      else if (jsonString[0] == '-')
-      {
-        addTiles = false;
-        continue;
-      }
-
       try
       {
+        // Start of a new version
+        if (jsonString[0] == '@')
+        {
+          addTilesMode = true;
+          m_latestLevelVersion = int.Parse(jsonString.Substring(1));
+          continue;
+        }
+        // Start of subtraction mode
+        else if (jsonString[0] == '-')
+        {
+          addTilesMode = false;
+          continue;
+        }
+
         // Add/Overwrite tiles
-        if (addTiles)
+        if (addTilesMode)
         {
           var element = JsonUtility.FromJson<TileGrid.Element>(jsonString);
           tiles[element.m_GridIndex] = element;
@@ -495,7 +537,7 @@ public class FileSystem : MonoBehaviour
         // Remove tiles
         else
         {
-          tiles.Remove(JsonUtility.FromJson<Vector2Int>(jsonString));
+          tiles.Remove(ParseVec2Int(jsonString));
         }
 
         ++successes;
@@ -509,52 +551,28 @@ public class FileSystem : MonoBehaviour
       }
     }
 
-
-    // Create debug output for amount of successes and failures.
-
-    var thingWord = failures == 1 ? "thing" : "things";
-    var failString = $"{failures} {thingWord}";
-
-    if (successes > 0)
-    {
-      var successWord = successes == 1 ? "success" : "successes";
-      var successString = $"{successes} {successWord}";
-      var additionalString = "";
-
-      if (failures > 0)
-      {
-        additionalString = $" (and {failString} we didn't recognize...)";
-      }
-
-      var duration = DateTime.Now - startTime;
-      var h = duration.Hours; // If this is greater than 0, we got beeg problems
-      var m = duration.Minutes;
-      var s = Math.Round(duration.TotalSeconds % 60.0, 2);
-
-      var durationStr = "";
-      if (h > 0)
-        durationStr += $"{h}h ";
-      if (m > 0)
-        durationStr += $"{m}m ";
-      durationStr += $"{s}s";
-
-      var c = "#ffffff66";
-
-      StatusBar.Print($"Level loaded with {successString}{additionalString} <color={c}>in {durationStr}</color>");
-    }
-    else
-    {
-      if (failures > 0)
-      {
-        StatusBar.Print($"This level seems to be invalid (containing {failString} we didn't recognize).");
-      }
-      else
-      {
-        StatusBar.Print("Loading failed because the level seems to be empty.");
-      }
-    }
+    TileGrid.PrintLoadErrors(failures, successes, startTime);
 
     return tiles;
+  }
+
+  static Vector2Int ParseVec2Int(string input)
+  {
+    // Using regular expression to extract x and y values
+    Regex regex = new(@"\{(?<x>-?\d+),(?<y>-?\d+)\}");
+    Match match = regex.Match(input);
+
+    if (match.Success)
+    {
+      // Parse x and y values from the matched groups
+      int x = int.Parse(match.Groups["x"].Value);
+      int y = int.Parse(match.Groups["y"].Value);
+
+      return new Vector2Int(x, y);
+    }
+
+    // Return some default value or throw an exception based on your requirement
+    throw new ArgumentException("Invalid input format");
   }
 
   void SetDirectoryName(string name)
@@ -629,12 +647,15 @@ public class FileSystem : MonoBehaviour
     historyList.MoveToTop(item.transform);
   }
 
+  void RemoveHistoryItem(UiListView historyList, string fullPath)
+  {
+    var element = historyList.GetItemByFullPath(fullPath);
+    historyList.Remove(element.GetComponent<RectTransform>());
+    Destroy(element.gameObject);
+  }
 
   void AddHistoryItemForFile(UiListView historyList, string fullPath)
   {
-    if (GlobalData.AreEffectsUnderway())
-      return;
-
     var fileName = Path.GetFileNameWithoutExtension(fullPath);
     var rt = AddHelper(fullPath, fileName);
     historyList.Add(rt);
@@ -865,14 +886,10 @@ public class FileSystem : MonoBehaviour
 // -
 // {0,1} // Tile to remove
 
-// TODO, redo load to use the new version saving. <---
 // TODO, add are you sure, if you load a level with unsaved changes.
 // TODO, fix area placement taking forever
 // TODO, Large level creation and deletion still takes a long time.
 // TODO, game exit or file load "Are you sure" when there are unsaved changes or no file is mounted
-// TODO, store the m_latestLevelVersion when loading a level
-// TODO, make sure that when the mounted file is set to null, the level version is set to 0
-// TODO, save the file version save time
 
 
 

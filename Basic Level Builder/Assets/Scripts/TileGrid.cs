@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using UnityEngine;
 
-public class TileGrid : MonoBehaviour 
+public class TileGrid : MonoBehaviour
 {
   [System.Serializable]
   public class Element
@@ -46,9 +46,18 @@ public class TileGrid : MonoBehaviour
         return false;
       if (m_Direction != other.m_Direction)
         return false;
-      if (m_Path.SequenceEqual(other.m_Path))
+      // Check if the paths equal if they both exist
+      if (other.m_Path != null && ((!m_Path?.SequenceEqual(other.m_Path)) ?? false))
         return false;
       return true;
+    }
+
+    public void SetState(TileState state)
+    {
+      m_Type = state.Type;
+      m_TileColor = state.Color;
+      m_Direction = state.Direction;
+      m_Path = state.Path;
     }
 
     public TileState ToState()
@@ -95,7 +104,7 @@ public class TileGrid : MonoBehaviour
   SpriteRenderer m_DarkOutlineRenderer;
 
   // The Z depth of objects placed in the grid.
-  // NOTENOTE: Is there any potential reason for this to be public...?
+  // NOTE: Is there any potential reason for this to be public...?
   readonly float m_GridZ = 0;
 
   [HideInInspector]
@@ -180,12 +189,11 @@ public class TileGrid : MonoBehaviour
     // our tile size is much larger than this epsilon, so at
     // worst, it's just a tiny tiny bit of extra work
 
-    var epsilon = 0.01f;
-    var greaterThanLeft = index.x > m_MinBounds.x + epsilon;
-    var lessThanRight = index.x < m_MaxBounds.x - epsilon;
-    var greaterThanBottom = index.y > m_MinBounds.y + epsilon;
-    var lessThanTop = index.y < m_MaxBounds.y - epsilon;
-
+    var greaterThanLeft = index.x > m_MinBounds.x + Mathf.Epsilon;
+    var lessThanRight = index.x < m_MaxBounds.x - Mathf.Epsilon;
+    var greaterThanBottom = index.y > m_MinBounds.y + Mathf.Epsilon;
+    var lessThanTop = index.y < m_MaxBounds.y - Mathf.Epsilon;
+    
     if (greaterThanLeft && lessThanRight && greaterThanBottom && lessThanTop)
       return;
 
@@ -230,18 +238,16 @@ public class TileGrid : MonoBehaviour
   public string GetDiffrences()
   {
     StringBuilder diffrences = new();
+    bool hasDiffrences = false;
 
-    bool same;
-    Vector2Int position;
-    Element currentElement;
     foreach (var kvp in m_GridSaveBuffer)
     {
-      position = kvp.Key;
-      currentElement = kvp.Value;
+      Vector2Int position = kvp.Key;
+      Element currentElement = kvp.Value;
 
       if (m_OldGrid.TryGetValue(position, out Element oldElement))
       {
-        same = currentElement.Equals(oldElement);
+        bool same = currentElement.Equals(oldElement);
 
         // Removed element so we don't check it again in the next loop
         m_OldGrid.Remove(position);
@@ -250,6 +256,7 @@ public class TileGrid : MonoBehaviour
           continue;
       }
       diffrences.AppendLine(JsonUtility.ToJson(currentElement));
+      hasDiffrences = true;
     }
 
     diffrences.AppendLine("-");
@@ -257,13 +264,56 @@ public class TileGrid : MonoBehaviour
     // Every tile left in the old grid will be removed
     foreach (var kvp in m_OldGrid)
     {
-      diffrences.AppendLine(JsonUtility.ToJson(kvp.Key));
+      diffrences.AppendLine($"{{{kvp.Key.x},{kvp.Key.y}}}");
+      hasDiffrences = true;
     }
 
     // Updates old grid to be the "new" grid
     m_OldGrid = m_GridSaveBuffer.ToDictionary(pair => pair.Key, pair => pair.Value);
 
-    return diffrences.ToString();
+    if (hasDiffrences)
+      return diffrences.ToString();
+    return null;
+  }
+
+  public void LoadFromDictonary(Dictionary<Vector2Int, Element> grid)
+  {
+    var startTime = DateTime.Now;
+
+    ForceClearGrid();
+
+    // Create a shallow copy of the dictonary
+    m_Grid = grid.ToDictionary(pair => pair.Key, pair => pair.Value);
+    m_OldGrid = grid.ToDictionary(pair => pair.Key, pair => pair.Value);
+
+    var successes = 0;
+    var failures = 0;
+
+    foreach (var element in m_Grid)
+    {
+      // Create this tile for both the old and new grid.
+      // The new grid will create an object, the old will just have the data.
+      try
+      {
+        var index = element.Value.m_GridIndex;
+        var state = element.Value.ToState();
+
+        CreateTile(index, state, false);
+
+        ++successes;
+      }
+      catch (System.ArgumentException e)
+      {
+        Debug.LogError($"Failed to create the tile:\n \"{element.Value.ToState()}\" " +
+          $"\nas a grid element. {e.Message} ({e.GetType()})");
+
+        ++failures;
+      }
+    }
+
+    RecomputeBounds();
+
+    PrintLoadErrors(failures, successes, startTime);
   }
 
   // Loads a file with no undoing.
@@ -273,22 +323,19 @@ public class TileGrid : MonoBehaviour
 
     ForceClearGrid();
     // Clear old grid to use to store the current level data
-    m_OldGrid.Clear();
+    //m_OldGrid.Clear();
 
     var successes = 0;
     var failures = 0;
 
     foreach (var jsonString in jsonStrings)
     {
-      // Create this tile for both the old and new grid.
-      // The new grid will create an object, the old will just have the data.
       try
       {
         var element = JsonUtility.FromJson<Element>(jsonString);
         var index = element.m_GridIndex;
         var state = element.ToState();
 
-        m_OldGrid.Add(index, element);
         CreateTile(index, state, false);
 
         ++successes;
@@ -302,10 +349,17 @@ public class TileGrid : MonoBehaviour
       }
     }
 
+    // Create a shallow copy of the dictonary
+    m_OldGrid = m_Grid.ToDictionary(pair => pair.Key, pair => pair.Value);
+
     RecomputeBounds();
 
-    // Create debug output for amount of successes and failures.
+    PrintLoadErrors(failures, successes, startTime);
+  }
 
+  // Create debug output for amount of successes and failures.
+  public static void PrintLoadErrors(int failures, int successes, DateTime startTime)
+  {
     var thingWord = failures == 1 ? "thing" : "things";
     var failString = $"{failures} {thingWord}";
 
@@ -396,12 +450,12 @@ public class TileGrid : MonoBehaviour
   }
 
 
-  public void AddRequest(Vector2Int gridIndex, TileType tileType, bool cloning = true, 
+  public void AddRequest(Vector2Int gridIndex, TileType tileType, bool cloning = true,
     bool checkUniqueness = true, bool recomputeBounds = true)
   {
     var state = new TileState
     {
-      Type = tileType 
+      Type = tileType
     };
 
     AddRequest(gridIndex, state, cloning, checkUniqueness, recomputeBounds);
@@ -561,8 +615,16 @@ public class TileGrid : MonoBehaviour
     var newTile = Instantiate(prefab, tileWorldPosition, Quaternion.identity, parent);
 
     // fill the grid location
-    var newGridElement = new Element(gridIndex, state, newTile);
-    m_Grid[gridIndex] = newGridElement;
+    if (m_Grid.ContainsKey(gridIndex))
+    {
+      m_Grid[gridIndex].m_GameObject = newTile;
+      m_Grid[gridIndex].SetState(state);
+      m_Grid[gridIndex].m_GridIndex = gridIndex;
+    }
+    else
+    {
+      m_Grid[gridIndex] = new Element(gridIndex, state, newTile);
+    }
 
     // call ColorCode.Set with the TileState's Color value, so
     // that:
@@ -609,7 +671,7 @@ public class TileGrid : MonoBehaviour
     // tile from the tiles palette. This would remove some of the complication of
     // setting all that stuff up at the moment that a tile is placed
 
-    return newGridElement;
+    return m_Grid[gridIndex];
   }
 
 
@@ -731,8 +793,8 @@ public struct TileState
     //   A. we'll definitely never need more than two bits for the four directions
     //   B. we'll almost certainly never need more than 24 bits for tile types
 
-    var maskedType      = ((int)Type)      & 0b00000000111111111111111111111111;
-    var maskedColor     = ((int)Color)     & 0b00000000000000000000000000111111;
+    var maskedType = ((int)Type) & 0b00000000111111111111111111111111;
+    var maskedColor = ((int)Color) & 0b00000000000000000000000000111111;
     var maskedDirection = ((int)Direction) & 0b00000000000000000000000000000011;
     var shiftedType = maskedType << 8;
     var shiftedColor = maskedColor << 2;

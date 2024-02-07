@@ -1,5 +1,5 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
+using System.IO;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -56,7 +56,8 @@ public class UiListView : MonoBehaviour
 
   void RemoveHelper(RectTransform item)
   {
-    item.SetParent(null);
+    //item.SetParent(null);
+    Destroy(item.gameObject);
   }
 
 
@@ -109,6 +110,19 @@ public class UiListView : MonoBehaviour
     return null;
   }
 
+  // Will check if each file exists and removes the ui if the file is missing
+  public void ValidateAllItems()
+  {
+    var items = m_RectTransform.GetComponentsInChildren<UiHistoryItem>();
+    List<RectTransform> removeItems = new();
+    foreach (var item in items)
+    {
+      if (!File.Exists(item.m_FullPath))
+        removeItems.Add(item.GetComponent<RectTransform>());
+    }
+
+    Remove(removeItems);
+  }
 
   public void MoveToTop(Transform item)
   {
