@@ -230,9 +230,9 @@ public class FileSystem : MonoBehaviour
     // #: Overwriting, MountedFile, Diffrences, Saving to mounted file
     // 1: 1, 0, 0, 0 (Save as; we are writing to an existing file, yet we have no mounted file. Thus we just save our editor level) [TileGrid]
     // 2: 1, 1, 0, 0 (Overwrite save to our mounted file or another file. No changes, so just copy our file over) [File copy]
-    // 3: 1, 1, 1, 0 (Overwrite save to our mounted file or another file. Add changes to mounted file string) [oldSave + diff] or [File copy + diff]
+    // 3: 1, 1, 1, 0 (Overwrite save to our mounted file or another file. Add changes to mounted file string) [oldSave + diff]
     // 4: 0, 1, 0, 0 (Save as; Copy our mounted file to a new file) [File copy]
-    // 5: 0, 1, 1, 0 (Save as; Copy our level with the diffrences added to a new file) [oldSave + diff] or [File copy + diff]
+    // 5: 0, 1, 1, 0 (Save as; Copy our level with the diffrences added to a new file) [oldSave + diff]
     // 6: 0, 0, 0, 0 (Save as; Write editor level to file) [TileGrid]
     // 7: 1, 1, 0, 1 (Skip, We are saving to our own file, yet we have no diffrences) [return]
     // 8: 1, 1, 1, 1 (Save to our file with the diffrences) [oldSave + diff]
@@ -240,41 +240,42 @@ public class FileSystem : MonoBehaviour
     // We can only save to the mounted file if the file exist, meaning overwriting is true.
     // We can't save to the mounted file if we have no mounted file
 
-    // Cases by result
-    // [TileGrid] - #1,6
-    // [File copy] - #2,4
-    // [oldSave + diff] - #3,5,8
-    // [return] - #7
-
+    // If we will be copying the mounted file over to a diffrent file
     bool copyFile = false;
-    string jsonString = "";
+    string fileData = "";
+    string diffrences = m_TileGrid.GetDiffrences();
+
+    // If we are writting to our own file yet we have no changes, skip the save
+    if (overwriting && IsFileMounted() && fullPath.Equals(m_MountedSaveFilePath) && String.IsNullOrEmpty(diffrences))
+    {
+      // #7
+      return;
+    }
+
     if (IsFileMounted())
     {
-      string diffrences = m_TileGrid.GetDiffrences();
       if (String.IsNullOrEmpty(diffrences))
       {
-        if (overwriting && fullPath.Equals(m_MountedSaveFilePath))
-          return; // #7
+        // #2, 4
+        // We have no changes to write, but we are writting to some file that isn't our own
+        // So just copy our file to the destination file
+        copyFile = true;
       }
       else
       {
-        if (!overwriting || !fullPath.Equals(m_MountedSaveFilePath))
-        {
-          // #2,4
-          copyFile = true;
-        }
-        else
-        {
-          // #3,8,5
-          string oldLevel = RawDataToJsonString(File.ReadAllBytes(m_MountedSaveFilePath));
-          jsonString = $"{oldLevel}\n@{++m_latestLevelVersion}\n{diffrences}";
-        }
+        // #3, 5, 8
+        // We have changes to add to any file
+        // Add the changes to the old data and pass to file for writing/overwriting
+        string oldLevel = RawDataToJsonString(File.ReadAllBytes(m_MountedSaveFilePath));
+        fileData = $"{oldLevel}\n@{++m_latestLevelVersion}\n{diffrences}";
       }
     }
     else
     {
-      // #1,6
-      jsonString = $"@{++m_latestLevelVersion}\n{m_TileGrid.ToJsonString()}";
+      // #6, 1
+      // We a writing to some file for the first time
+      // Write the initial level data to the file
+      fileData = $"@{++m_latestLevelVersion}\n{m_TileGrid.ToJsonString()}";
     }
 
     MountFile(fullPath);
@@ -291,9 +292,9 @@ public class FileSystem : MonoBehaviour
       {
         byte[] data;
         if (s_ShouldCompress)
-          data = StringCompression.Compress(jsonString);
+          data = StringCompression.Compress(fileData);
         else
-          data = System.Text.Encoding.UTF8.GetBytes(jsonString);
+          data = System.Text.Encoding.UTF8.GetBytes(fileData);
 
         File.WriteAllBytes(fullPath, data);
       }
