@@ -47,7 +47,7 @@ public class TileGrid : MonoBehaviour
       if (m_Direction != other.m_Direction)
         return false;
       // Check if the paths equal if they both exist
-      if (other.m_Path != null && (m_Path?.SequenceEqual(other.m_Path) ?? false))
+      if (other.m_Path != null && ((!m_Path?.SequenceEqual(other.m_Path)) ?? false))
         return false;
       return true;
     }
