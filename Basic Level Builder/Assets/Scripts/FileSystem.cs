@@ -76,6 +76,16 @@ public class FileSystem : MonoBehaviour
     m_DragAndDropHook.OnDroppedFiles -= OnDroppedFiles;
   }
 
+  // Check if any file got deleted when we were off the game
+  private void OnApplicationFocus(bool focus)
+  {
+    if (focus)
+    {
+      m_ManualSaveList.ValidateAllItems();
+      m_AutosaveList.ValidateAllItems();
+    }
+  }
+
   void UnmountFile()
   {
     m_MountedSaveFilePath = "";
@@ -134,6 +144,9 @@ public class FileSystem : MonoBehaviour
     // If we have a thread running
     if (m_SavingThread != null && m_SavingThread.IsAlive)
       return;
+
+    m_ManualSaveList.ValidateAllItems();
+    m_AutosaveList.ValidateAllItems();
 
     if (autosave)
     {
@@ -198,7 +211,6 @@ public class FileSystem : MonoBehaviour
             "A new file has been made for this save.";
           StatusBar.Print(errorString);
           Debug.LogError(errorString);
-          RemoveHistoryItem(m_ManualSaveList, m_MountedSaveFilePath);
           UnmountFile();
         }
       }
@@ -630,10 +642,9 @@ public class FileSystem : MonoBehaviour
 
   void RemoveHistoryItem(UiListView historyList, string fullPath)
   {
-    var fileName = Path.GetFileNameWithoutExtension(fullPath);
-    var rt = AddHelper(fullPath, fileName);
-    historyList.Remove(rt);
-    Destroy(rt.gameObject);
+    var element = historyList.GetItemByFullPath(fullPath);
+    historyList.Remove(element.GetComponent<RectTransform>());
+    Destroy(element.gameObject);
   }
 
   void AddHistoryItemForFile(UiListView historyList, string fullPath)
