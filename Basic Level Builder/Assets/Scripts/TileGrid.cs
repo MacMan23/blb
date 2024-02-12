@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using UnityEngine;
 
-public class TileGrid : MonoBehaviour 
+public class TileGrid : MonoBehaviour
 {
   [System.Serializable]
   public class Element
@@ -46,7 +46,8 @@ public class TileGrid : MonoBehaviour
         return false;
       if (m_Direction != other.m_Direction)
         return false;
-      if (m_Path.SequenceEqual(other.m_Path))
+      // Check if the paths equal if they both exist
+      if (other.m_Path != null && (m_Path?.SequenceEqual(other.m_Path) ?? false))
         return false;
       return true;
     }
@@ -230,6 +231,7 @@ public class TileGrid : MonoBehaviour
   public string GetDiffrences()
   {
     StringBuilder diffrences = new();
+    bool hasDiffrences = false;
 
     foreach (var kvp in m_GridSaveBuffer)
     {
@@ -247,6 +249,7 @@ public class TileGrid : MonoBehaviour
           continue;
       }
       diffrences.AppendLine(JsonUtility.ToJson(currentElement));
+      hasDiffrences = true;
     }
 
     diffrences.AppendLine("-");
@@ -254,13 +257,55 @@ public class TileGrid : MonoBehaviour
     // Every tile left in the old grid will be removed
     foreach (var kvp in m_OldGrid)
     {
-      diffrences.AppendLine(JsonUtility.ToJson(kvp.Key));
+      diffrences.AppendLine($"{{{kvp.Key.x},{kvp.Key.y}}}");
+      hasDiffrences = true;
     }
 
     // Updates old grid to be the "new" grid
     m_OldGrid = m_GridSaveBuffer.ToDictionary(pair => pair.Key, pair => pair.Value);
 
-    return diffrences.ToString();
+    if (hasDiffrences)
+      return diffrences.ToString();
+    return null;
+  }
+
+  public void LoadFromDictonary(Dictionary<Vector2Int, TileGrid.Element> grid)
+  {
+    var startTime = DateTime.Now;
+
+    ForceClearGrid();
+
+    m_Grid = grid;
+    m_OldGrid = grid;
+
+    var successes = 0;
+    var failures = 0;
+
+    foreach (Element element in m_Grid.Values)
+    {
+      // Create this tile for both the old and new grid.
+      // The new grid will create an object, the old will just have the data.
+      try
+      {
+        var index = element.m_GridIndex;
+        var state = element.ToState();
+
+        CreateTile(index, state, false);
+
+        ++successes;
+      }
+      catch (System.ArgumentException e)
+      {
+        Debug.LogError($"Failed to create the tile:\n \"{element.ToState()}\" " +
+          $"\nas a grid element. {e.Message} ({e.GetType()})");
+
+        ++failures;
+      }
+    }
+
+    RecomputeBounds();
+
+    PrintLoadErrors(failures, successes, startTime);
   }
 
   // Loads a file with no undoing.
@@ -301,8 +346,12 @@ public class TileGrid : MonoBehaviour
 
     RecomputeBounds();
 
-    // Create debug output for amount of successes and failures.
+    PrintLoadErrors(failures, successes, startTime);
+  }
 
+  // Create debug output for amount of successes and failures.
+  public static void PrintLoadErrors(int failures, int successes, DateTime startTime)
+  {
     var thingWord = failures == 1 ? "thing" : "things";
     var failString = $"{failures} {thingWord}";
 
@@ -393,12 +442,12 @@ public class TileGrid : MonoBehaviour
   }
 
 
-  public void AddRequest(Vector2Int gridIndex, TileType tileType, bool cloning = true, 
+  public void AddRequest(Vector2Int gridIndex, TileType tileType, bool cloning = true,
     bool checkUniqueness = true, bool recomputeBounds = true)
   {
     var state = new TileState
     {
-      Type = tileType 
+      Type = tileType
     };
 
     AddRequest(gridIndex, state, cloning, checkUniqueness, recomputeBounds);
@@ -728,8 +777,8 @@ public struct TileState
     //   A. we'll definitely never need more than two bits for the four directions
     //   B. we'll almost certainly never need more than 24 bits for tile types
 
-    var maskedType      = ((int)Type)      & 0b00000000111111111111111111111111;
-    var maskedColor     = ((int)Color)     & 0b00000000000000000000000000111111;
+    var maskedType = ((int)Type) & 0b00000000111111111111111111111111;
+    var maskedColor = ((int)Color) & 0b00000000000000000000000000111111;
     var maskedDirection = ((int)Direction) & 0b00000000000000000000000000000011;
     var shiftedType = maskedType << 8;
     var shiftedColor = maskedColor << 2;

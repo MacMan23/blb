@@ -8,6 +8,7 @@ using UnityEngine;
 using System.Runtime.InteropServices;
 using B83.Win32;
 using System.Threading;
+using System.Text.RegularExpressions;
 
 public class FileSystem : MonoBehaviour
 {
@@ -15,7 +16,7 @@ public class FileSystem : MonoBehaviour
   readonly static public string s_RootDirectoryName = "Basic Level Builder";
   readonly static public string s_DateTimeFormat = "h-mm-ss.ff tt, ddd d MMM yyyy";
   readonly static string[] s_LineSeparator = new string[] { Environment.NewLine };
-  readonly static bool s_ShouldCompress = true;
+  readonly static bool s_ShouldCompress = false;
 
   public string m_DefaultDirectoryName = "Default Project";
   public UiHistoryItem m_HistoryItemPrefab;
@@ -263,19 +264,26 @@ public class FileSystem : MonoBehaviour
       }
       else
       {
-        // #3, 5, 8
-        // We have changes to add to any file
-        // Add the changes to the old data and pass to file for writing/overwriting
-        string oldLevel = RawDataToJsonString(File.ReadAllBytes(m_MountedSaveFilePath));
-        fileData = $"{oldLevel}\n@{++m_latestLevelVersion}\n{diffrences}";
+        // Check to see if our save got deleted
+        // If so, fall to the last check
+        if (File.Exists(m_MountedSaveFilePath))
+        {
+          // #3, 5, 8
+          // We have changes to add to any file
+          // Add the changes to the old data and pass to file for writing/overwriting
+          string oldLevel = RawDataToJsonString(File.ReadAllBytes(m_MountedSaveFilePath));
+          fileData = $"{oldLevel}@{++m_latestLevelVersion}" + Environment.NewLine + $"{diffrences}";
+        }
       }
     }
-    else
+    
+    // If we have no save file to copy
+    if (!IsFileMounted() || !File.Exists(m_MountedSaveFilePath))
     {
       // #6, 1
       // We a writing to some file for the first time
       // Write the initial level data to the file
-      fileData = $"@{++m_latestLevelVersion}\n{m_TileGrid.ToJsonString()}";
+      fileData = $"@{++m_latestLevelVersion}" + Environment.NewLine + $"{m_TileGrid.ToJsonString()}";
     }
 
     MountFile(fullPath);
@@ -447,7 +455,8 @@ public class FileSystem : MonoBehaviour
 
   void LoadFromJsonStrings(string[] jsonStrings)
   {
-    m_TileGrid.LoadFromJsonStrings(jsonStrings);
+    //m_TileGrid.LoadFromJsonStrings(jsonStrings);
+    m_TileGrid.LoadFromDictonary(FlattenLevelStringToGrid(jsonStrings));
   }
 
   Dictionary<Vector2Int, TileGrid.Element> FlattenLevelStringToGrid(string[] level)
@@ -463,31 +472,32 @@ public class FileSystem : MonoBehaviour
     // TODO, Maybe move this error checkign fails/successes into TileGrid LoadFromJsonStrings
     // TODO, possibly get the level version from here
     var startTime = DateTime.Now;
-    Dictionary<Vector2Int, TileGrid.Element> tiles = new();
     var successes = 0;
     var failures = 0;
 
-    bool addTiles = true;
+    Dictionary<Vector2Int, TileGrid.Element> tiles = new();
+
+    bool addTilesMode = true;
 
     foreach (var jsonString in level)
     {
       // Start of a new version
       if (jsonString[0] == '@')
       {
-        addTiles = true;
+        addTilesMode = true;
         continue;
       }
       // Start of subtraction mode
       else if (jsonString[0] == '-')
       {
-        addTiles = false;
+        addTilesMode = false;
         continue;
       }
 
       try
       {
         // Add/Overwrite tiles
-        if (addTiles)
+        if (addTilesMode)
         {
           var element = JsonUtility.FromJson<TileGrid.Element>(jsonString);
           tiles[element.m_GridIndex] = element;
@@ -495,7 +505,7 @@ public class FileSystem : MonoBehaviour
         // Remove tiles
         else
         {
-          tiles.Remove(JsonUtility.FromJson<Vector2Int>(jsonString));
+          tiles.Remove(ParseVec2Int(jsonString));
         }
 
         ++successes;
@@ -509,52 +519,28 @@ public class FileSystem : MonoBehaviour
       }
     }
 
-
-    // Create debug output for amount of successes and failures.
-
-    var thingWord = failures == 1 ? "thing" : "things";
-    var failString = $"{failures} {thingWord}";
-
-    if (successes > 0)
-    {
-      var successWord = successes == 1 ? "success" : "successes";
-      var successString = $"{successes} {successWord}";
-      var additionalString = "";
-
-      if (failures > 0)
-      {
-        additionalString = $" (and {failString} we didn't recognize...)";
-      }
-
-      var duration = DateTime.Now - startTime;
-      var h = duration.Hours; // If this is greater than 0, we got beeg problems
-      var m = duration.Minutes;
-      var s = Math.Round(duration.TotalSeconds % 60.0, 2);
-
-      var durationStr = "";
-      if (h > 0)
-        durationStr += $"{h}h ";
-      if (m > 0)
-        durationStr += $"{m}m ";
-      durationStr += $"{s}s";
-
-      var c = "#ffffff66";
-
-      StatusBar.Print($"Level loaded with {successString}{additionalString} <color={c}>in {durationStr}</color>");
-    }
-    else
-    {
-      if (failures > 0)
-      {
-        StatusBar.Print($"This level seems to be invalid (containing {failString} we didn't recognize).");
-      }
-      else
-      {
-        StatusBar.Print("Loading failed because the level seems to be empty.");
-      }
-    }
+    TileGrid.PrintLoadErrors(failures, successes, startTime);
 
     return tiles;
+  }
+
+  static Vector2Int ParseVec2Int(string input)
+  {
+    // Using regular expression to extract x and y values
+    Regex regex = new(@"\{(?<x>-?\d+),(?<y>-?\d+)\}");
+    Match match = regex.Match(input);
+
+    if (match.Success)
+    {
+      // Parse x and y values from the matched groups
+      int x = int.Parse(match.Groups["x"].Value);
+      int y = int.Parse(match.Groups["y"].Value);
+
+      return new Vector2Int(x, y);
+    }
+
+    // Return some default value or throw an exception based on your requirement
+    throw new ArgumentException("Invalid input format");
   }
 
   void SetDirectoryName(string name)
