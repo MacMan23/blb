@@ -129,9 +129,6 @@ public class FileSystem : MonoBehaviour
 
   public void ManualSave()
   {
-    // TODO put in prompt if our mounted file is deleted
-    // To warn the user and then save to a manual file
-
     Save(false);
   }
 
@@ -505,7 +502,6 @@ public class FileSystem : MonoBehaviour
     // {0,1} // Tile to remove
 
     // TODO, Maybe move this error checkign fails/successes into TileGrid LoadFromJsonStrings
-    // TODO, possibly get the level version from here
     var startTime = DateTime.Now;
     var successes = 0;
     var failures = 0;
@@ -890,14 +886,10 @@ public class FileSystem : MonoBehaviour
 // -
 // {0,1} // Tile to remove
 
-// TODO, redo load to use the new version saving. <---
 // TODO, add are you sure, if you load a level with unsaved changes.
 // TODO, fix area placement taking forever
 // TODO, Large level creation and deletion still takes a long time.
 // TODO, game exit or file load "Are you sure" when there are unsaved changes or no file is mounted
-// TODO, store the m_latestLevelVersion when loading a level
-// TODO, make sure that when the mounted file is set to null, the level version is set to 0
-// TODO, save the file version save time
 
 
 
