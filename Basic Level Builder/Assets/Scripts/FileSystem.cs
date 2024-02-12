@@ -108,6 +108,9 @@ public class FileSystem : MonoBehaviour
 
   public void ManualSave()
   {
+    // TODO put in prompt if our mounted file is deleted
+    // To warn the user and then save to a manual file
+
     Save(false);
   }
 
@@ -164,7 +167,7 @@ public class FileSystem : MonoBehaviour
       }
     }
 
-    string fullPath;
+    string fullPath = "";
     // If we are doing a SAVE AS
     if (name != null)
     {
@@ -183,8 +186,24 @@ public class FileSystem : MonoBehaviour
     else
     {
       if (IsFileMounted())
-        fullPath = m_MountedSaveFilePath;
-      else
+      {
+        if (File.Exists(m_MountedSaveFilePath))
+        {
+          fullPath = m_MountedSaveFilePath;
+        }
+        else
+        {
+          // TODO, get this error to overwrite or concat with the saved message
+          var errorString = $"Error: File with path \"{m_MountedSaveFilePath}\" could not be found." + Environment.NewLine +
+            "A new file has been made for this save.";
+          StatusBar.Print(errorString);
+          Debug.LogError(errorString);
+          RemoveHistoryItem(m_ManualSaveList, m_MountedSaveFilePath);
+          UnmountFile();
+        }
+      }
+
+      if (!IsFileMounted() || !File.Exists(m_MountedSaveFilePath))
         // TODO, put the auto saves into the mounted file
         fullPath = Path.Combine(m_CurrentDirectoryPath, GenerateFileName(autosave));
     }
@@ -264,29 +283,20 @@ public class FileSystem : MonoBehaviour
       }
       else
       {
-        // Check to see if our save got deleted
-        // If so, fall to the last check
-        if (File.Exists(m_MountedSaveFilePath))
-        {
-          // #3, 5, 8
-          // We have changes to add to any file
-          // Add the changes to the old data and pass to file for writing/overwriting
-          string oldLevel = RawDataToJsonString(File.ReadAllBytes(m_MountedSaveFilePath));
-          fileData = $"{oldLevel}@{++m_latestLevelVersion}" + Environment.NewLine + $"{diffrences}";
-        }
+        // #3, 5, 8
+        // We have changes to add to any file
+        // Add the changes to the old data and pass to file for writing/overwriting
+        string oldLevel = RawDataToJsonString(File.ReadAllBytes(m_MountedSaveFilePath));
+        fileData = $"{oldLevel}@{++m_latestLevelVersion}" + Environment.NewLine + $"{diffrences}";
       }
     }
-    
-    // If we have no save file to copy
-    if (!IsFileMounted() || !File.Exists(m_MountedSaveFilePath))
+    else
     {
       // #6, 1
       // We a writing to some file for the first time
       // Write the initial level data to the file
       fileData = $"@{++m_latestLevelVersion}" + Environment.NewLine + $"{m_TileGrid.ToJsonString()}";
     }
-
-    MountFile(fullPath);
     #endregion
 
 
@@ -306,6 +316,8 @@ public class FileSystem : MonoBehaviour
 
         File.WriteAllBytes(fullPath, data);
       }
+
+      MountFile(fullPath);
 
       var listToAddTo = autosave ? m_AutosaveList : m_ManualSaveList;
 
@@ -481,21 +493,22 @@ public class FileSystem : MonoBehaviour
 
     foreach (var jsonString in level)
     {
-      // Start of a new version
-      if (jsonString[0] == '@')
-      {
-        addTilesMode = true;
-        continue;
-      }
-      // Start of subtraction mode
-      else if (jsonString[0] == '-')
-      {
-        addTilesMode = false;
-        continue;
-      }
-
       try
       {
+        // Start of a new version
+        if (jsonString[0] == '@')
+        {
+          addTilesMode = true;
+          m_latestLevelVersion = int.Parse(jsonString.Substring(1));
+          continue;
+        }
+        // Start of subtraction mode
+        else if (jsonString[0] == '-')
+        {
+          addTilesMode = false;
+          continue;
+        }
+
         // Add/Overwrite tiles
         if (addTilesMode)
         {
@@ -615,12 +628,16 @@ public class FileSystem : MonoBehaviour
     historyList.MoveToTop(item.transform);
   }
 
+  void RemoveHistoryItem(UiListView historyList, string fullPath)
+  {
+    var fileName = Path.GetFileNameWithoutExtension(fullPath);
+    var rt = AddHelper(fullPath, fileName);
+    historyList.Remove(rt);
+    Destroy(rt.gameObject);
+  }
 
   void AddHistoryItemForFile(UiListView historyList, string fullPath)
   {
-    if (GlobalData.AreEffectsUnderway())
-      return;
-
     var fileName = Path.GetFileNameWithoutExtension(fullPath);
     var rt = AddHelper(fullPath, fileName);
     historyList.Add(rt);

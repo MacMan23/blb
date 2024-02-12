@@ -52,6 +52,14 @@ public class TileGrid : MonoBehaviour
       return true;
     }
 
+    public void SetState(TileState state)
+    {
+      m_Type = state.Type;
+      m_TileColor = state.Color;
+      m_Direction = state.Direction;
+      m_Path = state.Path;
+    }
+
     public TileState ToState()
     {
       return new TileState()
@@ -96,7 +104,7 @@ public class TileGrid : MonoBehaviour
   SpriteRenderer m_DarkOutlineRenderer;
 
   // The Z depth of objects placed in the grid.
-  // NOTENOTE: Is there any potential reason for this to be public...?
+  // NOTE: Is there any potential reason for this to be public...?
   readonly float m_GridZ = 0;
 
   [HideInInspector]
@@ -181,12 +189,11 @@ public class TileGrid : MonoBehaviour
     // our tile size is much larger than this epsilon, so at
     // worst, it's just a tiny tiny bit of extra work
 
-    var epsilon = 0.01f;
-    var greaterThanLeft = index.x > m_MinBounds.x + epsilon;
-    var lessThanRight = index.x < m_MaxBounds.x - epsilon;
-    var greaterThanBottom = index.y > m_MinBounds.y + epsilon;
-    var lessThanTop = index.y < m_MaxBounds.y - epsilon;
-
+    var greaterThanLeft = index.x > m_MinBounds.x + Mathf.Epsilon;
+    var lessThanRight = index.x < m_MaxBounds.x - Mathf.Epsilon;
+    var greaterThanBottom = index.y > m_MinBounds.y + Mathf.Epsilon;
+    var lessThanTop = index.y < m_MaxBounds.y - Mathf.Epsilon;
+    
     if (greaterThanLeft && lessThanRight && greaterThanBottom && lessThanTop)
       return;
 
@@ -269,26 +276,27 @@ public class TileGrid : MonoBehaviour
     return null;
   }
 
-  public void LoadFromDictonary(Dictionary<Vector2Int, TileGrid.Element> grid)
+  public void LoadFromDictonary(Dictionary<Vector2Int, Element> grid)
   {
     var startTime = DateTime.Now;
 
     ForceClearGrid();
 
-    m_Grid = grid;
-    m_OldGrid = grid;
+    // Create a shallow copy of the dictonary
+    m_Grid = grid.ToDictionary(pair => pair.Key, pair => pair.Value);
+    m_OldGrid = grid.ToDictionary(pair => pair.Key, pair => pair.Value);
 
     var successes = 0;
     var failures = 0;
 
-    foreach (Element element in m_Grid.Values)
+    foreach (var element in m_Grid)
     {
       // Create this tile for both the old and new grid.
       // The new grid will create an object, the old will just have the data.
       try
       {
-        var index = element.m_GridIndex;
-        var state = element.ToState();
+        var index = element.Value.m_GridIndex;
+        var state = element.Value.ToState();
 
         CreateTile(index, state, false);
 
@@ -296,7 +304,7 @@ public class TileGrid : MonoBehaviour
       }
       catch (System.ArgumentException e)
       {
-        Debug.LogError($"Failed to create the tile:\n \"{element.ToState()}\" " +
+        Debug.LogError($"Failed to create the tile:\n \"{element.Value.ToState()}\" " +
           $"\nas a grid element. {e.Message} ({e.GetType()})");
 
         ++failures;
@@ -315,22 +323,19 @@ public class TileGrid : MonoBehaviour
 
     ForceClearGrid();
     // Clear old grid to use to store the current level data
-    m_OldGrid.Clear();
+    //m_OldGrid.Clear();
 
     var successes = 0;
     var failures = 0;
 
     foreach (var jsonString in jsonStrings)
     {
-      // Create this tile for both the old and new grid.
-      // The new grid will create an object, the old will just have the data.
       try
       {
         var element = JsonUtility.FromJson<Element>(jsonString);
         var index = element.m_GridIndex;
         var state = element.ToState();
 
-        m_OldGrid.Add(index, element);
         CreateTile(index, state, false);
 
         ++successes;
@@ -343,6 +348,9 @@ public class TileGrid : MonoBehaviour
         ++failures;
       }
     }
+
+    // Create a shallow copy of the dictonary
+    m_OldGrid = m_Grid.ToDictionary(pair => pair.Key, pair => pair.Value);
 
     RecomputeBounds();
 
@@ -607,8 +615,16 @@ public class TileGrid : MonoBehaviour
     var newTile = Instantiate(prefab, tileWorldPosition, Quaternion.identity, parent);
 
     // fill the grid location
-    var newGridElement = new Element(gridIndex, state, newTile);
-    m_Grid[gridIndex] = newGridElement;
+    if (m_Grid.ContainsKey(gridIndex))
+    {
+      m_Grid[gridIndex].m_GameObject = newTile;
+      m_Grid[gridIndex].SetState(state);
+      m_Grid[gridIndex].m_GridIndex = gridIndex;
+    }
+    else
+    {
+      m_Grid[gridIndex] = new Element(gridIndex, state, newTile);
+    }
 
     // call ColorCode.Set with the TileState's Color value, so
     // that:
@@ -655,7 +671,7 @@ public class TileGrid : MonoBehaviour
     // tile from the tiles palette. This would remove some of the complication of
     // setting all that stuff up at the moment that a tile is placed
 
-    return newGridElement;
+    return m_Grid[gridIndex];
   }
 
 
