@@ -81,6 +81,17 @@ public class FileSystem : MonoBehaviour
   {
     if (focus)
     {
+      if (IsFileMounted() && !File.Exists(m_MountedSaveFilePath))
+      {
+        var errorString = $"Error: File with path \"{m_MountedSaveFilePath}\" could not be found." + Environment.NewLine +
+               "Loaded level has been saved with the same name.";
+        StatusBar.Print(errorString);
+        Debug.LogError(errorString);
+        var tempPath = Path.GetFileNameWithoutExtension(m_MountedSaveFilePath);
+        UnmountFile();
+        SaveAs(tempPath);
+      }
+
       m_ManualSaveList.ValidateAllItems();
       m_AutosaveList.ValidateAllItems();
     }
@@ -145,9 +156,6 @@ public class FileSystem : MonoBehaviour
     if (m_SavingThread != null && m_SavingThread.IsAlive)
       return;
 
-    m_ManualSaveList.ValidateAllItems();
-    m_AutosaveList.ValidateAllItems();
-
     if (autosave)
     {
       // first of all, if m_MaxAutosaveCount <= 0, then no autosaving
@@ -206,11 +214,14 @@ public class FileSystem : MonoBehaviour
         }
         else
         {
+          // Because of the file validation on application focus, this SHOULD never happen.
+          // But to be save incase the file is deleted while playing the game, do this
           // TODO, get this error to overwrite or concat with the saved message
           var errorString = $"Error: File with path \"{m_MountedSaveFilePath}\" could not be found." + Environment.NewLine +
             "A new file has been made for this save.";
           StatusBar.Print(errorString);
           Debug.LogError(errorString);
+          RemoveHistoryItem(m_ManualSaveList, m_MountedSaveFilePath);
           UnmountFile();
         }
       }
