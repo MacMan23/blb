@@ -86,7 +86,7 @@ public class FileSystem : MonoBehaviour
         var errorString = $"Error: File with path \"{m_MountedSaveFilePath}\" could not be found." + Environment.NewLine +
                "Loaded level has been saved with the same name.";
         StatusBar.Print(errorString);
-        Debug.LogError(errorString);
+        Debug.LogWarning(errorString);
         var tempPath = Path.GetFileNameWithoutExtension(m_MountedSaveFilePath);
         UnmountFile();
         SaveAs(tempPath);
@@ -217,7 +217,7 @@ public class FileSystem : MonoBehaviour
           var errorString = $"Error: File with path \"{m_MountedSaveFilePath}\" could not be found." + Environment.NewLine +
             "A new file has been made for this save.";
           StatusBar.Print(errorString);
-          Debug.LogError(errorString);
+          Debug.LogWarning(errorString);
           RemoveHistoryItem(m_ManualSaveList, m_MountedSaveFilePath);
           UnmountFile();
         }
