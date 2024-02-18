@@ -235,9 +235,11 @@ public class TileGrid : MonoBehaviour
   }
 
   // This should only be called once per save, as we are destorying saved data and overwriting it.
-  public string GetDiffrences()
+  // Returns true if we found diffrences
+  public bool GetDifferences(out FileSystem.LevelData levelData)
   {
-    StringBuilder diffrences = new();
+    levelData = new();
+
     bool hasDiffrences = false;
 
     foreach (var kvp in m_GridSaveBuffer)
@@ -255,25 +257,21 @@ public class TileGrid : MonoBehaviour
         if (same)
           continue;
       }
-      diffrences.AppendLine(JsonUtility.ToJson(currentElement));
+      levelData.addedTiles.Add(currentElement);
       hasDiffrences = true;
     }
-
-    diffrences.AppendLine("-");
 
     // Every tile left in the old grid will be removed
     foreach (var kvp in m_OldGrid)
     {
-      diffrences.AppendLine($"{{{kvp.Key.x},{kvp.Key.y}}}");
+      levelData.removedTiles.Add(kvp.Key);
       hasDiffrences = true;
     }
 
     // Updates old grid to be the "new" grid
     m_OldGrid = m_GridSaveBuffer.ToDictionary(pair => pair.Key, pair => pair.Value);
 
-    if (hasDiffrences)
-      return diffrences.ToString();
-    return null;
+    return hasDiffrences;
   }
 
   public void LoadFromDictonary(Dictionary<Vector2Int, Element> grid)

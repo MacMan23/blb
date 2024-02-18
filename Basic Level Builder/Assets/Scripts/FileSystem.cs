@@ -15,26 +15,25 @@ public class FileSystem : MonoBehaviour
   readonly static public string s_FilenameExtension = ".blb";
   readonly static public string s_RootDirectoryName = "Basic Level Builder";
   readonly static public string s_DateTimeFormat = "h-mm-ss.ff tt, ddd d MMM yyyy";
+  readonly static public int s_MaxAutosaveCount = 20;
   readonly static string[] s_LineSeparator = new string[] { Environment.NewLine };
   readonly static bool s_ShouldCompress = false;
+  static string s_EditorVersion;
 
   public string m_DefaultDirectoryName = "Default Project";
   public UiHistoryItem m_HistoryItemPrefab;
-  public UiListView m_ManualSaveList;
-  public UiListView m_AutosaveList;
+  public UiListView m_SaveList;
   public TileGrid m_TileGrid;
-  public int m_MaxAutosaveCount = 100;
 
   UnityDragAndDropHook m_DragAndDropHook;
 
   ModalDialogMaster m_ModalDialogMaster;
   ModalDialogAdder m_DialogAdder;
   string m_CurrentDirectoryPath;
-  int m_CurrentAutosaveCount = 0;
   string m_PendingSaveFullPath = "";
 
   string m_MountedSaveFilePath = "";
-  int m_latestLevelVersion = 0;
+  FileStructure m_MountedfileData;
 
   // A thread to run when saving should be performed.
   // Only one save thread is run at once.
@@ -45,10 +44,46 @@ public class FileSystem : MonoBehaviour
   [DllImport("__Internal")]
   private static extern void SyncFiles();
 
+  #region FileStructure classes
+  [Serializable]
+  class FileStructure
+  {
+    public FileStructure(string ver = "")
+    {
+      header = new Header() { blbVersion = ver };
+      manualSaves = new List<LevelData>();
+      autoSaves = new List<LevelData>();
+    }
+    public Header header;
+    public List<LevelData> manualSaves;
+    public List<LevelData> autoSaves;
+  }
+
+  [Serializable]
+  class Header
+  {
+    public string blbVersion;
+  }
+
+  [Serializable]
+  public class LevelData
+  {
+    public LevelData()
+    {
+      addedTiles = new List<TileGrid.Element>();
+      removedTiles = new List<Vector2Int>();
+    }
+
+    public int version;
+    public List<TileGrid.Element> addedTiles;
+    public List<Vector2Int> removedTiles;
+  }
+  #endregion
 
   // Start is called before the first frame update
   void Start()
   {
+    s_EditorVersion = Application.version;
     m_ModalDialogMaster = FindObjectOfType<ModalDialogMaster>();
 
     m_DialogAdder = GetComponent<ModalDialogAdder>();
@@ -92,15 +127,14 @@ public class FileSystem : MonoBehaviour
         SaveAs(tempPath);
       }
 
-      m_ManualSaveList.ValidateAllItems();
-      m_AutosaveList.ValidateAllItems();
+      m_SaveList.ValidateAllItems();
     }
   }
 
   void UnmountFile()
   {
     m_MountedSaveFilePath = "";
-    m_latestLevelVersion = 0;
+    m_MountedfileData = null;
   }
 
   void MountFile(string filepath)
@@ -153,38 +187,6 @@ public class FileSystem : MonoBehaviour
     if (m_SavingThread != null && m_SavingThread.IsAlive)
       return;
 
-    if (autosave)
-    {
-      // first of all, if m_MaxAutosaveCount <= 0, then no autosaving
-      // should occur at all
-      if (m_MaxAutosaveCount <= 0)
-        return;
-
-      // now, if the autosave count is at its limit, then we should
-      // get rid of the oldest autosave
-      if (m_CurrentAutosaveCount >= m_MaxAutosaveCount)
-      {
-        var oldestAutosave = m_AutosaveList.GetOldestItem();
-        var itemToRemove = oldestAutosave.GetComponent<RectTransform>();
-        var pathToRemove = oldestAutosave.m_FullPath;
-
-        try
-        {
-          File.Delete(pathToRemove);
-
-          m_AutosaveList.Remove(itemToRemove);
-          Destroy(oldestAutosave.gameObject);
-          --m_CurrentAutosaveCount;
-        }
-        catch (Exception e)
-        {
-          var errorString = $"Error while deleting old autosave. {e.Message} ({e.GetType()})";
-          StatusBar.Print(errorString);
-          Debug.LogError(errorString);
-        }
-      }
-    }
-
     string fullPath;
     // If we are doing a SAVE AS
     if (name != null)
@@ -215,7 +217,7 @@ public class FileSystem : MonoBehaviour
             "A new file has been made for this save.";
           StatusBar.Print(errorString);
           Debug.LogWarning(errorString);
-          RemoveHistoryItem(m_ManualSaveList, m_MountedSaveFilePath);
+          RemoveHistoryItem(m_SaveList, m_MountedSaveFilePath);
           UnmountFile();
         }
       }
@@ -282,40 +284,61 @@ public class FileSystem : MonoBehaviour
 
     // If we will be copying the mounted file over to a diffrent file
     bool copyFile = false;
-    string fileData = "";
-    string diffrences = m_TileGrid.GetDiffrences();
+    bool hasDifferences = m_TileGrid.GetDifferences(out LevelData levelData);
 
     // If we are writting to our own file yet we have no changes, skip the save
-    if (overwriting && IsFileMounted() && fullPath.Equals(m_MountedSaveFilePath) && String.IsNullOrEmpty(diffrences))
+    if (overwriting && IsFileMounted() && fullPath.Equals(m_MountedSaveFilePath) && !hasDifferences)
     {
       // #7
       return;
     }
 
-    if (IsFileMounted())
+    // If we are doing an auto check if we have to many
+    if (autosave)
     {
-      if (String.IsNullOrEmpty(diffrences))
+      // first of all, if m_MaxAutosaveCount <= 0, then no autosaving
+      // should occur at all
+      if (s_MaxAutosaveCount <= 0)
+        return;
+
+      // now, if the autosave count is at its limit, then we should
+      // get rid of the oldest autosave
+      if (IsFileMounted() && m_MountedfileData.autoSaves.Count >= s_MaxAutosaveCount)
       {
-        // #2, 4
-        // We have no changes to write, but we are writting to some file that isn't our own
-        // So just copy our file to the destination file
-        copyFile = true;
+        m_MountedfileData.autoSaves.RemoveAt(0);
+      }
+    }
+
+    // TODO, see where we need to set and reset the m_MountedfileData
+    // If we don't have a file mounted, mount the soon to be created file
+    if (!IsFileMounted())
+    {
+      m_MountedfileData = new(s_EditorVersion);
+    }
+
+    if (hasDifferences)
+    {
+      // #6, 1, 3, 5, 8
+      // We have data to add/overwite to any file
+      List<LevelData> savesList = autosave ? m_MountedfileData.autoSaves : m_MountedfileData.manualSaves;
+
+      if (savesList.Count > 0)
+      {
+        levelData.version = savesList[^1].version + 1;
       }
       else
       {
-        // #3, 5, 8
-        // We have changes to add to any file
-        // Add the changes to the old data and pass to file for writing/overwriting
-        string oldLevel = RawDataToJsonString(File.ReadAllBytes(m_MountedSaveFilePath));
-        fileData = $"{oldLevel}@{++m_latestLevelVersion}" + Environment.NewLine + $"{diffrences}";
+        levelData.version = 1;
       }
+
+      savesList.Add(levelData);
     }
     else
     {
-      // #6, 1
-      // We a writing to some file for the first time
-      // Write the initial level data to the file
-      fileData = $"@{++m_latestLevelVersion}" + Environment.NewLine + $"{m_TileGrid.ToJsonString()}";
+      // #2, 4
+      // We have no changes to write, but we are writting to some file that isn't our own
+      // So just copy our file to the destination file
+      copyFile = true;
     }
     #endregion
 
@@ -329,9 +352,9 @@ public class FileSystem : MonoBehaviour
       {
         byte[] data;
         if (s_ShouldCompress)
-          data = StringCompression.Compress(fileData);
+          data = StringCompression.Compress(JsonUtility.ToJson(m_MountedfileData));
         else
-          data = System.Text.Encoding.UTF8.GetBytes(fileData);
+          data = System.Text.Encoding.UTF8.GetBytes(JsonUtility.ToJson(m_MountedfileData));
 
         File.WriteAllBytes(fullPath, data);
       }
@@ -339,13 +362,9 @@ public class FileSystem : MonoBehaviour
       MountFile(fullPath);
 
       if (overwriting)
-        m_MainThreadDispatcher.Enqueue(() => MoveHistoryItemToTop(m_ManualSaveList, fullPath));
+        m_MainThreadDispatcher.Enqueue(() => MoveHistoryItemToTop(m_SaveList, fullPath));
       else
-        m_MainThreadDispatcher.Enqueue(() => AddHistoryItemForFile(m_ManualSaveList, fullPath));
-
-      // TODO, get auto save count when reading the file
-      if (autosave)
-        ++m_CurrentAutosaveCount;
+        m_MainThreadDispatcher.Enqueue(() => AddHistoryItemForFile(m_SaveList, fullPath));
 
       if (Application.platform == RuntimePlatform.WebGLPlayer)
         SyncFiles();
@@ -394,8 +413,7 @@ public class FileSystem : MonoBehaviour
     if (s_ShouldCompress)
       jsonString = System.Text.Encoding.UTF8.GetString(StringCompression.Compress(jsonString));
 
-    TextEditor te = new();
-    te.text = jsonString;
+    var te = new TextEditor { text = jsonString };
     te.SelectAll();
     te.Copy();
 
@@ -411,8 +429,7 @@ public class FileSystem : MonoBehaviour
     if (GlobalData.AreEffectsUnderway())
       return;
 
-    var te = new TextEditor();
-    te.multiline = true;
+    var te = new TextEditor { multiline = true };
     te.Paste();
     var text = te.text;
 
@@ -472,84 +489,53 @@ public class FileSystem : MonoBehaviour
   // Intermidiatarty load function. Calls the rest of the load functions.
   void LoadFromJson(byte[] json)
   {
-    LoadFromJsonStrings(JsonStringsFromSingleString(RawDataToJsonString(json)));
-  }
+    // We don't have a file that we are loading from
+    // So mount null file, so the m_MountedfileData can be initilized
+    if (!IsFileMounted())
+      MountFile("");
 
+    if (m_MountedfileData == null)
+      m_MountedfileData = new(s_EditorVersion);
 
-  // Splits the json lines into an array
-  protected string[] JsonStringsFromSingleString(string singleString)
-  {
-    return singleString.Split(s_LineSeparator, StringSplitOptions.RemoveEmptyEntries);
-  }
-
-
-  void LoadFromJsonStrings(string[] jsonStrings)
-  {
-    //m_TileGrid.LoadFromJsonStrings(jsonStrings);
-    m_TileGrid.LoadFromDictonary(FlattenLevelStringToGrid(jsonStrings));
-  }
-
-  Dictionary<Vector2Int, TileGrid.Element> FlattenLevelStringToGrid(string[] level)
-  {
-    // JSON format
-    // @1
-    // {data}
-    // @2
-    // {added/overwritting blocks}
-    // -
-    // {0,1} // Tile to remove
-
-    // TODO, Maybe move this error checkign fails/successes into TileGrid LoadFromJsonStrings
-    var startTime = DateTime.Now;
-    var successes = 0;
-    var failures = 0;
-
-    Dictionary<Vector2Int, TileGrid.Element> tiles = new();
-
-    bool addTilesMode = true;
-
-    foreach (var jsonString in level)
+    try
     {
-      try
-      {
-        // Start of a new version
-        if (jsonString[0] == '@')
-        {
-          addTilesMode = true;
-          m_latestLevelVersion = int.Parse(jsonString.Substring(1));
-          continue;
-        }
-        // Start of subtraction mode
-        else if (jsonString[0] == '-')
-        {
-          addTilesMode = false;
-          continue;
-        }
-
-        // Add/Overwrite tiles
-        if (addTilesMode)
-        {
-          var element = JsonUtility.FromJson<TileGrid.Element>(jsonString);
-          tiles[element.m_GridIndex] = element;
-        }
-        // Remove tiles
-        else
-        {
-          tiles.Remove(ParseVec2Int(jsonString));
-        }
-
-        ++successes;
-      }
-      catch (System.ArgumentException e)
-      {
-        Debug.LogError($"Failed to parse the line \"{jsonString}\" " +
-          $"as a grid element. {e.Message} ({e.GetType()})");
-
-        ++failures;
-      }
+      JsonUtility.FromJsonOverwrite(RawDataToJsonString(json), m_MountedfileData);
+    }
+    catch (System.ArgumentException e)
+    {
+      Debug.Log($"Error loading save file {Path.GetFileName(m_MountedSaveFilePath)} : {e}");
+      m_MainThreadDispatcher.Enqueue(() =>
+      StatusBar.Print($"Error loading save file {Path.GetFileName(m_MountedSaveFilePath)} : {e}"));
+      return;
     }
 
-    TileGrid.PrintLoadErrors(failures, successes, startTime);
+    // If the save file was made with a diffrent version
+    if (!m_MountedfileData.header.blbVersion.Equals(s_EditorVersion))
+    {
+      Debug.Log($"Save file {Path.GetFileName(m_MountedSaveFilePath)} was made with a diffrent BLB version. There may be possible errors.");
+      m_MainThreadDispatcher.Enqueue(() =>
+      StatusBar.Print($"Save file {Path.GetFileName(m_MountedSaveFilePath)} was made with a diffrent BLB version. There may be possible errors."));
+      // TODO, should we return or keep going? Do we want to run a file with a diff version?
+    }
+
+    m_TileGrid.LoadFromDictonary(FlattenLevelStringToGrid());
+  }
+
+  Dictionary<Vector2Int, TileGrid.Element> FlattenLevelStringToGrid()
+  {
+    Dictionary<Vector2Int, TileGrid.Element> tiles = new();
+
+    foreach (var levelData in m_MountedfileData.manualSaves)
+    {
+      foreach (var tile in levelData.addedTiles)
+      {
+        tiles.Add(tile.m_GridIndex, tile);
+      }
+      foreach (var pos in levelData.removedTiles)
+      {
+        tiles.Remove(pos);
+      }
+    }
 
     return tiles;
   }
@@ -606,8 +592,7 @@ public class FileSystem : MonoBehaviour
         else
         {
           // modal: pointing to an existing folder with stuff in it
-          m_ManualSaveList.Clear();
-          m_AutosaveList.Clear();
+          m_SaveList.Clear();
           SortByDateModified(validFilePaths);
 
           // at this point, filePaths is already sorted chronologically
@@ -665,8 +650,7 @@ public class FileSystem : MonoBehaviour
     if (GlobalData.AreEffectsUnderway())
       return;
 
-    var manualListItems = new List<RectTransform>();
-    var autosaveListItems = new List<RectTransform>();
+    var listItems = new List<RectTransform>();
 
     foreach (var fullPath in fullPaths)
     {
@@ -674,30 +658,12 @@ public class FileSystem : MonoBehaviour
       // for the path having invalid characters, and AddHelper will only be
       // called after ValidateDirectoryName has cleared the path
       var fileName = Path.GetFileNameWithoutExtension(fullPath);
-      var autosave = fileName.StartsWith("Auto");
-
-      // because fullPaths is already sorted chronologically at this point,
-      // we can just get the hell out of Dodge as soon as we hit the limit
-      if (autosave)
-      {
-        if (m_CurrentAutosaveCount < m_MaxAutosaveCount)
-        {
-          ++m_CurrentAutosaveCount;
-        }
-        else
-        {
-          Debug.LogWarning($"Max autosave limit of {m_MaxAutosaveCount} reached when loading files. Aborting.");
-          break;
-        }
-      }
 
       var rt = AddHelper(fullPath, fileName);
-      var listToAddTo = autosave ? autosaveListItems : manualListItems;
-      listToAddTo.Add(rt);
+      listItems.Add(rt);
     }
 
-    m_ManualSaveList.Add(manualListItems);
-    m_AutosaveList.Add(autosaveListItems);
+    m_SaveList.Add(listItems);
   }
 
 
@@ -874,14 +840,6 @@ public class FileSystem : MonoBehaviour
     }
   }
 }
-
-// JSON format
-// @1 ##:##:## ##/##/##
-// {data}
-// @2
-// {added/overwritting blocks}
-// -
-// {0,1} // Tile to remove
 
 // TODO, add are you sure, if you load a level with unsaved changes.
 // TODO, fix area placement taking forever
