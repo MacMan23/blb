@@ -28,7 +28,7 @@ public class FileSystem : MonoBehaviour
   UnityDragAndDropHook m_DragAndDropHook;
 
   ModalDialogMaster m_ModalDialogMaster;
-  ModalDialogAdder m_OverwriteConfirmationDialogAdder;
+  ModalDialogAdder m_DialogAdder;
   string m_CurrentDirectoryPath;
   int m_CurrentAutosaveCount = 0;
   string m_PendingSaveFullPath = "";
@@ -51,7 +51,7 @@ public class FileSystem : MonoBehaviour
   {
     m_ModalDialogMaster = FindObjectOfType<ModalDialogMaster>();
 
-    m_OverwriteConfirmationDialogAdder = GetComponent<ModalDialogAdder>();
+    m_DialogAdder = GetComponent<ModalDialogAdder>();
     SetDirectoryName(m_DefaultDirectoryName);
   }
 
@@ -185,7 +185,7 @@ public class FileSystem : MonoBehaviour
       }
     }
 
-    string fullPath = "";
+    string fullPath;
     // If we are doing a SAVE AS
     if (name != null)
     {
@@ -196,8 +196,7 @@ public class FileSystem : MonoBehaviour
       {
         m_PendingSaveFullPath = fullPath;
 
-        m_OverwriteConfirmationDialogAdder.RequestDialogsAtCenterWithStrings(
-          Path.GetFileName(fullPath));
+        m_DialogAdder.RequestDialogAtCenterWithStrings(0, Path.GetFileName(fullPath));
         return;
       }
     }
@@ -220,12 +219,17 @@ public class FileSystem : MonoBehaviour
           UnmountFile();
         }
       }
-
-      if (!IsFileMounted() || !File.Exists(m_MountedSaveFilePath))
-        // TODO, put the auto saves into the mounted file
-        fullPath = Path.Combine(m_CurrentDirectoryPath, GenerateFileName(autosave));
+      else
+      {
+        // We are doing a manual save with no file mounted
+        // Or auto save with no loaded file
+        // Request a name for the new file to save to
+        m_DialogAdder.RequestDialogAtCenterWithStrings(1);
+        return;
+      }
     }
 
+    // TODO, add autos to save file
     WriteHelper(fullPath, autosave);
   }
 
@@ -261,8 +265,6 @@ public class FileSystem : MonoBehaviour
     bool autosave = (bool)parameters[1];
     bool overwriting = File.Exists(fullPath);
 
-
-
     #region Add level changes to level data
     // Edge cases
     // #: Overwriting, MountedFile, Diffrences, Saving to mounted file
@@ -272,7 +274,7 @@ public class FileSystem : MonoBehaviour
     // 4: 0, 1, 0, 0 (Save as; Copy our mounted file to a new file) [File copy]
     // 5: 0, 1, 1, 0 (Save as; Copy our level with the diffrences added to a new file) [oldSave + diff]
     // 6: 0, 0, 0, 0 (Save as; Write editor level to file) [TileGrid]
-    // 7: 1, 1, 0, 1 (Skip, We are saving to our own file, yet we have no diffrences) [return]
+    // 7: 1, 1, 0, 1 (Skip, We are saving to our own file, yeSt we have no diffrences) [return]
     // 8: 1, 1, 1, 1 (Save to our file with the diffrences) [oldSave + diff]
     // We can't have diffrences if we don't have a mounted file
     // We can only save to the mounted file if the file exist, meaning overwriting is true.
@@ -317,7 +319,6 @@ public class FileSystem : MonoBehaviour
     }
     #endregion
 
-
     try
     {
       if (copyFile)
@@ -337,13 +338,12 @@ public class FileSystem : MonoBehaviour
 
       MountFile(fullPath);
 
-      var listToAddTo = autosave ? m_AutosaveList : m_ManualSaveList;
-
       if (overwriting)
-        m_MainThreadDispatcher.Enqueue(() => MoveHistoryItemToTop(listToAddTo, fullPath));
+        m_MainThreadDispatcher.Enqueue(() => MoveHistoryItemToTop(m_ManualSaveList, fullPath));
       else
-        m_MainThreadDispatcher.Enqueue(() => AddHistoryItemForFile(listToAddTo, fullPath));
+        m_MainThreadDispatcher.Enqueue(() => AddHistoryItemForFile(m_ManualSaveList, fullPath));
 
+      // TODO, get auto save count when reading the file
       if (autosave)
         ++m_CurrentAutosaveCount;
 
@@ -712,15 +712,14 @@ public class FileSystem : MonoBehaviour
   }
 
 
-  string GenerateFileName(bool autosave)
+  /*string GenerateFileName()
   {
     var now = DateTime.Now;
     var nowString = now.ToString(s_DateTimeFormat);
-    var saveTypeString = autosave ? "Auto" : "Manual";
-    var fileName = $"{saveTypeString} {nowString}{s_FilenameExtension}";
+    var fileName = $"Auto {nowString}{s_FilenameExtension}";
 
     return fileName;
-  }
+  }*/
 
 
   bool ValidateDirectoryName(string directoryName)

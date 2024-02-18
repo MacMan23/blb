@@ -581,7 +581,7 @@ public class TileGrid : MonoBehaviour
       if (modalDialogAdder == null)
         OperationSystem.EndOperation();
       else
-        modalDialogAdder.RequestDialogsAtTransform();
+        modalDialogAdder.RequestDialogAtTransform();
     }
     else
     {
