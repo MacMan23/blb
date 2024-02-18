@@ -205,11 +205,9 @@ public class FileSystem : MonoBehaviour
     {
       if (IsFileMounted())
       {
-        if (File.Exists(m_MountedSaveFilePath))
-        {
-          fullPath = m_MountedSaveFilePath;
-        }
-        else
+        fullPath = m_MountedSaveFilePath;
+        // If our mounted file is deleted/missing
+        if (!File.Exists(m_MountedSaveFilePath))
         {
           // Because of the file validation on application focus, this SHOULD never happen.
           // But to be save incase the file is deleted while playing the game, do this
