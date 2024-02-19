@@ -391,13 +391,14 @@ public class FileSystem : MonoBehaviour
       }
       else
       {
-        string data = JsonUtility.ToJson(m_MountedFileHeader) + Environment.NewLine;
+        List<byte> data = new();
+        data.AddRange(System.Text.Encoding.Default.GetBytes(JsonUtility.ToJson(m_MountedFileHeader) + "\n"));
         if (s_ShouldCompress)
-          data += StringCompression.Compress(JsonUtility.ToJson(m_MountedFileData));
+          data.AddRange(StringCompression.Compress(JsonUtility.ToJson(m_MountedFileData)));
         else
-          data += JsonUtility.ToJson(m_MountedFileData);
-
-        File.WriteAllText(fullPath, data);
+          data.AddRange(System.Text.Encoding.Default.GetBytes(JsonUtility.ToJson(m_MountedFileData)));
+        
+        File.WriteAllBytes(fullPath, data.ToArray());
       }
 
       // Mount the file now that everything has been written
@@ -452,8 +453,8 @@ public class FileSystem : MonoBehaviour
 
     var jsonString = m_TileGrid.ToJsonString();
     // If we are useing a compression alg for loading/saving, copy this level as a copressed string
-    if (s_ShouldCompress)
-      jsonString = StringCompression.Compress(jsonString);
+    //if (s_ShouldCompress)
+      //jsonString = StringCompression.Compress(jsonString);
 
     var te = new TextEditor { text = jsonString };
     te.SelectAll();
@@ -481,7 +482,7 @@ public class FileSystem : MonoBehaviour
     }
     else
     {
-      LoadFromJson(text);
+      //LoadFromJson(text);
     }
   }
 
@@ -494,7 +495,7 @@ public class FileSystem : MonoBehaviour
     try
     {
       MountFile(fullPath);
-      LoadFromJson(File.ReadAllText(fullPath));
+      LoadFromJson(File.ReadAllBytes(fullPath));
     }
     catch (Exception e)
     {
@@ -512,11 +513,11 @@ public class FileSystem : MonoBehaviour
 
     // There is no file loaded from, so mount no files
     UnmountFile();
-    LoadFromJson(level.text);
+    LoadFromJson(level.bytes);
   }
 
   // Intermidiatarty load function. Calls the rest of the load functions.
-  void LoadFromJson(string json)
+  void LoadFromJson(byte[] json)
   {
     // Make sure we have file data for the load
     if (!FileDataExists())
@@ -526,12 +527,12 @@ public class FileSystem : MonoBehaviour
     {
       // Read the header first
       // The header is always uncompressed, and the data might be
-      string[] split = json.Split(Environment.NewLine, 2);
+      bool splitError = SplitBytes(json, out byte[] headerBytes, out byte[] dataBytes);
 
-      if (split.Length != 2)
+      if (splitError)
         throw new ArgumentException("Header and or Level data can not be found");
 
-      JsonUtility.FromJsonOverwrite(split[0], m_MountedFileHeader);
+      JsonUtility.FromJsonOverwrite(System.Text.Encoding.Default.GetString(headerBytes), m_MountedFileHeader);
 
       // If the save file was made with a diffrent version
       if (!m_MountedFileHeader.blbVersion.Equals(s_EditorVersion))
@@ -542,11 +543,15 @@ public class FileSystem : MonoBehaviour
         // TODO, should we return or keep going? Do we want to run a file with a diff version?
       }
 
+      string data;
+
       // Decompress string if needed
       if (m_MountedFileHeader.isDataCompressed)
-        split[1] = StringCompression.Decompress(split[1]);
+        data = StringCompression.Decompress(dataBytes);
+      else
+        data = System.Text.Encoding.Default.GetString(dataBytes);
 
-      JsonUtility.FromJsonOverwrite(split[1], m_MountedFileData);
+      JsonUtility.FromJsonOverwrite(data, m_MountedFileData);
     }
     catch (System.ArgumentException e)
     {
@@ -557,6 +562,29 @@ public class FileSystem : MonoBehaviour
     }
 
     m_TileGrid.LoadFromDictonary(FlattenLevelStringToGrid());
+  }
+
+  // Splits a byte array about a new line.
+  // Returns true if the new line cant be found
+  bool SplitBytes(in byte[] data, out byte[] left, out byte[] right)
+  {
+    left = new byte[0];
+    int i;
+    for (i = 0; i < data.Length; i++)
+    {
+      if (data[i] == '\n')
+      {
+        // copy all the data from 0 to i - 1 to the left buffer
+        left = data.Take(i).ToArray();
+        break;
+      }
+    }
+    // copy all the data from i + 1 to data.Length - 1 to the right buffer
+    right = data.Skip(i + 1).ToArray();
+
+    if (left.Length == 0)
+      return true;
+    return false;
   }
 
   Dictionary<Vector2Int, TileGrid.Element> FlattenLevelStringToGrid()
@@ -795,26 +823,24 @@ public class FileSystem : MonoBehaviour
   protected class StringCompression
   {
     // Compresses the input data using GZip
-    public static string Compress(string input)
+    public static byte[] Compress(string input)
     {
-      byte[] byteArray = System.Text.Encoding.UTF8.GetBytes(input);
+      byte[] byteArray = System.Text.Encoding.Default.GetBytes(input);
 
       using MemoryStream ms = new();
       using (GZipStream sw = new(ms, CompressionMode.Compress))
       {
         sw.Write(byteArray, 0, byteArray.Length);
       }
-      return System.Text.Encoding.UTF8.GetString(ms.ToArray());
+      return ms.ToArray();
     }
 
     // Decompresses the input data using GZip
-    public static string Decompress(string compressedData)
+    public static string Decompress(byte[] compressedData)
     {
-      byte[] compressedBytes = System.Text.Encoding.UTF8.GetBytes(compressedData);
-
-      using (MemoryStream ms = new(compressedBytes))
+      using (MemoryStream ms = new(compressedData))
       using (GZipStream sr = new(ms, CompressionMode.Decompress))
-      using (StreamReader reader = new(sr, System.Text.Encoding.UTF8))
+      using (StreamReader reader = new(sr))
       {
         return reader.ReadToEnd();
       }
