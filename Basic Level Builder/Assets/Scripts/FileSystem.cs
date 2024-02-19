@@ -33,7 +33,8 @@ public class FileSystem : MonoBehaviour
   string m_PendingSaveFullPath = "";
 
   string m_MountedSaveFilePath = "";
-  FileStructure m_MountedfileData;
+  FileData m_MountedFileData;
+  Header m_MountedFileHeader;
 
   // A thread to run when saving should be performed.
   // Only one save thread is run at once.
@@ -46,15 +47,13 @@ public class FileSystem : MonoBehaviour
 
   #region FileStructure classes
   [Serializable]
-  class FileStructure
+  class FileData
   {
-    public FileStructure(string ver = "")
+    public FileData()
     {
-      header = new Header() { blbVersion = ver };
       manualSaves = new List<LevelData>();
       autoSaves = new List<LevelData>();
     }
-    public Header header;
     public List<LevelData> manualSaves;
     public List<LevelData> autoSaves;
   }
@@ -62,7 +61,12 @@ public class FileSystem : MonoBehaviour
   [Serializable]
   class Header
   {
+    public Header(string ver = "")
+    {
+      blbVersion = ver;
+    }
     public string blbVersion;
+    public bool isDataCompressed = false;
   }
 
   [Serializable]
@@ -75,6 +79,9 @@ public class FileSystem : MonoBehaviour
     }
 
     public int version;
+    // The manual save version the auto save branched off from
+    public int branchVersion;
+    public DateTime timeStamp;
     public List<TileGrid.Element> addedTiles;
     public List<Vector2Int> removedTiles;
   }
@@ -131,10 +138,26 @@ public class FileSystem : MonoBehaviour
     }
   }
 
+  void CreateFileData()
+  {
+    m_MountedFileHeader = new(s_EditorVersion);
+    m_MountedFileData = new();
+  }
+
+  void ClearFileData()
+  {
+    m_MountedFileHeader = null;
+    m_MountedFileData = null;
+  }
+
+  bool FileDataExists()
+  {
+    return m_MountedFileData != null;
+  }
+
   void UnmountFile()
   {
     m_MountedSaveFilePath = "";
-    m_MountedfileData = null;
   }
 
   void MountFile(string filepath)
@@ -266,7 +289,7 @@ public class FileSystem : MonoBehaviour
     string fullPath = (string)parameters[0];
     bool autosave = (bool)parameters[1];
     bool overwriting = File.Exists(fullPath);
-
+    // TODO, Don't auto save if the diffences from the last auto save are the same. Ie no unsaved changes.
     #region Add level changes to level data
     // Edge cases
     // #: Overwriting, MountedFile, Diffrences, Saving to mounted file
@@ -284,13 +307,25 @@ public class FileSystem : MonoBehaviour
 
     // If we will be copying the mounted file over to a diffrent file
     bool copyFile = false;
-    bool hasDifferences = m_TileGrid.GetDifferences(out LevelData levelData);
+    LevelData levelData;
+    bool hasDifferences;
+    if (autosave)
+      hasDifferences = m_TileGrid.GetDifferencesForAutoSave(out levelData);
+    else
+      hasDifferences = m_TileGrid.GetDifferences(out levelData);
 
     // If we are writting to our own file yet we have no changes, skip the save
     if (overwriting && IsFileMounted() && fullPath.Equals(m_MountedSaveFilePath) && !hasDifferences)
     {
       // #7
       return;
+    }
+
+    // TODO, see where we need to set and reset the m_MountedfileData
+    // If we don't have a file mounted, mount the soon to be created file
+    if (!FileDataExists())
+    {
+      CreateFileData();
     }
 
     // If we are doing an auto check if we have to many
@@ -303,25 +338,23 @@ public class FileSystem : MonoBehaviour
 
       // now, if the autosave count is at its limit, then we should
       // get rid of the oldest autosave
-      if (IsFileMounted() && m_MountedfileData.autoSaves.Count >= s_MaxAutosaveCount)
+      if (IsFileMounted() && m_MountedFileData.autoSaves.Count >= s_MaxAutosaveCount)
       {
-        m_MountedfileData.autoSaves.RemoveAt(0);
+        m_MountedFileData.autoSaves.RemoveAt(0);
       }
-    }
-
-    // TODO, see where we need to set and reset the m_MountedfileData
-    // If we don't have a file mounted, mount the soon to be created file
-    if (!IsFileMounted())
-    {
-      m_MountedfileData = new(s_EditorVersion);
     }
 
     if (hasDifferences)
     {
       // #6, 1, 3, 5, 8
       // We have data to add/overwite to any file
-      List<LevelData> savesList = autosave ? m_MountedfileData.autoSaves : m_MountedfileData.manualSaves;
 
+      m_MountedFileHeader.isDataCompressed = s_ShouldCompress;
+
+      levelData.timeStamp = DateTime.Now;
+
+      // Set the version of the save based off the last save
+      List<LevelData> savesList = autosave ? m_MountedFileData.autoSaves : m_MountedFileData.manualSaves;
       if (savesList.Count > 0)
       {
         levelData.version = savesList[^1].version + 1;
@@ -329,6 +362,14 @@ public class FileSystem : MonoBehaviour
       else
       {
         levelData.version = 1;
+      }
+
+      // If this is an auto save, store what version of the manual save we branched from to get these diffrences to save
+      if (autosave)
+      {
+        // If an auto save happens and no file is mounted, a manual save is prompted.
+        // TODO, alternatly decide if we souldn't auto save if there is no file mounted
+        levelData.branchVersion = m_MountedFileData.manualSaves[^1].version;
       }
 
       savesList.Add(levelData);
@@ -350,15 +391,16 @@ public class FileSystem : MonoBehaviour
       }
       else
       {
-        byte[] data;
+        string data = JsonUtility.ToJson(m_MountedFileHeader) + Environment.NewLine;
         if (s_ShouldCompress)
-          data = StringCompression.Compress(JsonUtility.ToJson(m_MountedfileData));
+          data += StringCompression.Compress(JsonUtility.ToJson(m_MountedFileData));
         else
-          data = System.Text.Encoding.UTF8.GetBytes(JsonUtility.ToJson(m_MountedfileData));
+          data += JsonUtility.ToJson(m_MountedFileData);
 
-        File.WriteAllBytes(fullPath, data);
+        File.WriteAllText(fullPath, data);
       }
 
+      // Mount the file now that everything has been written
       MountFile(fullPath);
 
       if (overwriting)
@@ -411,7 +453,7 @@ public class FileSystem : MonoBehaviour
     var jsonString = m_TileGrid.ToJsonString();
     // If we are useing a compression alg for loading/saving, copy this level as a copressed string
     if (s_ShouldCompress)
-      jsonString = System.Text.Encoding.UTF8.GetString(StringCompression.Compress(jsonString));
+      jsonString = StringCompression.Compress(jsonString);
 
     var te = new TextEditor { text = jsonString };
     te.SelectAll();
@@ -452,7 +494,7 @@ public class FileSystem : MonoBehaviour
     try
     {
       MountFile(fullPath);
-      LoadFromJson(File.ReadAllBytes(fullPath));
+      LoadFromJson(File.ReadAllText(fullPath));
     }
     catch (Exception e)
     {
@@ -470,36 +512,41 @@ public class FileSystem : MonoBehaviour
 
     // There is no file loaded from, so mount no files
     UnmountFile();
-    LoadFromJson(level.bytes);
+    LoadFromJson(level.text);
   }
 
-  string RawDataToJsonString(byte[] json)
-  {
-    if (s_ShouldCompress)
-      return StringCompression.Decompress(json);
-    else
-      return System.Text.Encoding.UTF8.GetString(json);
-  }
-
-  // Overloaded function to convert a string to a byte array for the main function.
+  // Intermidiatarty load function. Calls the rest of the load functions.
   void LoadFromJson(string json)
   {
-    LoadFromJson(System.Text.Encoding.UTF8.GetBytes(json));
-  }
-  // Intermidiatarty load function. Calls the rest of the load functions.
-  void LoadFromJson(byte[] json)
-  {
-    // We don't have a file that we are loading from
-    // So mount null file, so the m_MountedfileData can be initilized
-    if (!IsFileMounted())
-      MountFile("");
-
-    if (m_MountedfileData == null)
-      m_MountedfileData = new(s_EditorVersion);
+    // Make sure we have file data for the load
+    if (!FileDataExists())
+      CreateFileData();
 
     try
     {
-      JsonUtility.FromJsonOverwrite(RawDataToJsonString(json), m_MountedfileData);
+      // Read the header first
+      // The header is always uncompressed, and the data might be
+      string[] split = json.Split(s_LineSeparator, StringSplitOptions.RemoveEmptyEntries);
+
+      if (split.Length != 2)
+        throw new ArgumentException("Header and or Level data can not be found");
+
+      JsonUtility.FromJsonOverwrite(split[0], m_MountedFileHeader);
+
+      // If the save file was made with a diffrent version
+      if (!m_MountedFileHeader.blbVersion.Equals(s_EditorVersion))
+      {
+        Debug.Log($"Save file {Path.GetFileName(m_MountedSaveFilePath)} was made with a diffrent BLB version. There may be possible errors.");
+        m_MainThreadDispatcher.Enqueue(() =>
+        StatusBar.Print($"Save file {Path.GetFileName(m_MountedSaveFilePath)} was made with a diffrent BLB version. There may be possible errors."));
+        // TODO, should we return or keep going? Do we want to run a file with a diff version?
+      }
+
+      // Decompress string if needed
+      if (m_MountedFileHeader.isDataCompressed)
+        split[1] = StringCompression.Decompress(split[1]);
+
+      JsonUtility.FromJsonOverwrite(split[1], m_MountedFileData);
     }
     catch (System.ArgumentException e)
     {
@@ -509,15 +556,6 @@ public class FileSystem : MonoBehaviour
       return;
     }
 
-    // If the save file was made with a diffrent version
-    if (!m_MountedfileData.header.blbVersion.Equals(s_EditorVersion))
-    {
-      Debug.Log($"Save file {Path.GetFileName(m_MountedSaveFilePath)} was made with a diffrent BLB version. There may be possible errors.");
-      m_MainThreadDispatcher.Enqueue(() =>
-      StatusBar.Print($"Save file {Path.GetFileName(m_MountedSaveFilePath)} was made with a diffrent BLB version. There may be possible errors."));
-      // TODO, should we return or keep going? Do we want to run a file with a diff version?
-    }
-
     m_TileGrid.LoadFromDictonary(FlattenLevelStringToGrid());
   }
 
@@ -525,7 +563,7 @@ public class FileSystem : MonoBehaviour
   {
     Dictionary<Vector2Int, TileGrid.Element> tiles = new();
 
-    foreach (var levelData in m_MountedfileData.manualSaves)
+    foreach (var levelData in m_MountedFileData.manualSaves)
     {
       foreach (var tile in levelData.addedTiles)
       {
@@ -538,25 +576,6 @@ public class FileSystem : MonoBehaviour
     }
 
     return tiles;
-  }
-
-  static Vector2Int ParseVec2Int(string input)
-  {
-    // Using regular expression to extract x and y values
-    Regex regex = new(@"\{(?<x>-?\d+),(?<y>-?\d+)\}");
-    Match match = regex.Match(input);
-
-    if (match.Success)
-    {
-      // Parse x and y values from the matched groups
-      int x = int.Parse(match.Groups["x"].Value);
-      int y = int.Parse(match.Groups["y"].Value);
-
-      return new Vector2Int(x, y);
-    }
-
-    // Return some default value or throw an exception based on your requirement
-    throw new ArgumentException("Invalid input format");
   }
 
   void SetDirectoryName(string name)
@@ -786,7 +805,7 @@ public class FileSystem : MonoBehaviour
   protected class StringCompression
   {
     // Compresses the input data using GZip
-    public static byte[] Compress(string input)
+    public static string Compress(string input)
     {
       byte[] byteArray = System.Text.Encoding.UTF8.GetBytes(input);
 
@@ -795,13 +814,13 @@ public class FileSystem : MonoBehaviour
       {
         sw.Write(byteArray, 0, byteArray.Length);
       }
-      return ms.ToArray();
+      return ms.ToString();
     }
 
     // Decompresses the input data using GZip
-    public static string Decompress(byte[] compressedData)
+    public static string Decompress(string compressedData)
     {
-      using MemoryStream ms = new(compressedData);
+      using MemoryStream ms = new(System.Text.Encoding.UTF8.GetBytes(compressedData));
       using GZipStream sr = new(ms, CompressionMode.Decompress);
       using StreamReader reader = new(sr);
       return reader.ReadToEnd();
@@ -845,7 +864,7 @@ public class FileSystem : MonoBehaviour
 // TODO, fix area placement taking forever
 // TODO, Large level creation and deletion still takes a long time.
 // TODO, game exit or file load "Are you sure" when there are unsaved changes or no file is mounted
-
+// TODO, Work needs to be done to mark what the previous version the auto save was used to make the diffrences from.
 
 
 

@@ -274,6 +274,44 @@ public class TileGrid : MonoBehaviour
     return hasDiffrences;
   }
 
+  // This is a modified version of GetDifferences that doesn't modify the m_OldGrid
+  public bool GetDifferencesForAutoSave(out FileSystem.LevelData levelData)
+  {
+    levelData = new();
+
+    bool hasDiffrences = false;
+
+    var tempOldGrid = m_OldGrid.ToDictionary(pair => pair.Key, pair => pair.Value);
+
+    foreach (var kvp in m_GridSaveBuffer)
+    {
+      Vector2Int position = kvp.Key;
+      Element currentElement = kvp.Value;
+
+      if (tempOldGrid.TryGetValue(position, out Element oldElement))
+      {
+        bool same = currentElement.Equals(oldElement);
+
+        // Removed element so we don't check it again in the next loop
+        tempOldGrid.Remove(position);
+
+        if (same)
+          continue;
+      }
+      levelData.addedTiles.Add(currentElement);
+      hasDiffrences = true;
+    }
+
+    // Every tile left in the old grid will be removed
+    foreach (var kvp in tempOldGrid)
+    {
+      levelData.removedTiles.Add(kvp.Key);
+      hasDiffrences = true;
+    }
+
+    return hasDiffrences;
+  }
+
   public void LoadFromDictonary(Dictionary<Vector2Int, Element> grid)
   {
     var startTime = DateTime.Now;
