@@ -681,7 +681,6 @@ public class FileSystem : MonoBehaviour
   {
     var element = historyList.GetItemByFullPath(fullPath);
     historyList.Remove(element.GetComponent<RectTransform>());
-    Destroy(element.gameObject);
   }
 
   void AddHistoryItemForFile(UiListView historyList, string fullPath)

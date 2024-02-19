@@ -46,10 +46,20 @@ public class TileGrid : MonoBehaviour
         return false;
       if (m_Direction != other.m_Direction)
         return false;
-      // Check if the paths equal if they both exist
-      if (other.m_Path != null && ((!m_Path?.SequenceEqual(other.m_Path)) ?? false))
+      if (PathsEqual(other))
         return false;
       return true;
+    }
+
+    public bool PathsEqual(Element other)
+    {
+      // If both paths don't exist or the paths are equal
+      if ((other.m_Path == null && m_Path == null) || 
+        (other.m_Path != null && m_Path != null && m_Path.SequenceEqual(other.m_Path)))
+      {
+        return true;
+      }
+      return false;
     }
 
     public void SetState(TileState state)
@@ -651,6 +661,10 @@ public class TileGrid : MonoBehaviour
     var newTile = Instantiate(prefab, tileWorldPosition, Quaternion.identity, parent);
 
     // fill the grid location
+    // If the grid already has the element, just fill it out,
+    // else make a new element
+    // The first case it mainly used for looping the grid in the load function
+    // as elements cant be changed in a foreach loop
     if (m_Grid.ContainsKey(gridIndex))
     {
       m_Grid[gridIndex].m_GameObject = newTile;

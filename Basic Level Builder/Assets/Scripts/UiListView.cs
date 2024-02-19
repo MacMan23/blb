@@ -56,7 +56,6 @@ public class UiListView : MonoBehaviour
 
   void RemoveHelper(RectTransform item)
   {
-    //item.SetParent(null);
     Destroy(item.gameObject);
   }
 
