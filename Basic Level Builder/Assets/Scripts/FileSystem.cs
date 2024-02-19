@@ -8,7 +8,6 @@ using UnityEngine;
 using System.Runtime.InteropServices;
 using B83.Win32;
 using System.Threading;
-using System.Text.RegularExpressions;
 
 public class FileSystem : MonoBehaviour
 {
@@ -16,8 +15,7 @@ public class FileSystem : MonoBehaviour
   readonly static public string s_RootDirectoryName = "Basic Level Builder";
   readonly static public string s_DateTimeFormat = "h-mm-ss.ff tt, ddd d MMM yyyy";
   readonly static public int s_MaxAutosaveCount = 20;
-  readonly static string[] s_LineSeparator = new string[] { Environment.NewLine };
-  readonly static bool s_ShouldCompress = false;
+  readonly static bool s_ShouldCompress = true;
   static string s_EditorVersion;
 
   public string m_DefaultDirectoryName = "Default Project";
@@ -248,8 +246,11 @@ public class FileSystem : MonoBehaviour
       {
         // We are doing a manual save with no file mounted
         // Or auto save with no loaded file
-        // Request a name for the new file to save to
-        m_DialogAdder.RequestDialogAtCenterWithStrings(1);
+        // If we are doing a manual save,
+        // request a name for the new file to save to
+        // Skip over the save if an auto save since it would prompt a file name
+        if (!autosave)
+          m_DialogAdder.RequestDialogAtCenterWithStrings(1);
         return;
       }
     }
@@ -368,7 +369,6 @@ public class FileSystem : MonoBehaviour
       if (autosave)
       {
         // If an auto save happens and no file is mounted, a manual save is prompted.
-        // TODO, alternatly decide if we souldn't auto save if there is no file mounted
         levelData.branchVersion = m_MountedFileData.manualSaves[^1].version;
       }
 
@@ -526,7 +526,7 @@ public class FileSystem : MonoBehaviour
     {
       // Read the header first
       // The header is always uncompressed, and the data might be
-      string[] split = json.Split(s_LineSeparator, StringSplitOptions.RemoveEmptyEntries);
+      string[] split = json.Split(Environment.NewLine, 2);
 
       if (split.Length != 2)
         throw new ArgumentException("Header and or Level data can not be found");
@@ -697,16 +697,6 @@ public class FileSystem : MonoBehaviour
   }
 
 
-  /*string GenerateFileName()
-  {
-    var now = DateTime.Now;
-    var nowString = now.ToString(s_DateTimeFormat);
-    var fileName = $"Auto {nowString}{s_FilenameExtension}";
-
-    return fileName;
-  }*/
-
-
   bool ValidateDirectoryName(string directoryName)
   {
     if (string.IsNullOrEmpty(directoryName) || string.IsNullOrWhiteSpace(directoryName))
@@ -814,16 +804,20 @@ public class FileSystem : MonoBehaviour
       {
         sw.Write(byteArray, 0, byteArray.Length);
       }
-      return ms.ToString();
+      return System.Text.Encoding.UTF8.GetString(ms.ToArray());
     }
 
     // Decompresses the input data using GZip
     public static string Decompress(string compressedData)
     {
-      using MemoryStream ms = new(System.Text.Encoding.UTF8.GetBytes(compressedData));
-      using GZipStream sr = new(ms, CompressionMode.Decompress);
-      using StreamReader reader = new(sr);
-      return reader.ReadToEnd();
+      byte[] compressedBytes = System.Text.Encoding.UTF8.GetBytes(compressedData);
+
+      using (MemoryStream ms = new(compressedBytes))
+      using (GZipStream sr = new(ms, CompressionMode.Decompress))
+      using (StreamReader reader = new(sr, System.Text.Encoding.UTF8))
+      {
+        return reader.ReadToEnd();
+      }
     }
   }
 
