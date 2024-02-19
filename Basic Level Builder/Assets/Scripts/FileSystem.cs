@@ -595,7 +595,7 @@ public class FileSystem : MonoBehaviour
     {
       foreach (var tile in levelData.addedTiles)
       {
-        tiles.Add(tile.m_GridIndex, tile);
+        tiles[tile.m_GridIndex] = tile;
       }
       foreach (var pos in levelData.removedTiles)
       {
