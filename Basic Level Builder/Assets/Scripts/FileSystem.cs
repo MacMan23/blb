@@ -15,7 +15,7 @@ public class FileSystem : MonoBehaviour
   readonly static public string s_RootDirectoryName = "Basic Level Builder";
   readonly static public string s_DateTimeFormat = "h-mm-ss.ff tt, ddd d MMM yyyy";
   readonly static public int s_MaxAutosaveCount = 20;
-  readonly static bool s_ShouldCompress = true;
+  readonly static bool s_ShouldCompress = false;
   static string s_EditorVersion;
 
   public string m_DefaultDirectoryName = "Default Project";
@@ -33,7 +33,7 @@ public class FileSystem : MonoBehaviour
   string m_CurrentDirectoryPath;
   string m_PendingSaveFullPath = "";
 
-  string m_TempSaveFile = "";
+  bool m_IsTempFile = false;
   string m_MountedSaveFilePath = "";
   FileData m_MountedFileData;
   Header m_MountedFileHeader;
@@ -150,17 +150,6 @@ public class FileSystem : MonoBehaviour
     m_MountedFileData = null;
   }
 
-  bool TempFileExists()
-  {
-    return !String.IsNullOrEmpty(m_TempSaveFile);
-  }
-
-  void DeleteTempFile()
-  {
-    File.Delete(m_TempSaveFile);
-    m_TempSaveFile = "";
-  }
-
   bool FileDataExists()
   {
     return m_MountedFileData != null;
@@ -235,45 +224,50 @@ public class FileSystem : MonoBehaviour
     }
     else
     {
+      Debug.Log("SAVED");
       if (IsFileMounted())
       {
-        fullPath = m_MountedSaveFilePath;
-        // If our mounted file is deleted/missing
-        if (!File.Exists(m_MountedSaveFilePath))
+        // If we are doing a save, but we only have a temp file
+        if (m_IsTempFile && !autosave)
         {
-          // Because of the file validation on application focus, this SHOULD never happen.
-          // But to be save incase the file is deleted while playing the game, do this
-          // TODO, get this error to overwrite or concat with the saved message
-          var errorString = $"Error: File with path \"{m_MountedSaveFilePath}\" could not be found." + Environment.NewLine +
-            "A new file has been made for this save.";
-          StatusBar.Print(errorString);
-          Debug.LogWarning(errorString);
-          RemoveHistoryItem(m_SaveList, m_MountedSaveFilePath);
-          UnmountFile();
+          // request a name for a new file to save to
+          m_SaveAsDialogAdder.RequestDialogsAtCenterWithStrings();
+          return;
+        }
+        else
+        {
+          fullPath = m_MountedSaveFilePath;
+
+          // If our mounted file is deleted/missing
+          if (!File.Exists(m_MountedSaveFilePath))
+          {
+            // Because of the file validation on application focus, this SHOULD never happen.
+            // But to be save incase the file is deleted while playing the game, do this
+            // TODO, get this error to overwrite or concat with the saved message
+            var errorString = $"Error: File with path \"{m_MountedSaveFilePath}\" could not be found." + Environment.NewLine +
+              "A new file has been made for this save.";
+            StatusBar.Print(errorString);
+            Debug.LogWarning(errorString);
+            RemoveHistoryItem(m_SaveList, m_MountedSaveFilePath);
+            UnmountFile();
+          }
         }
       }
       else
       {
-        // We are doing a manual save with no file mounted
-        // Or auto save with no loaded file
-
-
+        // We are doing a manual or auto save with no mounted file
         // If an auto save, create a temp file and write to that
         if (autosave)
         {
-          if (!TempFileExists())
-          {
-            fullPath = CreateTempFileName();
-          }
-          else
-          {
-            fullPath = m_TempSaveFile;
-          }
+          fullPath = CreateTempFileName();
+          m_IsTempFile = true;
+          // Mount temp file so we can check when the full file path isn't the temp file
+          MountFile(fullPath);
         }
-        // If we are doing a manual save,
-        // request a name for the new file to save to
         else
         {
+          // We are doing a manual save,
+          // request a name for the new file to save to
           m_SaveAsDialogAdder.RequestDialogsAtCenterWithStrings();
           return;
         }
@@ -340,7 +334,7 @@ public class FileSystem : MonoBehaviour
 
     // If we are writting to our own file yet we have no changes, skip the save
     // Or we are writting to a temp file with no changes, ignore write
-    if (overwriting && ((IsFileMounted() && fullPath.Equals(m_MountedSaveFilePath)) || TempFileExists()) && !hasDifferences)
+    if (overwriting && IsFileMounted() && fullPath.Equals(m_MountedSaveFilePath) && !hasDifferences)
     {
       // #7
       return;
@@ -363,12 +357,13 @@ public class FileSystem : MonoBehaviour
 
       // now, if the autosave count is at its limit, then we should
       // get rid of the oldest autosave
-      if ((IsFileMounted() || TempFileExists()) && m_MountedFileData.m_AutoSaves.Count >= s_MaxAutosaveCount)
+      if (m_MountedFileData.m_AutoSaves.Count >= s_MaxAutosaveCount)
       {
         m_MountedFileData.m_AutoSaves.RemoveAt(0);
       }
     }
 
+    // TODO, check if the auto save has diffrences from the last auto save, if not, discard save,
     if (hasDifferences)
     {
       // #6, 1, 3, 5, 8
@@ -393,7 +388,7 @@ public class FileSystem : MonoBehaviour
       if (autosave)
       {
         // If we a auto saving to a temp file
-        if (TempFileExists())
+        if (m_IsTempFile)
         {
           // We aren't diffing from a manual save, so version 0 means that
           levelData.m_BranchVersion = 0;
@@ -414,13 +409,6 @@ public class FileSystem : MonoBehaviour
       // We have no changes to write, but we are writting to some file that isn't our own
       // So just copy our file to the destination file
       copyFile = true;
-
-      // If we are doing our first manual save when we have a temp file
-      if (TempFileExists())
-      {
-        // Set the temp file as mounted, because the fileCopy will copy from the mounted file to the new file
-        MountFile(m_TempSaveFile);
-      }
     }
     #endregion
 
@@ -443,17 +431,14 @@ public class FileSystem : MonoBehaviour
       }
 
       // If we did a manual save with a temp file, we no longer need the temp file.
-      if (TempFileExists() && !fullPath.Equals(m_TempSaveFile))
+      if (m_IsTempFile && !fullPath.Equals(m_MountedSaveFilePath))
       {
-        DeleteTempFile();
+        File.Delete(m_MountedSaveFilePath);
+        m_IsTempFile = false;
       }
 
       // Mount the file now that everything has been written
-      // However don't mount it if it is a temp file
-      if (!TempFileExists())
-      {
-        MountFile(fullPath);
-      }
+      MountFile(fullPath);
 
       if (overwriting)
         m_MainThreadDispatcher.Enqueue(() => MoveHistoryItemToTop(m_SaveList, fullPath));
@@ -814,7 +799,7 @@ public class FileSystem : MonoBehaviour
 
   string CreateTempFileName()
   {
-    return Path.GetTempPath() + Guid.NewGuid().ToString() + ".blb";
+    return Path.Combine(m_CurrentDirectoryPath, Guid.NewGuid().ToString() + ".blb");
   }
 
   void SortByDateTimeParsedFileNames(string[] files)
@@ -921,14 +906,26 @@ public class FileSystem : MonoBehaviour
   }
 }
 
-// TODO, add are you sure, if you load a level with unsaved changes.
+// TODO, make new level button
+// TODO make the save clean on SAVE AS
+// TODO, Create load functions that take the auto save or auto save version number and load that one up
+// TODO, make a manual save limit, where once 100 saves are done, bring up text saying that we will start deleting old versions since there are so many.
+// Still increment version numbers so we can go past 100 and never bring the prompt up again
+// TODO, add feature to select a range of versions and squash them together
+// TODO, add feature to delete versions. (This uses the squash function)
+// TODO, Star on file name to show unsaved changes.
+
+// Extra credit
 // TODO, fix area placement taking forever
 // TODO, Large level creation and deletion still takes a long time.
-// TODO, game exit or file load "Are you sure" when there are unsaved changes or no file is mounted
-// TODO, Work needs to be done to mark what the previous version the auto save was used to make the diffrences from.
+// TODO, Make RequestDialogAtCenterWithStrings an async function that waits for the user to finish the dialog then continue.
 
-// TODO, ask to save if there are unsaved changes.
-// TODO, Move temp file to folder local
+
+// These three are the same:
+// TODO, game exit or file load "Are you sure" when there are unsaved changes or no file is mounted
+// TODO, add are you sure, if you load a level with unsaved changes.
+// TODO, When closeing app, ask to save if there are unsaved changes.
+// If no, delete temp file on close
 
 
 
