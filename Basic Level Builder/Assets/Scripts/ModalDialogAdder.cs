@@ -13,7 +13,6 @@ public class ModalDialogAdder : MonoBehaviour
     m_ModalDialogMaster = FindObjectOfType<ModalDialogMaster>();
   }
 
-  #region Dialogs request
   public void RequestDialogsAtTransform()
   {
     RequestDialogsAtTransformWithStrings();
@@ -48,41 +47,4 @@ public class ModalDialogAdder : MonoBehaviour
 
     m_ModalDialogMaster.Begin(false);
   }
-  #endregion
-
-  #region Dialog request
-  public void RequestDialogAtTransform(int dialogInex = 0)
-  {
-    RequestDialogAtTransformWithStrings(dialogInex);
-  }
-
-
-  public void RequestDialogAtCenter(int dialogInex = 0)
-  {
-    RequestDialogAtCenterWithStrings(dialogInex);
-  }
-
-  public void RequestDialogAtTransformWithStrings(int dialogInex = 0, params string[] strings)
-  {
-    if (GlobalData.AreEffectsUnderway())
-      return;
-
-    var worldPoint = transform.position;
-
-    m_ModalDialogMaster.RequestDialogAtWorldPoint(m_ModalDialogPrefabs[dialogInex], worldPoint, strings);
-
-    m_ModalDialogMaster.Begin(true);
-  }
-
-
-  public void RequestDialogAtCenterWithStrings(int dialogInex = 0, params string[] strings)
-  {
-    if (GlobalData.AreEffectsUnderway())
-      return;
-
-    m_ModalDialogMaster.RequestDialogAtCenter(m_ModalDialogPrefabs[dialogInex], strings);
-
-    m_ModalDialogMaster.Begin(false);
-  }
-  #endregion
 }

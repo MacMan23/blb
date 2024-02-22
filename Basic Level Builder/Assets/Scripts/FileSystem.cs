@@ -26,10 +26,14 @@ public class FileSystem : MonoBehaviour
   UnityDragAndDropHook m_DragAndDropHook;
 
   ModalDialogMaster m_ModalDialogMaster;
-  ModalDialogAdder m_DialogAdder;
+  [SerializeField]
+  ModalDialogAdder m_OverrideDialogAdder;
+  [SerializeField]
+  ModalDialogAdder m_SaveAsDialogAdder;
   string m_CurrentDirectoryPath;
   string m_PendingSaveFullPath = "";
 
+  string m_TempSaveFile = "";
   string m_MountedSaveFilePath = "";
   FileData m_MountedFileData;
   Header m_MountedFileHeader;
@@ -38,7 +42,7 @@ public class FileSystem : MonoBehaviour
   // Only one save thread is run at once.
   private Thread m_SavingThread;
   // A queue of events that the saving thread will enqueue for the main thread
-  private MainThreadDispatcher m_MainThreadDispatcher = new();
+  private readonly MainThreadDispatcher m_MainThreadDispatcher = new();
 
   [DllImport("__Internal")]
   private static extern void SyncFiles();
@@ -49,11 +53,11 @@ public class FileSystem : MonoBehaviour
   {
     public FileData()
     {
-      manualSaves = new List<LevelData>();
-      autoSaves = new List<LevelData>();
+      m_ManualSaves = new List<LevelData>();
+      m_AutoSaves = new List<LevelData>();
     }
-    public List<LevelData> manualSaves;
-    public List<LevelData> autoSaves;
+    public List<LevelData> m_ManualSaves;
+    public List<LevelData> m_AutoSaves;
   }
 
   [Serializable]
@@ -61,10 +65,10 @@ public class FileSystem : MonoBehaviour
   {
     public Header(string ver = "")
     {
-      blbVersion = ver;
+      m_BlbVersion = ver;
     }
-    public string blbVersion;
-    public bool isDataCompressed = false;
+    public string m_BlbVersion;
+    public bool m_IsDataCompressed = false;
   }
 
   [Serializable]
@@ -72,16 +76,16 @@ public class FileSystem : MonoBehaviour
   {
     public LevelData()
     {
-      addedTiles = new List<TileGrid.Element>();
-      removedTiles = new List<Vector2Int>();
+      m_AddedTiles = new List<TileGrid.Element>();
+      m_RemovedTiles = new List<Vector2Int>();
     }
 
-    public int version;
+    public int m_Version;
     // The manual save version the auto save branched off from
-    public int branchVersion;
-    public DateTime timeStamp;
-    public List<TileGrid.Element> addedTiles;
-    public List<Vector2Int> removedTiles;
+    public int m_BranchVersion;
+    public DateTime m_TimeStamp;
+    public List<TileGrid.Element> m_AddedTiles;
+    public List<Vector2Int> m_RemovedTiles;
   }
   #endregion
 
@@ -91,7 +95,6 @@ public class FileSystem : MonoBehaviour
     s_EditorVersion = Application.version;
     m_ModalDialogMaster = FindObjectOfType<ModalDialogMaster>();
 
-    m_DialogAdder = GetComponent<ModalDialogAdder>();
     SetDirectoryName(m_DefaultDirectoryName);
   }
 
@@ -100,7 +103,6 @@ public class FileSystem : MonoBehaviour
     // Calls the unity functions that the save thread can not 
     m_MainThreadDispatcher.Update();
   }
-
 
   private void OnEnable()
   {
@@ -148,6 +150,17 @@ public class FileSystem : MonoBehaviour
     m_MountedFileData = null;
   }
 
+  bool TempFileExists()
+  {
+    return !String.IsNullOrEmpty(m_TempSaveFile);
+  }
+
+  void DeleteTempFile()
+  {
+    File.Delete(m_TempSaveFile);
+    m_TempSaveFile = "";
+  }
+
   bool FileDataExists()
   {
     return m_MountedFileData != null;
@@ -181,18 +194,15 @@ public class FileSystem : MonoBehaviour
       LoadFromFullPath(validPaths[0]);
   }
 
-
   public void ManualSave()
   {
     Save(false);
   }
 
-
   public void Autosave()
   {
     Save(true);
   }
-
 
   public void SaveAs(string name)
   {
@@ -219,7 +229,7 @@ public class FileSystem : MonoBehaviour
       {
         m_PendingSaveFullPath = fullPath;
 
-        m_DialogAdder.RequestDialogAtCenterWithStrings(0, Path.GetFileName(fullPath));
+        m_OverrideDialogAdder.RequestDialogsAtCenterWithStrings(Path.GetFileName(fullPath));
         return;
       }
     }
@@ -246,19 +256,32 @@ public class FileSystem : MonoBehaviour
       {
         // We are doing a manual save with no file mounted
         // Or auto save with no loaded file
+
+
+        // If an auto save, create a temp file and write to that
+        if (autosave)
+        {
+          if (!TempFileExists())
+          {
+            fullPath = CreateTempFileName();
+          }
+          else
+          {
+            fullPath = m_TempSaveFile;
+          }
+        }
         // If we are doing a manual save,
         // request a name for the new file to save to
-        // Skip over the save if an auto save since it would prompt a file name
-        if (!autosave)
-          m_DialogAdder.RequestDialogAtCenterWithStrings(1);
-        return;
+        else
+        {
+          m_SaveAsDialogAdder.RequestDialogsAtCenterWithStrings();
+          return;
+        }
       }
     }
 
-    // TODO, add autos to save file
     WriteHelper(fullPath, autosave);
   }
-
 
   public void ConfirmOverwrite()
   {
@@ -300,7 +323,7 @@ public class FileSystem : MonoBehaviour
     // 4: 0, 1, 0, 0 (Save as; Copy our mounted file to a new file) [File copy]
     // 5: 0, 1, 1, 0 (Save as; Copy our level with the diffrences added to a new file) [oldSave + diff]
     // 6: 0, 0, 0, 0 (Save as; Write editor level to file) [TileGrid]
-    // 7: 1, 1, 0, 1 (Skip, We are saving to our own file, yeSt we have no diffrences) [return]
+    // 7: 1, 1, 0, 1 (Skip, We are saving to our own file, yet we have no diffrences) [return]
     // 8: 1, 1, 1, 1 (Save to our file with the diffrences) [oldSave + diff]
     // We can't have diffrences if we don't have a mounted file
     // We can only save to the mounted file if the file exist, meaning overwriting is true.
@@ -316,7 +339,8 @@ public class FileSystem : MonoBehaviour
       hasDifferences = m_TileGrid.GetDifferences(out levelData);
 
     // If we are writting to our own file yet we have no changes, skip the save
-    if (overwriting && IsFileMounted() && fullPath.Equals(m_MountedSaveFilePath) && !hasDifferences)
+    // Or we are writting to a temp file with no changes, ignore write
+    if (overwriting && ((IsFileMounted() && fullPath.Equals(m_MountedSaveFilePath)) || TempFileExists()) && !hasDifferences)
     {
       // #7
       return;
@@ -339,9 +363,9 @@ public class FileSystem : MonoBehaviour
 
       // now, if the autosave count is at its limit, then we should
       // get rid of the oldest autosave
-      if (IsFileMounted() && m_MountedFileData.autoSaves.Count >= s_MaxAutosaveCount)
+      if ((IsFileMounted() || TempFileExists()) && m_MountedFileData.m_AutoSaves.Count >= s_MaxAutosaveCount)
       {
-        m_MountedFileData.autoSaves.RemoveAt(0);
+        m_MountedFileData.m_AutoSaves.RemoveAt(0);
       }
     }
 
@@ -350,26 +374,36 @@ public class FileSystem : MonoBehaviour
       // #6, 1, 3, 5, 8
       // We have data to add/overwite to any file
 
-      m_MountedFileHeader.isDataCompressed = s_ShouldCompress;
+      m_MountedFileHeader.m_IsDataCompressed = s_ShouldCompress;
 
-      levelData.timeStamp = DateTime.Now;
+      levelData.m_TimeStamp = DateTime.Now;
 
       // Set the version of the save based off the last save
-      List<LevelData> savesList = autosave ? m_MountedFileData.autoSaves : m_MountedFileData.manualSaves;
+      List<LevelData> savesList = autosave ? m_MountedFileData.m_AutoSaves : m_MountedFileData.m_ManualSaves;
       if (savesList.Count > 0)
       {
-        levelData.version = savesList[^1].version + 1;
+        levelData.m_Version = savesList[^1].m_Version + 1;
       }
       else
       {
-        levelData.version = 1;
+        levelData.m_Version = 1;
       }
 
       // If this is an auto save, store what version of the manual save we branched from to get these diffrences to save
       if (autosave)
       {
-        // If an auto save happens and no file is mounted, a manual save is prompted.
-        levelData.branchVersion = m_MountedFileData.manualSaves[^1].version;
+        // If we a auto saving to a temp file
+        if (TempFileExists())
+        {
+          // We aren't diffing from a manual save, so version 0 means that
+          levelData.m_BranchVersion = 0;
+        }
+        else
+        {
+          // Set the manual save version we are branching off from
+          // Which will always be the latest manual save
+          levelData.m_BranchVersion = m_MountedFileData.m_ManualSaves[^1].m_Version;
+        }
       }
 
       savesList.Add(levelData);
@@ -380,6 +414,13 @@ public class FileSystem : MonoBehaviour
       // We have no changes to write, but we are writting to some file that isn't our own
       // So just copy our file to the destination file
       copyFile = true;
+
+      // If we are doing our first manual save when we have a temp file
+      if (TempFileExists())
+      {
+        // Set the temp file as mounted, because the fileCopy will copy from the mounted file to the new file
+        MountFile(m_TempSaveFile);
+      }
     }
     #endregion
 
@@ -397,12 +438,22 @@ public class FileSystem : MonoBehaviour
           data.AddRange(StringCompression.Compress(JsonUtility.ToJson(m_MountedFileData)));
         else
           data.AddRange(System.Text.Encoding.Default.GetBytes(JsonUtility.ToJson(m_MountedFileData)));
-        
+
         File.WriteAllBytes(fullPath, data.ToArray());
       }
 
+      // If we did a manual save with a temp file, we no longer need the temp file.
+      if (TempFileExists() && !fullPath.Equals(m_TempSaveFile))
+      {
+        DeleteTempFile();
+      }
+
       // Mount the file now that everything has been written
-      MountFile(fullPath);
+      // However don't mount it if it is a temp file
+      if (!TempFileExists())
+      {
+        MountFile(fullPath);
+      }
 
       if (overwriting)
         m_MainThreadDispatcher.Enqueue(() => MoveHistoryItemToTop(m_SaveList, fullPath));
@@ -454,7 +505,7 @@ public class FileSystem : MonoBehaviour
     var jsonString = m_TileGrid.ToJsonString();
     // If we are useing a compression alg for loading/saving, copy this level as a copressed string
     //if (s_ShouldCompress)
-      //jsonString = StringCompression.Compress(jsonString);
+    //jsonString = StringCompression.Compress(jsonString);
 
     var te = new TextEditor { text = jsonString };
     te.SelectAll();
@@ -462,7 +513,6 @@ public class FileSystem : MonoBehaviour
 
     StatusBar.Print("Level copied to clipboard.");
   }
-
 
   // Deprecated for now untill real use is found.
   // Will need update for save versioning.
@@ -485,8 +535,6 @@ public class FileSystem : MonoBehaviour
       //LoadFromJson(text);
     }
   }
-
-
   public void LoadFromFullPath(string fullPath)
   {
     if (GlobalData.AreEffectsUnderway())
@@ -504,7 +552,6 @@ public class FileSystem : MonoBehaviour
       Debug.LogError($"Error while loading. {e.Message} ({e.GetType()})");
     }
   }
-
 
   public void LoadFromTextAsset(TextAsset level)
   {
@@ -527,7 +574,7 @@ public class FileSystem : MonoBehaviour
     {
       // Read the header first
       // The header is always uncompressed, and the data might be
-      bool splitError = SplitBytes(json, out byte[] headerBytes, out byte[] dataBytes);
+      bool splitError = SplitNewLineBytes(json, out byte[] headerBytes, out byte[] dataBytes);
 
       if (splitError)
         throw new ArgumentException("Header and or Level data can not be found");
@@ -535,7 +582,7 @@ public class FileSystem : MonoBehaviour
       JsonUtility.FromJsonOverwrite(System.Text.Encoding.Default.GetString(headerBytes), m_MountedFileHeader);
 
       // If the save file was made with a diffrent version
-      if (!m_MountedFileHeader.blbVersion.Equals(s_EditorVersion))
+      if (!m_MountedFileHeader.m_BlbVersion.Equals(s_EditorVersion))
       {
         Debug.Log($"Save file {Path.GetFileName(m_MountedSaveFilePath)} was made with a diffrent BLB version. There may be possible errors.");
         m_MainThreadDispatcher.Enqueue(() =>
@@ -546,7 +593,7 @@ public class FileSystem : MonoBehaviour
       string data;
 
       // Decompress string if needed
-      if (m_MountedFileHeader.isDataCompressed)
+      if (m_MountedFileHeader.m_IsDataCompressed)
         data = StringCompression.Decompress(dataBytes);
       else
         data = System.Text.Encoding.Default.GetString(dataBytes);
@@ -566,7 +613,7 @@ public class FileSystem : MonoBehaviour
 
   // Splits a byte array about a new line.
   // Returns true if the new line cant be found
-  bool SplitBytes(in byte[] data, out byte[] left, out byte[] right)
+  bool SplitNewLineBytes(in byte[] data, out byte[] left, out byte[] right)
   {
     left = new byte[0];
     int i;
@@ -591,13 +638,13 @@ public class FileSystem : MonoBehaviour
   {
     Dictionary<Vector2Int, TileGrid.Element> tiles = new();
 
-    foreach (var levelData in m_MountedFileData.manualSaves)
+    foreach (var levelData in m_MountedFileData.m_ManualSaves)
     {
-      foreach (var tile in levelData.addedTiles)
+      foreach (var tile in levelData.m_AddedTiles)
       {
         tiles[tile.m_GridIndex] = tile;
       }
-      foreach (var pos in levelData.removedTiles)
+      foreach (var pos in levelData.m_RemovedTiles)
       {
         tiles.Remove(pos);
       }
@@ -723,7 +770,6 @@ public class FileSystem : MonoBehaviour
     return rt;
   }
 
-
   bool ValidateDirectoryName(string directoryName)
   {
     if (string.IsNullOrEmpty(directoryName) || string.IsNullOrWhiteSpace(directoryName))
@@ -736,7 +782,6 @@ public class FileSystem : MonoBehaviour
     else
       return true;
   }
-
 
   string GetDocumentsPath()
   {
@@ -767,18 +812,20 @@ public class FileSystem : MonoBehaviour
     }
   }
 
+  string CreateTempFileName()
+  {
+    return Path.GetTempPath() + Guid.NewGuid().ToString() + ".blb";
+  }
 
   void SortByDateTimeParsedFileNames(string[] files)
   {
     Array.Sort(files, FileNameComparison);
   }
 
-
   void SortByDateModified(string[] files)
   {
     Array.Sort(files, DateModifiedComparison);
   }
-
 
   static int FileNameComparison(string a, string b)
   {
@@ -788,7 +835,6 @@ public class FileSystem : MonoBehaviour
     return DateTime.Compare(dateTimeA, dateTimeB);
   }
 
-
   static int DateModifiedComparison(string a, string b)
   {
     var dateTimeA = File.GetLastWriteTime(a);
@@ -796,7 +842,6 @@ public class FileSystem : MonoBehaviour
 
     return DateTime.Compare(dateTimeA, dateTimeB);
   }
-
 
   static DateTime GetDateTimeFromFileName(string fileName)
   {
@@ -818,7 +863,6 @@ public class FileSystem : MonoBehaviour
     return output;
   }
 
-
   protected class StringCompression
   {
     // Compresses the input data using GZip
@@ -837,12 +881,10 @@ public class FileSystem : MonoBehaviour
     // Decompresses the input data using GZip
     public static string Decompress(byte[] compressedData)
     {
-      using (MemoryStream ms = new(compressedData))
-      using (GZipStream sr = new(ms, CompressionMode.Decompress))
-      using (StreamReader reader = new(sr))
-      {
-        return reader.ReadToEnd();
-      }
+      using MemoryStream ms = new(compressedData);
+      using GZipStream sr = new(ms, CompressionMode.Decompress);
+      using StreamReader reader = new(sr);
+      return reader.ReadToEnd();
     }
   }
 
@@ -884,6 +926,9 @@ public class FileSystem : MonoBehaviour
 // TODO, Large level creation and deletion still takes a long time.
 // TODO, game exit or file load "Are you sure" when there are unsaved changes or no file is mounted
 // TODO, Work needs to be done to mark what the previous version the auto save was used to make the diffrences from.
+
+// TODO, ask to save if there are unsaved changes.
+// TODO, Move temp file to folder local
 
 
 

@@ -250,33 +250,7 @@ public class TileGrid : MonoBehaviour
   {
     levelData = new();
 
-    bool hasDiffrences = false;
-
-    foreach (var kvp in m_GridSaveBuffer)
-    {
-      Vector2Int position = kvp.Key;
-      Element currentElement = kvp.Value;
-
-      if (m_OldGrid.TryGetValue(position, out Element oldElement))
-      {
-        bool same = currentElement.Equals(oldElement);
-
-        // Removed element so we don't check it again in the next loop
-        m_OldGrid.Remove(position);
-
-        if (same)
-          continue;
-      }
-      levelData.addedTiles.Add(currentElement);
-      hasDiffrences = true;
-    }
-
-    // Every tile left in the old grid will be removed
-    foreach (var kvp in m_OldGrid)
-    {
-      levelData.removedTiles.Add(kvp.Key);
-      hasDiffrences = true;
-    }
+    bool hasDiffrences = GetDifferencesHelper(ref levelData, ref m_OldGrid);
 
     // Updates old grid to be the "new" grid
     m_OldGrid = m_GridSaveBuffer.ToDictionary(pair => pair.Key, pair => pair.Value);
@@ -289,33 +263,38 @@ public class TileGrid : MonoBehaviour
   {
     levelData = new();
 
-    bool hasDiffrences = false;
-
     var tempOldGrid = m_OldGrid.ToDictionary(pair => pair.Key, pair => pair.Value);
+
+    return GetDifferencesHelper(ref levelData, ref tempOldGrid);
+  }
+
+  public bool GetDifferencesHelper(ref FileSystem.LevelData levelData, ref Dictionary<Vector2Int, Element> oldGrid)
+  {
+    bool hasDiffrences = false;
 
     foreach (var kvp in m_GridSaveBuffer)
     {
       Vector2Int position = kvp.Key;
       Element currentElement = kvp.Value;
 
-      if (tempOldGrid.TryGetValue(position, out Element oldElement))
+      if (oldGrid.TryGetValue(position, out Element oldElement))
       {
         bool same = currentElement.Equals(oldElement);
 
         // Removed element so we don't check it again in the next loop
-        tempOldGrid.Remove(position);
+        oldGrid.Remove(position);
 
         if (same)
           continue;
       }
-      levelData.addedTiles.Add(currentElement);
+      levelData.m_AddedTiles.Add(currentElement);
       hasDiffrences = true;
     }
 
     // Every tile left in the old grid will be removed
-    foreach (var kvp in tempOldGrid)
+    foreach (var kvp in oldGrid)
     {
-      levelData.removedTiles.Add(kvp.Key);
+      levelData.m_RemovedTiles.Add(kvp.Key);
       hasDiffrences = true;
     }
 
@@ -627,7 +606,7 @@ public class TileGrid : MonoBehaviour
       if (modalDialogAdder == null)
         OperationSystem.EndOperation();
       else
-        modalDialogAdder.RequestDialogAtTransform();
+        modalDialogAdder.RequestDialogsAtTransform();
     }
     else
     {

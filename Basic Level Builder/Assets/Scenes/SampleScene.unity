@@ -1674,6 +1674,7 @@ GameObject:
   - component: {fileID: 128438537}
   - component: {fileID: 128438541}
   - component: {fileID: 128438542}
+  - component: {fileID: 128438543}
   m_Layer: 5
   m_Name: HistoryPanel
   m_TagString: Untagged
@@ -1808,6 +1809,8 @@ MonoBehaviour:
     type: 3}
   m_SaveList: {fileID: 253817712}
   m_TileGrid: {fileID: 2031376952}
+  m_OverrideDialogAdder: {fileID: 128438542}
+  m_SaveAsDialogAdder: {fileID: 128438543}
 --- !u!114 &128438542
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1822,6 +1825,19 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_ModalDialogPrefabs:
   - {fileID: 4091760769637621016, guid: 044e4efc8be490548ab92417d6acd3e8, type: 3}
+--- !u!114 &128438543
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 128438535}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 669a6586aefca754ba1732319aa8a037, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_ModalDialogPrefabs:
   - {fileID: 4569002250764103033, guid: b46aae4e03fae2b4093ad6ca51af162a, type: 3}
 --- !u!1 &146315540
 GameObject:
@@ -54115,7 +54131,7 @@ MonoBehaviour:
   m_HandleRect: {fileID: 1439737675}
   m_Direction: 2
   m_Value: 1
-  m_Size: 0.51428574
+  m_Size: 0.65217394
   m_NumberOfSteps: 0
   m_OnValueChanged:
     m_PersistentCalls:
