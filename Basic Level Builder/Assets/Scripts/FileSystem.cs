@@ -310,10 +310,19 @@ public class FileSystem : MonoBehaviour
     string fullPath = (string)parameters[0];
     bool overwriting = File.Exists(fullPath);
 
-    //ClearFileData();
     CreateFileData();
 
     m_TileGrid.GetLevelData(out LevelData levelData);
+
+    // Check if we even have stuff to save
+    if (levelData.m_AddedTiles.Count == 0)
+    {
+      var errorString = "Skipped save because there is nothing in the level to save";
+      m_MainThreadDispatcher.Enqueue(() => StatusBar.Print(errorString));
+      Debug.Log(errorString);
+      return;
+    }
+
     levelData.m_TimeStamp = DateTime.Now;
     levelData.m_Version = 1;
 
@@ -363,6 +372,9 @@ public class FileSystem : MonoBehaviour
     if (overwriting && IsFileMounted() && fullPath.Equals(m_MountedSaveFilePath) && !hasDifferences)
     {
       // #7
+      var errorString = "Skipped save because there is nothing new to save";
+      m_MainThreadDispatcher.Enqueue(() => StatusBar.Print(errorString));
+      Debug.Log(errorString);
       return;
     }
 
@@ -468,10 +480,14 @@ public class FileSystem : MonoBehaviour
       // Mount the file now that everything has been written
       MountFile(fullPath);
 
-      if (overwriting)
-        m_MainThreadDispatcher.Enqueue(() => MoveHistoryItemToTop(m_SaveList, fullPath));
-      else
-        m_MainThreadDispatcher.Enqueue(() => AddHistoryItemForFile(m_SaveList, fullPath));
+      // Don't add the temp file to history view
+      if (!m_IsTempFile)
+      {
+        if (overwriting)
+          m_MainThreadDispatcher.Enqueue(() => MoveHistoryItemToTop(m_SaveList, fullPath));
+        else
+          m_MainThreadDispatcher.Enqueue(() => AddHistoryItemForFile(m_SaveList, fullPath));
+      }
 
       if (Application.platform == RuntimePlatform.WebGLPlayer)
         SyncFiles();
@@ -622,7 +638,7 @@ public class FileSystem : MonoBehaviour
       return;
     }
 
-    m_TileGrid.LoadFromDictonary(FlattenLevelStringToGrid());
+    m_TileGrid.LoadFromDictonary(GetGridDictionaryFromLevelData());
   }
 
   // Splits a byte array about a new line.
@@ -648,7 +664,7 @@ public class FileSystem : MonoBehaviour
     return false;
   }
 
-  Dictionary<Vector2Int, TileGrid.Element> FlattenLevelStringToGrid()
+  Dictionary<Vector2Int, TileGrid.Element> GetGridDictionaryFromLevelData()
   {
     Dictionary<Vector2Int, TileGrid.Element> tiles = new();
 
