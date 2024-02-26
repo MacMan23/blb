@@ -431,7 +431,7 @@ public class TileGrid : MonoBehaviour
       }
       else
       {
-        StatusBar.Print("Loading failed because the level seems to be empty.");
+        StatusBar.Print("Loading save file results in an empty level.");
       }
     }
   }

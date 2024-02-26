@@ -14,7 +14,8 @@ public class FileSystem : MonoBehaviour
   readonly static public string s_FilenameExtension = ".blb";
   readonly static public string s_RootDirectoryName = "Basic Level Builder";
   readonly static public string s_DateTimeFormat = "h-mm-ss.ff tt, ddd d MMM yyyy";
-  readonly static public int s_MaxAutosaveCount = 20;
+  readonly static public int s_MaxAutoSaveCount = 20;
+  readonly static public int s_MaxManualSaveCount = 100;
   readonly static bool s_ShouldCompress = false;
   static string s_EditorVersion;
 
@@ -314,15 +315,6 @@ public class FileSystem : MonoBehaviour
 
     m_TileGrid.GetLevelData(out LevelData levelData);
 
-    // Check if we even have stuff to save
-    if (levelData.m_AddedTiles.Count == 0)
-    {
-      var errorString = "Skipped save because there is nothing in the level to save";
-      m_MainThreadDispatcher.Enqueue(() => StatusBar.Print(errorString));
-      Debug.Log(errorString);
-      return;
-    }
-
     levelData.m_TimeStamp = DateTime.Now;
     levelData.m_Version = 1;
 
@@ -390,14 +382,23 @@ public class FileSystem : MonoBehaviour
     {
       // first of all, if m_MaxAutosaveCount <= 0, then no autosaving
       // should occur at all
-      if (s_MaxAutosaveCount <= 0)
+      if (s_MaxAutoSaveCount <= 0)
         return;
 
       // now, if the autosave count is at its limit, then we should
       // get rid of the oldest autosave
-      if (m_MountedFileData.m_AutoSaves.Count >= s_MaxAutosaveCount)
+      if (m_MountedFileData.m_AutoSaves.Count >= s_MaxAutoSaveCount)
       {
         m_MountedFileData.m_AutoSaves.RemoveAt(0);
+      }
+    }
+    else
+    {
+      // now, if the manual count is at its limit, then we should
+      // get rid of the oldest save
+      if (m_MountedFileData.m_ManualSaves.Count >= s_MaxManualSaveCount)
+      {
+        m_MountedFileData.m_ManualSaves.RemoveAt(0);
       }
     }
 
@@ -446,6 +447,14 @@ public class FileSystem : MonoBehaviour
       copyFile = true;
     }
     #endregion
+
+    // If we have reach the max manual saves for the first time, give a warning that we will start to delete saves.
+    if (s_MaxManualSaveCount == m_MountedFileData.m_ManualSaves[^1].m_Version)
+    {
+      Debug.Log("You have reached the maximum number of manual saves. " +
+        "Any more saves on this save file will delete your oldest save to make room for you new saves.");
+      // TODO, give warning popup
+    }
 
     WriteMountedDataToFile(fullPath, overwriting, startTime, autosave, copyFile);
   }
@@ -565,6 +574,41 @@ public class FileSystem : MonoBehaviour
     }
   }
 
+  public void LoadVersion(int version)
+  {
+    if (!FileDataExists())
+    {
+      Debug.LogWarning($"No file loaded to load spicific version");
+      return;
+    }
+
+    m_TileGrid.LoadFromDictonary(GetGridDictionaryFromLevelData(version));
+  }
+
+  public void LoadAutoSave(int version)
+  {
+    if (!FileDataExists())
+    {
+      Debug.LogWarning($"No file loaded to load spicific version");
+      return;
+    }
+    if (!FindAutoSaveVersion(version, out LevelData autoSaveData))
+      return;
+
+    var grid = GetGridDictionaryFromLevelData(autoSaveData.m_BranchVersion);
+
+    foreach (var tile in autoSaveData.m_AddedTiles)
+    {
+      grid[tile.m_GridIndex] = tile;
+    }
+    foreach (var pos in autoSaveData.m_RemovedTiles)
+    {
+      grid.Remove(pos);
+    }
+
+    m_TileGrid.LoadFromDictonary(grid);
+  }
+
   public void LoadFromFullPath(string fullPath)
   {
     if (GlobalData.AreEffectsUnderway())
@@ -664,12 +708,18 @@ public class FileSystem : MonoBehaviour
     return false;
   }
 
-  Dictionary<Vector2Int, TileGrid.Element> GetGridDictionaryFromLevelData()
+  // Will convert the level data to a Dictionary of elements up to the passed in version
+  // If no version is passed in, we will flatten to the latest version
+  Dictionary<Vector2Int, TileGrid.Element> GetGridDictionaryFromLevelData(int version = int.MaxValue)
   {
     Dictionary<Vector2Int, TileGrid.Element> tiles = new();
 
     foreach (var levelData in m_MountedFileData.m_ManualSaves)
     {
+      // Stop flattening the level once we pass the version we want
+      if (levelData.m_Version > version)
+        break;
+
       foreach (var tile in levelData.m_AddedTiles)
       {
         tiles[tile.m_GridIndex] = tile;
@@ -685,8 +735,14 @@ public class FileSystem : MonoBehaviour
 
   // Removes an auto save
   // Returns true if we were successful
-  bool DeleteAutoSave(int version)
+  public bool DeleteAutoSave(int version)
   {
+    if (!FileDataExists())
+    {
+      Debug.LogWarning($"No file loaded to delete autosave");
+      return false;
+    }
+
     for (int i = 0; i < m_MountedFileData.m_AutoSaves.Count; ++i)
     {
       if (m_MountedFileData.m_AutoSaves[i].m_Version == version)
@@ -701,18 +757,25 @@ public class FileSystem : MonoBehaviour
   }
 
   // Will delete a manual verion
-  void DeleteLevelVersion(int version)
+  public void DeleteLevelVersion(int version)
   {
     // The easiest way to delete a version is to flatten it with the next verion
     // If this is the newest verion then we can just delete it
     // Luckly FlattenRange will deal with the endVerion going past the list length
+
+    if (!FileDataExists())
+    {
+      Debug.LogWarning($"No file loaded to delete version");
+      return;
+    }
+
     FlattenRange(version, version + 1);
   }
 
   // Take a range of two versions and flatten them down to one data verion
   // Can only flatten MANUAL versions
   // Care is taken if endVersion is past the latest verion
-  void FlattenRange(int startVersion, int endVersion)
+  public void FlattenRange(int startVersion, int endVersion)
   {
     // Invalid range
     if (startVersion > endVersion)
@@ -720,7 +783,13 @@ public class FileSystem : MonoBehaviour
       Debug.LogWarning($"Invalid level flatten range of {startVersion} to {endVersion}");
       return;
     }
-    
+
+    if (!FileDataExists())
+    {
+      Debug.LogWarning($"No file loaded to flatten range");
+      return;
+    }
+
     Dictionary<Vector2Int, TileGrid.Element> squashedLevelAdd = new();
     HashSet<Vector2Int> squashedLevelRemove = new();
     DateTime timeStamp = DateTime.Now;
@@ -805,6 +874,31 @@ public class FileSystem : MonoBehaviour
       else
         m_MountedFileData.m_ManualSaves.Insert(index, levelData);
     }
+  }
+
+  bool FindAutoSaveVersion(int version, out LevelData levelData)
+  {
+    return SaveFinderHelper(version, true, out levelData);
+  }
+
+  bool FindManualSaveVersion(int version, out LevelData levelData)
+  {
+    return SaveFinderHelper(version, false, out levelData);
+  }
+
+  bool SaveFinderHelper(int version, bool autoSave, out LevelData levelData)
+  {
+    levelData = new();
+
+    foreach (var data in autoSave ? m_MountedFileData.m_AutoSaves : m_MountedFileData.m_ManualSaves)
+    {
+      if (data.m_Version == version)
+      {
+        levelData = data;
+        return true;
+      }
+    }
+    return false;
   }
 
   void SetDirectoryName(string name)
@@ -1076,9 +1170,6 @@ public class FileSystem : MonoBehaviour
 }
 
 // TODO, make new level button
-// TODO, Create load functions that take the auto save or auto save version number and load that one up
-// TODO, make a manual save limit, where once 100 saves are done, bring up text saying that we will start deleting old versions since there are so many.
-// Still increment version numbers so we can go past 100 and never bring the prompt up again
 // TODO, Star on file name to show unsaved changes.
 
 // Extra credit
@@ -1099,6 +1190,8 @@ public class FileSystem : MonoBehaviour
 // TODO, add feature to select a range of versions and squash them together
 // TODO, right click version to delete auto or manual save
 // Unsaved changes prompt
+// Warning about max manual saves reached
+// Ability to load auto save
 
 
 // Auto versions will not be allowed to flatten as they are all based off the manual saves.
