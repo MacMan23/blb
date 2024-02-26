@@ -548,6 +548,7 @@ public class FileSystem : MonoBehaviour
       //LoadFromJson(text);
     }
   }
+
   public void LoadFromFullPath(string fullPath)
   {
     if (GlobalData.AreEffectsUnderway())
@@ -664,6 +665,113 @@ public class FileSystem : MonoBehaviour
     }
 
     return tiles;
+  }
+
+  // TODO, add support to auto versions
+  void DeleteLevelVersion(int version)
+  {
+    // The easiest way to delete a version is to flatten it with the next verion
+    // If this is the newest verion then we can just delete it
+    // Luckly FlattenRange will deal with the endVerion going past the list length
+    FlattenRange(version, version + 1);
+  }
+
+  // Take a range of two versions and flatten them down to one data verion
+  // Care is taken if endVersion is past the latest verion
+  // TODO, add support to auto versions
+  void FlattenRange(int startVersion, int endVersion)
+  {
+    // Invalid range
+    if (startVersion > endVersion)
+    {
+      Debug.LogWarning($"Invalid level flatten range of {startVersion} to {endVersion}");
+      return;
+    }
+    
+    Dictionary<Vector2Int, TileGrid.Element> squashedLevelAdd = new();
+    HashSet<Vector2Int> squashedLevelRemove = new();
+    DateTime timeStamp = DateTime.Now;
+    int lastVersion = startVersion;
+
+    // Care is taken if the endVerion is outside of the list
+    // So we keep track of the last versions, well, version number
+    foreach (var levelData in m_MountedFileData.m_ManualSaves)
+    {
+      if (levelData.m_Version < startVersion)
+        continue;
+
+      // If we finished our version loop, break
+      if (levelData.m_Version > endVersion)
+        break;
+
+      // Keep track of the last verions stats
+      timeStamp = levelData.m_TimeStamp;
+      lastVersion = levelData.m_Version;
+
+      // Convert this version into the collected grid
+      // We might not start at version 1, so we need to keep track of the removes as they record the removes from the prior version
+      // However the next version might add a tile where we were going to do a remove, so we need to remove the removes when adding a tile
+      foreach (var tile in levelData.m_AddedTiles)
+      {
+        // Add the tile to the list
+        // If we had record to remove it earlier, remove the record
+        if (squashedLevelRemove.Contains(tile.m_GridIndex))
+          squashedLevelRemove.Remove(tile.m_GridIndex);
+        squashedLevelAdd[tile.m_GridIndex] = tile;
+      }
+      foreach (var pos in levelData.m_RemovedTiles)
+      {
+        // Remove a tile if we have one
+        // Else add it to a remove list
+        if (squashedLevelAdd.ContainsKey(pos))
+          squashedLevelAdd.Remove(pos);
+        else
+          squashedLevelRemove.Add(pos);
+      }
+    }
+
+    // Removed squashed versions
+    int index = 0;
+    while (index < m_MountedFileData.m_ManualSaves.Count)
+    {
+      // Get i up to the start version
+      if (m_MountedFileData.m_ManualSaves[index].m_Version < startVersion)
+      {
+        ++index;
+        continue;
+      }
+
+      // Remove the indexs up to the end version
+      if (m_MountedFileData.m_ManualSaves[index].m_Version <= endVersion)
+      {
+        m_MountedFileData.m_ManualSaves.RemoveAt(index);
+        continue;
+      }
+
+      // If there are more versions but we removed all out indexes, break the loop
+      break;
+    }
+
+    // At this point the endVersion data will exist, or never existed and everything after startVersion was deleted
+
+    // If we have diffrences, add thoes combined diffs to the version list
+    // The addition will replace the endVersion
+    if (squashedLevelRemove.Count > 0 || squashedLevelAdd.Count > 0)
+    {
+      LevelData levelData = new()
+      {
+        m_Version = lastVersion,
+        m_TimeStamp = timeStamp,
+        m_AddedTiles = squashedLevelAdd.Values.ToList(),
+        m_RemovedTiles = squashedLevelRemove.ToList()
+      };
+
+      // If we had no endVersion. Then add a new version at the end
+      if (index > m_MountedFileData.m_ManualSaves.Count)
+        m_MountedFileData.m_ManualSaves.Add(levelData);
+      else
+        m_MountedFileData.m_ManualSaves.Insert(index, levelData);
+    }
   }
 
   void SetDirectoryName(string name)
@@ -935,11 +1043,10 @@ public class FileSystem : MonoBehaviour
 }
 
 // TODO, make new level button
-// TODO make the save clean on SAVE AS <- goal
 // TODO, Create load functions that take the auto save or auto save version number and load that one up
 // TODO, make a manual save limit, where once 100 saves are done, bring up text saying that we will start deleting old versions since there are so many.
 // Still increment version numbers so we can go past 100 and never bring the prompt up again
-// TODO, add feature to select a range of versions and squash them together
+// TODO, add feature to select a range of versions and squash them together <-- Goal
 // TODO, add feature to delete versions. (This uses the squash function)
 // TODO, Star on file name to show unsaved changes.
 
