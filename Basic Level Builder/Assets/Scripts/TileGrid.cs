@@ -244,6 +244,14 @@ public class TileGrid : MonoBehaviour
     return gridStringBuilder.ToString();
   }
 
+  public void GetLevelData(out FileSystem.LevelData levelData)
+  {
+    levelData = new()
+    {
+      m_AddedTiles = new List<Element>(m_Grid.Values)
+    };
+  }
+
   // This should only be called once per save, as we are destorying saved data and overwriting it.
   // Returns true if we found diffrences
   public bool GetDifferences(out FileSystem.LevelData levelData)

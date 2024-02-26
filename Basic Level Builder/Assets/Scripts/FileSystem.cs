@@ -63,9 +63,10 @@ public class FileSystem : MonoBehaviour
   [Serializable]
   class Header
   {
-    public Header(string ver = "")
+    public Header(string ver = "", bool shouldCompress = false)
     {
       m_BlbVersion = ver;
+      m_IsDataCompressed = shouldCompress;
     }
     public string m_BlbVersion;
     public bool m_IsDataCompressed = false;
@@ -140,7 +141,7 @@ public class FileSystem : MonoBehaviour
 
   void CreateFileData()
   {
-    m_MountedFileHeader = new(s_EditorVersion);
+    m_MountedFileHeader = new(s_EditorVersion, s_ShouldCompress);
     m_MountedFileData = new();
   }
 
@@ -224,7 +225,6 @@ public class FileSystem : MonoBehaviour
     }
     else
     {
-      Debug.Log("SAVED");
       if (IsFileMounted())
       {
         // If we are doing a save, but we only have a temp file
@@ -274,15 +274,15 @@ public class FileSystem : MonoBehaviour
       }
     }
 
-    WriteHelper(fullPath, autosave);
+    StartSavingThread(fullPath, autosave, name != null);
   }
 
   public void ConfirmOverwrite()
   {
-    WriteHelper(m_PendingSaveFullPath, false);
+    StartSavingThread(m_PendingSaveFullPath, false);
   }
 
-  void WriteHelper(string fullPath, bool autosave)
+  void StartSavingThread(string fullPath, bool autosave, bool isSaveAs = false)
   {
     // Copy the map data into a buffer to use for the saving thread.
     m_TileGrid.CopyGridBuffer();
@@ -291,12 +291,38 @@ public class FileSystem : MonoBehaviour
     object[] parameters = { fullPath, autosave };
 
     // Create a new thread and pass the ParameterizedThreadStart delegate
-    m_SavingThread = new Thread(new ParameterizedThreadStart(WriteHelperThread));
+    if (isSaveAs)
+      m_SavingThread = new Thread(new ParameterizedThreadStart(SavingThreadFlatten));
+    else
+      m_SavingThread = new Thread(new ParameterizedThreadStart(SavingThread));
 
     m_SavingThread.Start(parameters);
   }
 
-  void WriteHelperThread(object threadParameters)
+  void SavingThreadFlatten(object threadParameters)
+  {
+    var startTime = DateTime.Now;
+
+    // Extract the parameters from the object array
+    object[] parameters = (object[])threadParameters;
+
+    // Access the parameters
+    string fullPath = (string)parameters[0];
+    bool overwriting = File.Exists(fullPath);
+
+    //ClearFileData();
+    CreateFileData();
+
+    m_TileGrid.GetLevelData(out LevelData levelData);
+    levelData.m_TimeStamp = DateTime.Now;
+    levelData.m_Version = 1;
+
+    m_MountedFileData.m_ManualSaves.Add(levelData);
+
+    WriteMountedDataToFile(fullPath, overwriting, startTime, false, false);
+  }
+
+  void SavingThread(object threadParameters)
   {
     var startTime = DateTime.Now;
 
@@ -368,9 +394,6 @@ public class FileSystem : MonoBehaviour
     {
       // #6, 1, 3, 5, 8
       // We have data to add/overwite to any file
-
-      m_MountedFileHeader.m_IsDataCompressed = s_ShouldCompress;
-
       levelData.m_TimeStamp = DateTime.Now;
 
       // Set the version of the save based off the last save
@@ -412,6 +435,11 @@ public class FileSystem : MonoBehaviour
     }
     #endregion
 
+    WriteMountedDataToFile(fullPath, overwriting, startTime, autosave, copyFile);
+  }
+
+  private void WriteMountedDataToFile(string fullPath, bool overwriting, DateTime startTime, bool autosave, bool copyFile)
+  {
     try
     {
       if (copyFile)
@@ -907,7 +935,7 @@ public class FileSystem : MonoBehaviour
 }
 
 // TODO, make new level button
-// TODO make the save clean on SAVE AS
+// TODO make the save clean on SAVE AS <- goal
 // TODO, Create load functions that take the auto save or auto save version number and load that one up
 // TODO, make a manual save limit, where once 100 saves are done, bring up text saying that we will start deleting old versions since there are so many.
 // Still increment version numbers so we can go past 100 and never bring the prompt up again
