@@ -667,7 +667,24 @@ public class FileSystem : MonoBehaviour
     return tiles;
   }
 
-  // TODO, add support to auto versions
+  // Removes an auto save
+  // Returns true if we were successful
+  bool DeleteAutoSave(int version)
+  {
+    for (int i = 0; i < m_MountedFileData.m_AutoSaves.Count; ++i)
+    {
+      if (m_MountedFileData.m_AutoSaves[i].m_Version == version)
+      {
+        m_MountedFileData.m_AutoSaves.RemoveAt(i);
+        return true;
+      }
+    }
+
+    Debug.LogWarning($"Couldn't find auto save version {version} to delete");
+    return false;
+  }
+
+  // Will delete a manual verion
   void DeleteLevelVersion(int version)
   {
     // The easiest way to delete a version is to flatten it with the next verion
@@ -677,8 +694,8 @@ public class FileSystem : MonoBehaviour
   }
 
   // Take a range of two versions and flatten them down to one data verion
+  // Can only flatten MANUAL versions
   // Care is taken if endVersion is past the latest verion
-  // TODO, add support to auto versions
   void FlattenRange(int startVersion, int endVersion)
   {
     // Invalid range
@@ -1012,8 +1029,8 @@ public class FileSystem : MonoBehaviour
   // A list of actions in a queue for use by threads to store unity internal related functions that must be run on the main thread.
   public class MainThreadDispatcher
   {
-    private static readonly object s_LockObject = new object();
-    private Queue<System.Action> m_ActionQueue = new Queue<System.Action>();
+    private static readonly object s_LockObject = new();
+    private Queue<System.Action> m_ActionQueue = new();
 
     // Runs all the Queued up actions in the list
     // Run in a place where only the main thread is run.
@@ -1046,8 +1063,6 @@ public class FileSystem : MonoBehaviour
 // TODO, Create load functions that take the auto save or auto save version number and load that one up
 // TODO, make a manual save limit, where once 100 saves are done, bring up text saying that we will start deleting old versions since there are so many.
 // Still increment version numbers so we can go past 100 and never bring the prompt up again
-// TODO, add feature to select a range of versions and squash them together <-- Goal
-// TODO, add feature to delete versions. (This uses the squash function)
 // TODO, Star on file name to show unsaved changes.
 
 // Extra credit
@@ -1063,7 +1078,19 @@ public class FileSystem : MonoBehaviour
 // If no, delete temp file on close
 
 
+// __Needs UI__
+// TODO, make new level button
+// TODO, add feature to select a range of versions and squash them together
+// TODO, right click version to delete auto or manual save
+// Unsaved changes prompt
 
+
+// Auto versions will not be allowed to flatten as they are all based off the manual saves.
+// If they want an auto save to be perminant, then load it and save.
+// Should they be allowed to delete auto saves?
+// Yes, because if they want to save memory
+// No, because the will be deleted eventualy...
+// If yes, then should we have a "delete all auto saves" button?
 
 
 
