@@ -2,12 +2,18 @@
 using System.Collections.Generic;
 using UnityEngine;
 using TMPro;
+using UnityEngine.EventSystems; // for IPointerEnterHandler
 
-public class UiHistoryItem : MonoBehaviour
+public class UiHistoryItem : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 {
   public TextMeshProUGUI m_Text;
+  public TextMeshProUGUI m_TimeStamp;
+  public GameObject m_InfoButton;
   public Color m_AutosaveColor = Color.white;
   public Color m_ManualSaveColor = Color.yellow;
+
+  public float m_HiddenRectTransformWidth = 2.0f;
+  public float m_VisibleRectTransformWidth = 31.0f;
 
   FileSystem m_FileSystem;
   public string m_FullPath { get; private set; }
@@ -26,5 +32,23 @@ public class UiHistoryItem : MonoBehaviour
   public void Load()
   {
     m_FileSystem.LoadFromFullPath(m_FullPath);
+  }
+
+  public void OnPointerEnter(PointerEventData eventData)
+  {
+    // Scale text boxes to left a bit to make room for the info button
+    m_Text.rectTransform.offsetMax = new Vector2(-m_VisibleRectTransformWidth, m_Text.rectTransform.offsetMax.y);
+    m_TimeStamp.rectTransform.offsetMax = new Vector2(-m_VisibleRectTransformWidth, m_TimeStamp.rectTransform.offsetMax.y);
+    // Show info button
+    m_InfoButton.SetActive(true);
+  }
+
+  public void OnPointerExit(PointerEventData eventData)
+  {
+    // Scale text boxes back to normal
+    m_Text.rectTransform.offsetMax = new Vector2(-m_HiddenRectTransformWidth, m_Text.rectTransform.offsetMax.y);
+    m_TimeStamp.rectTransform.offsetMax = new Vector2(-m_HiddenRectTransformWidth, m_TimeStamp.rectTransform.offsetMax.y);
+    // Hide info button
+    m_InfoButton.SetActive(false);
   }
 }
