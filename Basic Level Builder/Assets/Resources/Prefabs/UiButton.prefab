@@ -88,9 +88,7 @@ GameObject:
   - component: {fileID: 8320027039918689915}
   - component: {fileID: 8320027039918689914}
   - component: {fileID: 8320027039918689913}
-  - component: {fileID: 8320027039918689861}
   - component: {fileID: 8320027039918689860}
-  - component: {fileID: 8320027039918689862}
   m_Layer: 5
   m_Name: UiButton
   m_TagString: Untagged
@@ -202,7 +200,7 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 8320027039918689861}
+      - m_Target: {fileID: 0}
         m_TargetAssemblyTypeName: 
         m_MethodName: RequestDialogsAtCenter
         m_Mode: 1
@@ -214,20 +212,6 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
---- !u!114 &8320027039918689861
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8320027039918689919}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 669a6586aefca754ba1732319aa8a037, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_ModalDialogPrefabs:
-  - {fileID: 4569002250764103033, guid: b46aae4e03fae2b4093ad6ca51af162a, type: 3}
 --- !u!114 &8320027039918689860
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -243,39 +227,6 @@ MonoBehaviour:
   m_Text: Save the current level with a specified file name (Shift + Alt + S)
   m_TooltipPrefab: {fileID: 3956001862937307442, guid: 13d12636cc140d346b13d5ca53a5625d,
     type: 3}
-  m_TooltipRoot: {fileID: 0}
---- !u!114 &8320027039918689862
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8320027039918689919}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 79f6096ac2dc4234490189d4e446d560, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_List:
-  - m_Button: Save
-    m_Modifiers: 3
-    m_Event:
-      m_PersistentCalls:
-        m_Calls:
-        - m_Target: {fileID: 8320027039918689861}
-          m_TargetAssemblyTypeName: 
-          m_MethodName: RequestDialogsAtCenter
-          m_Mode: 1
-          m_Arguments:
-            m_ObjectArgument: {fileID: 0}
-            m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
-            m_IntArgument: 0
-            m_FloatArgument: 0
-            m_StringArgument: 
-            m_BoolArgument: 0
-          m_CallState: 2
-    m_SubjectToHotkeyDisabling: 0
-    m_AllowedInPlayMode: 0
 --- !u!1 &8320027040115520675
 GameObject:
   m_ObjectHideFlags: 0

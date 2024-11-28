@@ -1,10 +1,7 @@
-﻿using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using TMPro;
-using UnityEngine.EventSystems; // for IPointerEnterHandler
 
-public class UiHistoryItem : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
+public class UiHistoryItem : MonoBehaviour
 {
   public TextMeshProUGUI m_Text;
   public TextMeshProUGUI m_TimeStamp;
@@ -17,6 +14,8 @@ public class UiHistoryItem : MonoBehaviour, IPointerEnterHandler, IPointerExitHa
 
   FileSystem m_FileSystem;
   public string m_FullPath { get; private set; }
+
+  private bool m_IsMouseHovering = false;
 
 
   public void Setup(FileSystem fileSystem, string fullPath, string fileName)
@@ -34,7 +33,24 @@ public class UiHistoryItem : MonoBehaviour, IPointerEnterHandler, IPointerExitHa
     m_FileSystem.LoadFromFullPath(m_FullPath);
   }
 
-  public void OnPointerEnter(PointerEventData eventData)
+  public void Update()
+  {
+    bool hovering = RectTransformUtility.RectangleContainsScreenPoint((RectTransform)transform, Input.mousePosition);
+
+    // Check if mouse is inside the history item
+    if (!m_IsMouseHovering && hovering)
+    {
+      m_IsMouseHovering = true;
+      ShowInfoButton();
+    }
+    else if (m_IsMouseHovering && !hovering)
+    {
+      m_IsMouseHovering = false;
+      HideInfoButton();
+    }
+  }
+
+  private void ShowInfoButton()
   {
     // Scale text boxes to left a bit to make room for the info button
     m_Text.rectTransform.offsetMax = new Vector2(-m_VisibleRectTransformWidth, m_Text.rectTransform.offsetMax.y);
@@ -43,7 +59,7 @@ public class UiHistoryItem : MonoBehaviour, IPointerEnterHandler, IPointerExitHa
     m_InfoButton.SetActive(true);
   }
 
-  public void OnPointerExit(PointerEventData eventData)
+  private void HideInfoButton()
   {
     // Scale text boxes back to normal
     m_Text.rectTransform.offsetMax = new Vector2(-m_HiddenRectTransformWidth, m_Text.rectTransform.offsetMax.y);

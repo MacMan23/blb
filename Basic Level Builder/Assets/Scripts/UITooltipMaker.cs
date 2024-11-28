@@ -23,7 +23,7 @@ public class UITooltipMaker : MonoBehaviour, IPointerEnterHandler, IPointerExitH
   public string m_Text;
 
   public GameObject m_TooltipPrefab;
-  public RectTransform m_TooltipRoot;
+  private RectTransform m_TooltipRoot;
 
   UiSafePositioner m_RootPositioner;
 
@@ -48,6 +48,8 @@ public class UITooltipMaker : MonoBehaviour, IPointerEnterHandler, IPointerExitH
 
   private void Awake()
   {
+    GameObject tooltipRootObj = GameObject.FindGameObjectWithTag("TooltipRoot");
+    m_TooltipRoot = (RectTransform)tooltipRootObj.transform;
     m_RootPositioner = m_TooltipRoot.GetComponent<UiSafePositioner>();
   }
 
