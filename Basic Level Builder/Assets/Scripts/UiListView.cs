@@ -87,18 +87,18 @@ public class UiListView : MonoBehaviour
   }
 
 
-  public UiHistoryItem GetOldestItem()
+  public UiSaveFileItem GetOldestItem()
   {
-    var items = m_RectTransform.GetComponentsInChildren<UiHistoryItem>();
+    var items = m_RectTransform.GetComponentsInChildren<UiSaveFileItem>();
     var returnIndex = items.Length - 1;
 
     return returnIndex >= 0 ? items[items.Length - 1] : null;
   }
 
 
-  public UiHistoryItem GetItemByFullPath(string fullPath)
+  public UiSaveFileItem GetItemByFullPath(string fullPath)
   {
-    var items = m_RectTransform.GetComponentsInChildren<UiHistoryItem>();
+    var items = m_RectTransform.GetComponentsInChildren<UiSaveFileItem>();
 
     foreach (var item in items)
     {
@@ -112,7 +112,7 @@ public class UiListView : MonoBehaviour
   // Will check if each file exists and removes the ui if the file is missing
   public void ValidateAllItems()
   {
-    var items = m_RectTransform.GetComponentsInChildren<UiHistoryItem>();
+    var items = m_RectTransform.GetComponentsInChildren<UiSaveFileItem>();
     List<RectTransform> removeItems = new();
     foreach (var item in items)
     {

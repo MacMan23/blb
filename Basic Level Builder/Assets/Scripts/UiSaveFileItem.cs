@@ -1,7 +1,7 @@
 using UnityEngine;
 using TMPro;
 
-public class UiHistoryItem : MonoBehaviour
+public class UiSaveFileItem : MonoBehaviour
 {
   public TextMeshProUGUI m_Text;
   public TextMeshProUGUI m_TimeStamp;

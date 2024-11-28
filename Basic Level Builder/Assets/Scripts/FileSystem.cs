@@ -20,7 +20,7 @@ public class FileSystem : MonoBehaviour
   static string s_EditorVersion;
 
   public string m_DefaultDirectoryName = "Default Project";
-  public UiHistoryItem m_HistoryItemPrefab;
+  public UiSaveFileItem m_HistoryItemPrefab;
   public UiListView m_SaveList;
   public TileGrid m_TileGrid;
 
