@@ -6,8 +6,8 @@ using UnityEngine.UI;
 [RequireComponent(typeof(RectTransform))]
 public class UiListView : MonoBehaviour
 {
-  public Color m_EvenColor = new Color(1, 1, 1, 0.1f);
-  public Color m_OddColor = new Color(1, 1, 1, 0.05f);
+  public Color m_EvenColor = new(0.3254902f, 0.3254902f, 0.3254902f);
+  public Color m_OddColor = new(0.2901961f, 0.2901961f, 0.2901961f);
 
   RectTransform m_RectTransform;
 
@@ -76,11 +76,13 @@ public class UiListView : MonoBehaviour
 
   void AssignColors()
   {
-    var images = m_RectTransform.GetComponentsInChildren<Image>();
+    var files = m_RectTransform.GetComponentsInChildren<UiSaveFileItem>();
     var odd = false;
 
-    foreach (var image in images)
+    foreach (var file in files)
     {
+      if (!file.TryGetComponent(out Image image))
+        return;
       image.color = odd ? m_OddColor : m_EvenColor;
       odd = !odd;
     }

@@ -1,5 +1,6 @@
 using UnityEngine;
 using TMPro;
+using UnityEngine.UI;
 
 public class UiSaveFileItem : MonoBehaviour
 {
@@ -11,6 +12,10 @@ public class UiSaveFileItem : MonoBehaviour
 
   public float m_HiddenRectTransformWidth = 2.0f;
   public float m_VisibleRectTransformWidth = 31.0f;
+
+  public Color m_HiglightedColor;
+  public Color m_PressedColor;
+  private Color m_NormalColor;
 
   FileSystem m_FileSystem;
   public string m_FullPath { get; private set; }
@@ -42,11 +47,14 @@ public class UiSaveFileItem : MonoBehaviour
     {
       m_IsMouseHovering = true;
       ShowInfoButton();
+      m_NormalColor = GetComponent<Image>().color;
+      GetComponent<Image>().color = m_HiglightedColor;
     }
     else if (m_IsMouseHovering && !hovering)
     {
       m_IsMouseHovering = false;
       HideInfoButton();
+      GetComponent<Image>().color = m_NormalColor;
     }
   }
 
