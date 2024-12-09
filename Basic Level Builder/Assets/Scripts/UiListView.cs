@@ -9,12 +9,22 @@ public class UiListView : MonoBehaviour
   public Color m_EvenColor = new(0.3254902f, 0.3254902f, 0.3254902f);
   public Color m_OddColor = new(0.2901961f, 0.2901961f, 0.2901961f);
 
+  public ColorBlock m_ButtonColors;
+
+  private ColorBlock m_EvenBlock;
+  private ColorBlock m_OddBlock;
+
   RectTransform m_RectTransform;
 
 
   void Awake()
   {
     m_RectTransform = GetComponent<RectTransform>();
+
+    m_EvenBlock = m_OddBlock = m_ButtonColors;
+
+    m_EvenBlock.normalColor = m_EvenColor;
+    m_OddBlock.normalColor = m_OddColor;
   }
 
 
@@ -81,9 +91,9 @@ public class UiListView : MonoBehaviour
 
     foreach (var file in files)
     {
-      if (!file.TryGetComponent(out Image image))
+      if (!file.TryGetComponent(out Button button))
         return;
-      image.color = odd ? m_OddColor : m_EvenColor;
+      button.colors = odd ? m_OddBlock : m_EvenBlock;
       odd = !odd;
     }
   }
