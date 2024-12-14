@@ -1,6 +1,7 @@
 using UnityEngine;
 using TMPro;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 
 public class UiSaveFileItem : MonoBehaviour
 {
@@ -36,18 +37,27 @@ public class UiSaveFileItem : MonoBehaviour
 
   public void Update()
   {
-    bool hovering = RectTransformUtility.RectangleContainsScreenPoint((RectTransform)transform, Input.mousePosition);
+    // TODO: Make sure this doesn't run when there are UI elements ontop of it.
 
+    bool hovering = RectTransformUtility.RectangleContainsScreenPoint((RectTransform)transform, Input.mousePosition);
+    
     // Check if mouse is inside the history item
     if (!m_IsMouseHovering && hovering)
     {
+      // Reselect the file button so it still shows the highlight.
+      // This also allows us to have both the info button and file button in selected states.
+      // This is a manual select, so we need to unselect it ourself later.
+      GetComponent<Button>().Select();
       m_IsMouseHovering = true;
       ShowInfoButton();
     }
     else if (m_IsMouseHovering && !hovering)
     {
+      GetComponent<Button>();
       m_IsMouseHovering = false;
       HideInfoButton();
+      // Because we manualy selected the file button we need to deselect it no that the mouse is away.
+      EventSystem.current.SetSelectedGameObject(null);
     }
   }
 
