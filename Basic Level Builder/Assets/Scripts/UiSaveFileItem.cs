@@ -43,7 +43,9 @@ public class UiSaveFileItem : MonoBehaviour, IPointerEnterHandler, IPointerExitH
 
 	public void OnPointerExit(PointerEventData eventData)
 	{
-		bool hovering = RectTransformUtility.RectangleContainsScreenPoint((RectTransform)transform, Input.mousePosition);
+    // This check is nessesary because the file info button is ontop of this button, but only the top most button contains the mouse,
+    // IE, OnPointerExit will trigger if the mouse leaves the button, or enters the ui button
+    bool hovering = RectTransformUtility.RectangleContainsScreenPoint((RectTransform)transform, Input.mousePosition);
 		
 		// If the mouse is still over the file button
 		if (hovering)
@@ -61,7 +63,7 @@ public class UiSaveFileItem : MonoBehaviour, IPointerEnterHandler, IPointerExitH
 	{
     bool hovering = RectTransformUtility.RectangleContainsScreenPoint((RectTransform)transform, Input.mousePosition);
 		
-		// If the mouse left the file button but we are still in the hovered state, unselect button
+		// If the mouse moved outside the file button, but we are still in the hovered state; unselect button
 		// This case is mainly for when the mouse was over the info button and just left
 		if (m_IsMouseHovering && !hovering)
 			Deselect();
