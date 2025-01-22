@@ -468,8 +468,6 @@ MonoBehaviour:
   m_ManualSaveColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
   m_HiddenRectTransformWidth: 2
   m_VisibleRectTransformWidth: 31
-  m_HiglightedColor: {r: 0.40636075, g: 0.3981098, b: 0.52599996, a: 1}
-  m_PressedColor: {r: 0.19477612, g: 0.189403, b: 0.27, a: 1}
 --- !u!114 &2039569245
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -693,6 +691,12 @@ PrefabInstance:
       propertyPath: m_IsActive
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 9116595777605845203, guid: ea4794da28b5d084fad42ef1fddc27ce,
+        type: 3}
+      propertyPath: m_Sprite
+      value: 
+      objectReference: {fileID: 21300000, guid: 56069e43b90c14246ad53fe3c3cda410,
+        type: 3}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: ea4794da28b5d084fad42ef1fddc27ce, type: 3}
 --- !u!1 &2135875899231911283 stripped
