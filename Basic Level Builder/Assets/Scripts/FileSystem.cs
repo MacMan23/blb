@@ -30,7 +30,7 @@ public class FileSystem : MonoBehaviour
   readonly static public string s_FilenameExtension = ".blb";
   readonly static public string s_RootDirectoryName = "Basic Level Builder";
   readonly static public string s_DateTimeFormat = "h-mm-ss.ff tt, ddd d MMM yyyy";
-  readonly static private string s_AutoSaveName = "<i>auto";
+  readonly static private string s_AutoSaveName = "<i>Auto";
   readonly static private string s_ManualSaveName = "Version ";
   readonly static public int s_MaxAutoSaveCount = 20;
   readonly static public int s_MaxManualSaveCount = 100;
@@ -475,10 +475,19 @@ public class FileSystem : MonoBehaviour
           // Set the manual save version we are branching off from
           // Which will always be the latest manual save
           levelData.m_BranchVersion = m_MountedFileData.m_ManualSaves[^1].m_Version;
+          levelData.m_Version = 1;
+
+          // If the latest auto save is branching off of the latest manual too,
+          // We are the version after that
+          if (m_MountedFileData.m_AutoSaves.Count > 0 && m_MountedFileData.m_AutoSaves[^1].m_BranchVersion == levelData.m_BranchVersion)
+            levelData.m_Version = m_MountedFileData.m_AutoSaves[^1].m_Version + 1;
+            
         }
 
         // Overwrite name for autosaves
-        levelData.m_Name = s_AutoSaveName;
+        //levelData.m_Name = s_AutoSaveName;
+        // TODO: Remove this debug line and re add previous
+        levelData.m_Name = s_AutoSaveName + " BV: " + levelData.m_BranchVersion + " V: " + levelData.m_Version;
       }
 
       savesList.Add(levelData);
@@ -493,7 +502,7 @@ public class FileSystem : MonoBehaviour
     #endregion
 
     // If we have reach the max manual saves for the first time, give a warning that we will start to delete saves.
-    if (s_MaxManualSaveCount == m_MountedFileData.m_ManualSaves[^1].m_Version)
+    if (m_MountedFileData.m_ManualSaves.Count > 0 && s_MaxManualSaveCount == m_MountedFileData.m_ManualSaves[^1].m_Version)
     {
       Debug.Log("You have reached the maximum number of manual saves. " +
         "Any more saves on this save file will delete your oldest save to make room for you new saves.");

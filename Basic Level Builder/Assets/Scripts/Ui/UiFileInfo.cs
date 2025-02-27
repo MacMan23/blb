@@ -1,5 +1,6 @@
 using UnityEngine;
 using static FileSystem;
+using System.Collections.Generic;
 
 public class UiFileInfo : MonoBehaviour
 {
@@ -18,17 +19,27 @@ public class UiFileInfo : MonoBehaviour
     // Create all the file items
     // Load the files data
     Instance.GetDataFromFullPath(fullFilePath, out FileData filedata, out Header _header);
+
+    List< UiHistoryItem> items = new();
+
     foreach (var levelData in filedata.m_ManualSaves)
     {
-      CreateHistoryItem(levelData, m_ManualSaveItemPrefab);
+      items.Add(CreateHistoryItem(levelData, m_ManualSaveItemPrefab));
     }
     foreach (var levelData in filedata.m_AutoSaves)
     {
-      CreateHistoryItem(levelData, m_AutoSaveItemPrefab);
+      items.Add(CreateHistoryItem(levelData, m_AutoSaveItemPrefab));
+    }
+
+    // Properly sort items
+    items.Sort((a, b) => a.CompareTo(b));
+    for (int i = 0; i < items.Count; i++)
+    {
+      items[i].transform.SetSiblingIndex(i);
     }
   }
 
-  private void CreateHistoryItem(LevelData levelData, UiHistoryItem prefab)
+  private UiHistoryItem CreateHistoryItem(LevelData levelData, UiHistoryItem prefab)
   {
     UiHistoryItem historyItem = Instantiate(prefab);
     // Give level data so it can init its text and thumbnail
@@ -40,5 +51,6 @@ public class UiFileInfo : MonoBehaviour
       // IDK copied from UiListView
       rect.SetAsFirstSibling();
     }
+    return historyItem;
   }
 }
