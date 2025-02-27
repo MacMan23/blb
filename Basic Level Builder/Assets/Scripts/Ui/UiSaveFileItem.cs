@@ -13,15 +13,13 @@ public class UiSaveFileItem : MonoBehaviour, IPointerEnterHandler, IPointerExitH
 	public float m_HiddenRectTransformWidth = 2.0f;
 	public float m_VisibleRectTransformWidth = 31.0f;
 
-	FileSystem m_FileSystem;
 	public string m_FullPath { get; private set; }
 
 	private bool m_IsMouseHovering = false;
 
 
-	public void Setup(FileSystem fileSystem, string fullPath, string fileName)
+	public void Setup(string fullPath, string fileName)
 	{
-		m_FileSystem = fileSystem;
 		m_FullPath = fullPath;
 		m_Text.text = fileName;
 
@@ -31,7 +29,7 @@ public class UiSaveFileItem : MonoBehaviour, IPointerEnterHandler, IPointerExitH
 
 	public void Load()
 	{
-		m_FileSystem.LoadFromFullPath(m_FullPath);
+		FileSystem.Instance.LoadFromFullPath(m_FullPath);
 	}
 
 	public void OnPointerEnter(PointerEventData eventData)

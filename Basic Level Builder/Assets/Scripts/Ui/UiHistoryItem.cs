@@ -20,8 +20,8 @@ public class UiHistoryItem : MonoBehaviour
 
   }
 
-  public void Init(int version)
+  public void Init(FileSystem.LevelData levelData)
   {
-    m_fileVersion = version;
+    //m_fileVersion = version;
   }
 }

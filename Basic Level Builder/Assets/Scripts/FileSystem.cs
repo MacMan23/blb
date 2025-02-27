@@ -1053,7 +1053,7 @@ public class FileSystem : MonoBehaviour
   {
     var listItem = Instantiate(m_FileItemPrefab);
 
-    listItem.Setup(this, fullPath, fileName);
+    listItem.Setup(fullPath, fileName);
     var rt = listItem.GetComponent<RectTransform>();
 
     return rt;
