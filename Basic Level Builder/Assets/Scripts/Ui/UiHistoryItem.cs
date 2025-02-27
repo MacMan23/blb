@@ -1,27 +1,21 @@
 using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Data;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class UiHistoryItem : MonoBehaviour
 {
-  private int m_fileVersion;
-
-  // Start is called before the first frame update
-  void Start()
-  {
-
-  }
-
-  // Update is called once per frame
-  void Update()
-  {
-
-  }
+  private FileSystem.LevelData m_levelData;
+  [SerializeField]
+  private Image m_ThumbnailImage;
+  [SerializeField]
+  private TMPro.TextMeshProUGUI m_VersionName;
+  [SerializeField]
+  private TMPro.TextMeshProUGUI m_VersionData;
 
   public void Init(FileSystem.LevelData levelData)
   {
-    //m_fileVersion = version;
+    m_levelData = levelData;
+    m_VersionName.text = levelData.m_Name;
+    m_VersionData.text = ((DateTime)levelData.m_TimeStamp).ToString("g");
   }
 }

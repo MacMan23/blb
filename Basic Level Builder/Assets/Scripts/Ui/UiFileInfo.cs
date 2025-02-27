@@ -1,30 +1,15 @@
-using System;
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
-using static UnityEditor.Progress;
+using static FileSystem;
 
 public class UiFileInfo : MonoBehaviour
 {
   private string m_fileFullPath;
   [SerializeField]
-  private UiHistoryItem m_ManualSaveItem;
+  private UiHistoryItem m_ManualSaveItemPrefab;
   [SerializeField]
-  private UiHistoryItem m_AutoSaveItem;
+  private UiHistoryItem m_AutoSaveItemPrefab;
   [SerializeField]
   private RectTransform m_Content;
-
-  // Start is called before the first frame update
-  void Start()
-  {
-
-  }
-
-  // Update is called once per frame
-  void Update()
-  {
-
-  }
 
   public void InitLoad(string fullFilePath)
   {
@@ -32,19 +17,28 @@ public class UiFileInfo : MonoBehaviour
 
     // Create all the file items
     // Load the files data
-    FileSystem.Instance.GetDataFromFullPath(fullFilePath, out FileSystem.FileData filedata, out FileSystem.Header _header);
+    Instance.GetDataFromFullPath(fullFilePath, out FileData filedata, out Header _header);
     foreach (var levelData in filedata.m_ManualSaves)
     {
-      UiHistoryItem historyItem = Instantiate(m_ManualSaveItem);
-      // Give level data so it can init its text and thumbnail
-      historyItem.Init(levelData);
-      // Add item to list view
-      if (historyItem.TryGetComponent(out RectTransform ret))
-      {
-        ret.SetParent(m_Content);
-        // IDK copied from UiListView
-        ret.SetAsFirstSibling();
-      }
+      CreateHistoryItem(levelData, m_ManualSaveItemPrefab);
+    }
+    foreach (var levelData in filedata.m_AutoSaves)
+    {
+      CreateHistoryItem(levelData, m_AutoSaveItemPrefab);
+    }
+  }
+
+  private void CreateHistoryItem(LevelData levelData, UiHistoryItem prefab)
+  {
+    UiHistoryItem historyItem = Instantiate(prefab);
+    // Give level data so it can init its text and thumbnail
+    historyItem.Init(levelData);
+    // Add item to list view
+    if (historyItem.TryGetComponent(out RectTransform rect))
+    {
+      rect.SetParent(m_Content);
+      // IDK copied from UiListView
+      rect.SetAsFirstSibling();
     }
   }
 }

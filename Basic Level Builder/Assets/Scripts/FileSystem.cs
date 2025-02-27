@@ -2,7 +2,6 @@
 using System.IO;
 using System.IO.Compression;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using UnityEngine;
 using System.Runtime.InteropServices;
@@ -31,6 +30,8 @@ public class FileSystem : MonoBehaviour
   readonly static public string s_FilenameExtension = ".blb";
   readonly static public string s_RootDirectoryName = "Basic Level Builder";
   readonly static public string s_DateTimeFormat = "h-mm-ss.ff tt, ddd d MMM yyyy";
+  readonly static private string s_AutoSaveName = "<i>auto";
+  readonly static private string s_ManualSaveName = "Version ";
   readonly static public int s_MaxAutoSaveCount = 20;
   readonly static public int s_MaxManualSaveCount = 100;
   readonly static bool s_ShouldCompress = false;
@@ -67,6 +68,22 @@ public class FileSystem : MonoBehaviour
 
   #region FileStructure classes
   [Serializable]
+  public struct JsonDateTime
+  {
+    public long value;
+    public static implicit operator DateTime(JsonDateTime jdt)
+    {
+      return DateTime.FromFileTime(jdt.value);
+    }
+    public static implicit operator JsonDateTime(DateTime dt)
+    {
+      JsonDateTime jdt = new();
+      jdt.value = dt.ToFileTime();
+      return jdt;
+    }
+  }
+
+  [Serializable]
   public class FileData
   {
     public FileData()
@@ -101,8 +118,9 @@ public class FileSystem : MonoBehaviour
 
     public int m_Version;
     // The manual save version the auto save branched off from
+    public string m_Name;
     public int m_BranchVersion;
-    public DateTime m_TimeStamp;
+    public JsonDateTime m_TimeStamp;
     public List<TileGrid.Element> m_AddedTiles;
     public List<Vector2Int> m_RemovedTiles;
   }
@@ -334,6 +352,7 @@ public class FileSystem : MonoBehaviour
 
     levelData.m_TimeStamp = DateTime.Now;
     levelData.m_Version = 1;
+    levelData.m_Name = s_ManualSaveName + "1";
 
     m_MountedFileData.m_ManualSaves.Add(levelData);
 
@@ -389,11 +408,12 @@ public class FileSystem : MonoBehaviour
 
     // TODO, see where we need to set and reset the m_MountedfileData
     // If we don't have a file mounted, mount the soon to be created file
+    // TODO Maybe make a lock here incase two threads do it
     if (!FileDataExists())
     {
       CreateFileData();
     }
-
+    
     // If we are doing an auto check if we have to many
     if (autosave)
     {
@@ -438,6 +458,9 @@ public class FileSystem : MonoBehaviour
         levelData.m_Version = 1;
       }
 
+      // Set the name of the version to just the version
+      levelData.m_Name = s_ManualSaveName + levelData.m_Version.ToString();
+
       // If this is an auto save, store what version of the manual save we branched from to get these diffrences to save
       if (autosave)
       {
@@ -453,6 +476,9 @@ public class FileSystem : MonoBehaviour
           // Which will always be the latest manual save
           levelData.m_BranchVersion = m_MountedFileData.m_ManualSaves[^1].m_Version;
         }
+
+        // Overwrite name for autosaves
+        levelData.m_Name = s_AutoSaveName;
       }
 
       savesList.Add(levelData);
@@ -835,6 +861,7 @@ public class FileSystem : MonoBehaviour
     HashSet<Vector2Int> squashedLevelRemove = new();
     DateTime timeStamp = DateTime.Now;
     int lastVersion = startVersion;
+    string versionName = s_ManualSaveName + lastVersion;
 
     // Care is taken if the endVerion is outside of the list
     // So we keep track of the last versions, well, version number
@@ -850,6 +877,7 @@ public class FileSystem : MonoBehaviour
       // Keep track of the last verions stats
       timeStamp = levelData.m_TimeStamp;
       lastVersion = levelData.m_Version;
+      versionName = levelData.m_Name;
 
       // Convert this version into the collected grid
       // We might not start at version 1, so we need to keep track of the removes as they record the removes from the prior version
@@ -904,6 +932,7 @@ public class FileSystem : MonoBehaviour
       LevelData levelData = new()
       {
         m_Version = lastVersion,
+        m_Name = versionName,
         m_TimeStamp = timeStamp,
         m_AddedTiles = squashedLevelAdd.Values.ToList(),
         m_RemovedTiles = squashedLevelRemove.ToList()
@@ -1053,7 +1082,7 @@ public class FileSystem : MonoBehaviour
   {
     var listItem = Instantiate(m_FileItemPrefab);
 
-    listItem.Setup(fullPath, fileName);
+    listItem.Setup(fullPath, fileName, File.GetLastWriteTime(fullPath).ToString("g"));
     var rt = listItem.GetComponent<RectTransform>();
 
     return rt;
@@ -1106,22 +1135,9 @@ public class FileSystem : MonoBehaviour
     return Path.Combine(m_CurrentDirectoryPath, Guid.NewGuid().ToString() + ".blb");
   }
 
-  void SortByDateTimeParsedFileNames(string[] files)
-  {
-    Array.Sort(files, FileNameComparison);
-  }
-
   void SortByDateModified(string[] files)
   {
     Array.Sort(files, DateModifiedComparison);
-  }
-
-  static int FileNameComparison(string a, string b)
-  {
-    var dateTimeA = GetDateTimeFromFileName(a);
-    var dateTimeB = GetDateTimeFromFileName(b);
-
-    return DateTime.Compare(dateTimeA, dateTimeB);
   }
 
   static int DateModifiedComparison(string a, string b)
@@ -1130,26 +1146,6 @@ public class FileSystem : MonoBehaviour
     var dateTimeB = File.GetLastWriteTime(b);
 
     return DateTime.Compare(dateTimeA, dateTimeB);
-  }
-
-  static DateTime GetDateTimeFromFileName(string fileName)
-  {
-    var withoutExtension = Path.GetFileNameWithoutExtension(fileName);
-    var firstSpaceIndex = withoutExtension.IndexOf(' ');
-    string dateTimeString = withoutExtension.Remove(0, firstSpaceIndex + 1);
-
-    var output = DateTime.Now;
-
-    try
-    {
-      output = DateTime.ParseExact(dateTimeString, s_DateTimeFormat, CultureInfo.InvariantCulture);
-    }
-    catch (FormatException e)
-    {
-      Debug.LogError($"Error parsing the DateTime of {fileName}. Defaulting to DateTime.Now. {e.Message}");
-    }
-
-    return output;
   }
 
   protected class StringCompression

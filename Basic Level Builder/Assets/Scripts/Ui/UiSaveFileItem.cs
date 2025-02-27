@@ -18,12 +18,12 @@ public class UiSaveFileItem : MonoBehaviour, IPointerEnterHandler, IPointerExitH
 	private bool m_IsMouseHovering = false;
 
 
-	public void Setup(string fullPath, string fileName)
+	public void Setup(string fullPath, string fileName, string timeStamp)
 	{
 		m_FullPath = fullPath;
 		m_Text.text = fileName;
-
-		m_Text.color = fileName.StartsWith("Auto") ? m_AutosaveColor : m_ManualSaveColor;
+		m_TimeStamp.text = timeStamp;
+    m_Text.color = fileName.StartsWith("Auto") ? m_AutosaveColor : m_ManualSaveColor;
 	}
 
 
