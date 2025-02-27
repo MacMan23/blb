@@ -23,6 +23,7 @@ TagManager:
   - EditorCanvas
   - GoalFX
   - TooltipRoot
+  - FileInfoRoot
   layers:
   - Default
   - TransparentFX
