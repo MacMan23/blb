@@ -52200,8 +52200,8 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 1439737676}
   m_HandleRect: {fileID: 1439737675}
   m_Direction: 2
-  m_Value: 0
-  m_Size: 1
+  m_Value: 1
+  m_Size: 0.50186336
   m_NumberOfSteps: 0
   m_OnValueChanged:
     m_PersistentCalls:

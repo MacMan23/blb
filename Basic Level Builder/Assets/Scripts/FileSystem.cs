@@ -11,6 +11,23 @@ using System.Threading;
 
 public class FileSystem : MonoBehaviour
 {
+  #region singleton
+  private static FileSystem _instance;
+  public static FileSystem Instance { get { return _instance; } }
+
+  private void Awake()
+  {
+    if (_instance != null && _instance != this)
+    {
+      Destroy(this.gameObject);
+    }
+    else
+    {
+      _instance = this;
+    }
+  }
+  #endregion
+
   readonly static public string s_FilenameExtension = ".blb";
   readonly static public string s_RootDirectoryName = "Basic Level Builder";
   readonly static public string s_DateTimeFormat = "h-mm-ss.ff tt, ddd d MMM yyyy";
@@ -20,7 +37,7 @@ public class FileSystem : MonoBehaviour
   static string s_EditorVersion;
 
   public string m_DefaultDirectoryName = "Default Project";
-  public UiSaveFileItem m_HistoryItemPrefab;
+  public UiSaveFileItem m_FileItemPrefab;
   public UiListView m_SaveList;
   public TileGrid m_TileGrid;
 
@@ -50,7 +67,7 @@ public class FileSystem : MonoBehaviour
 
   #region FileStructure classes
   [Serializable]
-  class FileData
+  public class FileData
   {
     public FileData()
     {
@@ -62,7 +79,7 @@ public class FileSystem : MonoBehaviour
   }
 
   [Serializable]
-  class Header
+  public class Header
   {
     public Header(string ver = "", bool shouldCompress = false)
     {
@@ -249,7 +266,7 @@ public class FileSystem : MonoBehaviour
               "A new file has been made for this save.";
             StatusBar.Print(errorString);
             Debug.LogWarning(errorString);
-            RemoveHistoryItem(m_SaveList, m_MountedSaveFilePath);
+            RemoveFileItem(m_SaveList, m_MountedSaveFilePath);
             UnmountFile();
           }
         }
@@ -403,6 +420,7 @@ public class FileSystem : MonoBehaviour
     }
 
     // TODO, check if the auto save has diffrences from the last auto save, if not, discard save,
+    // TODO, check if manual save is the same as the last auto save, if so just just move auto to manual
     if (hasDifferences)
     {
       // #6, 1, 3, 5, 8
@@ -461,6 +479,9 @@ public class FileSystem : MonoBehaviour
 
   private void WriteMountedDataToFile(string fullPath, bool overwriting, DateTime startTime, bool autosave, bool copyFile)
   {
+    // TODO: Find a way to not write empty tile information to file, such as:
+    // "m_TileColor": 0,"m_Direction": 0, "m_Path": []
+    // This will maybe also require a diffrent way to read in the json to the proper structure
     try
     {
       if (copyFile)
@@ -489,13 +510,13 @@ public class FileSystem : MonoBehaviour
       // Mount the file now that everything has been written
       MountFile(fullPath);
 
-      // Don't add the temp file to history view
+      // Don't add the temp file to file view
       if (!m_IsTempFile)
       {
         if (overwriting)
-          m_MainThreadDispatcher.Enqueue(() => MoveHistoryItemToTop(m_SaveList, fullPath));
+          m_MainThreadDispatcher.Enqueue(() => MoveFileItemToTop(m_SaveList, fullPath));
         else
-          m_MainThreadDispatcher.Enqueue(() => AddHistoryItemForFile(m_SaveList, fullPath));
+          m_MainThreadDispatcher.Enqueue(() => AddFileItemForFile(m_SaveList, fullPath));
       }
 
       if (Application.platform == RuntimePlatform.WebGLPlayer)
@@ -627,6 +648,21 @@ public class FileSystem : MonoBehaviour
     }
   }
 
+  public void GetDataFromFullPath(string fullPath, out FileData filedata, out Header header)
+  {
+    header = new();
+    filedata = new();
+    try
+    {
+      GetDataFromJson(File.ReadAllBytes(fullPath), filedata, header, fullPath);
+    }
+    catch (Exception e)
+    {
+      // File not loaded, remove file mount
+      Debug.LogError($"Error while loading. {e.Message} ({e.GetType()})");
+    }
+  }
+
   public void LoadFromTextAsset(TextAsset level)
   {
     if (GlobalData.AreEffectsUnderway())
@@ -644,6 +680,13 @@ public class FileSystem : MonoBehaviour
     if (!FileDataExists())
       CreateFileData();
 
+    GetDataFromJson(json, m_MountedFileData, m_MountedFileHeader, m_MountedSaveFilePath);
+
+    m_TileGrid.LoadFromDictonary(GetGridDictionaryFromLevelData());
+  }
+
+  void GetDataFromJson(byte[] json, FileData filedata, Header header, string savePath)
+  {
     try
     {
       // Read the header first
@@ -653,36 +696,34 @@ public class FileSystem : MonoBehaviour
       if (splitError)
         throw new ArgumentException("Header and or Level data can not be found");
 
-      JsonUtility.FromJsonOverwrite(System.Text.Encoding.Default.GetString(headerBytes), m_MountedFileHeader);
+      JsonUtility.FromJsonOverwrite(System.Text.Encoding.Default.GetString(headerBytes), header);
 
       // If the save file was made with a diffrent version
-      if (!m_MountedFileHeader.m_BlbVersion.Equals(s_EditorVersion))
+      if (!header.m_BlbVersion.Equals(s_EditorVersion))
       {
-        Debug.Log($"Save file {Path.GetFileName(m_MountedSaveFilePath)} was made with a diffrent BLB version. There may be possible errors.");
+        Debug.Log($"Save file {Path.GetFileName(savePath)} was made with a diffrent BLB version. There may be possible errors.");
         m_MainThreadDispatcher.Enqueue(() =>
-        StatusBar.Print($"Save file {Path.GetFileName(m_MountedSaveFilePath)} was made with a diffrent BLB version. There may be possible errors."));
+        StatusBar.Print($"Save file {Path.GetFileName(savePath)} was made with a diffrent BLB version. There may be possible errors."));
         // TODO, should we return or keep going? Do we want to run a file with a diff version?
       }
 
       string data;
 
       // Decompress string if needed
-      if (m_MountedFileHeader.m_IsDataCompressed)
+      if (header.m_IsDataCompressed)
         data = StringCompression.Decompress(dataBytes);
       else
         data = System.Text.Encoding.Default.GetString(dataBytes);
 
-      JsonUtility.FromJsonOverwrite(data, m_MountedFileData);
+      JsonUtility.FromJsonOverwrite(data, filedata);
     }
     catch (System.ArgumentException e)
     {
-      Debug.Log($"Error loading save file {Path.GetFileName(m_MountedSaveFilePath)} : {e}");
+      Debug.Log($"Error loading save file {Path.GetFileName(savePath)} : {e}");
       m_MainThreadDispatcher.Enqueue(() =>
-      StatusBar.Print($"Error loading save file {Path.GetFileName(m_MountedSaveFilePath)} : {e}"));
+      StatusBar.Print($"Error loading save file {Path.GetFileName(savePath)} : {e}"));
       return;
     }
-
-    m_TileGrid.LoadFromDictonary(GetGridDictionaryFromLevelData());
   }
 
   // Splits a byte array about a new line.
@@ -938,7 +979,7 @@ public class FileSystem : MonoBehaviour
           SortByDateModified(validFilePaths);
 
           // at this point, filePaths is already sorted chronologically
-          AddHistoryItemsForFiles(validFilePaths);
+          AddFileItemsForFiles(validFilePaths);
         }
       }
       catch (Exception e)
@@ -966,27 +1007,27 @@ public class FileSystem : MonoBehaviour
   }
 
 
-  void MoveHistoryItemToTop(UiListView historyList, string fullPath)
+  void MoveFileItemToTop(UiListView fileList, string fullPath)
   {
-    var item = historyList.GetItemByFullPath(fullPath);
-    historyList.MoveToTop(item.transform);
+    var item = fileList.GetItemByFullPath(fullPath);
+    fileList.MoveToTop(item.transform);
   }
 
-  void RemoveHistoryItem(UiListView historyList, string fullPath)
+  void RemoveFileItem(UiListView fileList, string fullPath)
   {
-    var element = historyList.GetItemByFullPath(fullPath);
-    historyList.Remove(element.GetComponent<RectTransform>());
+    var element = fileList.GetItemByFullPath(fullPath);
+    fileList.Remove(element.GetComponent<RectTransform>());
   }
 
-  void AddHistoryItemForFile(UiListView historyList, string fullPath)
+  void AddFileItemForFile(UiListView fileList, string fullPath)
   {
     var fileName = Path.GetFileNameWithoutExtension(fullPath);
     var rt = AddHelper(fullPath, fileName);
-    historyList.Add(rt);
+    fileList.Add(rt);
   }
 
 
-  void AddHistoryItemsForFiles(string[] fullPaths)
+  void AddFileItemsForFiles(string[] fullPaths)
   {
     if (GlobalData.AreEffectsUnderway())
       return;
@@ -1010,7 +1051,7 @@ public class FileSystem : MonoBehaviour
 
   RectTransform AddHelper(string fullPath, string fileName)
   {
-    var listItem = Instantiate(m_HistoryItemPrefab);
+    var listItem = Instantiate(m_FileItemPrefab);
 
     listItem.Setup(this, fullPath, fileName);
     var rt = listItem.GetComponent<RectTransform>();
