@@ -56,6 +56,10 @@ public class FileSystem : MonoBehaviour
   string m_MountedSaveFilePath = "";
   FileData m_MountedFileData;
   Header m_MountedFileHeader;
+  // The version of the manual or autosave that is loaded
+  int m_loadedVersion;
+  // The branched manual save version the autosave is. 0 = manual save
+  int m_loadedBranchVersion;
 
   // A thread to run when saving should be performed.
   // Only one save thread is run at once.
@@ -467,21 +471,23 @@ public class FileSystem : MonoBehaviour
         // If we a auto saving to a temp file
         if (m_IsTempFile)
         {
-          // We aren't diffing from a manual save, so version 0 means that
-          levelData.m_BranchVersion = 0;
+          // We aren't diffing from a manual save, but we list as 1 anyway since a val of 0 is treated as a manual save
+          levelData.m_BranchVersion = 1;
+          levelData.m_Version = 1;
         }
         else
         {
           // Set the manual save version we are branching off from
-          // Which will always be the latest manual save
-          levelData.m_BranchVersion = m_MountedFileData.m_ManualSaves[^1].m_Version;
+          // Get the manual version or the branched manual version if we loaded an auto save
+          int version = (m_loadedBranchVersion == 0) ? m_loadedVersion : m_loadedBranchVersion;
+          levelData.m_BranchVersion = m_MountedFileData.m_ManualSaves[version].m_Version;
           levelData.m_Version = 1;
 
-          // If the latest auto save is branching off of the latest manual too,
-          // We are the version after that
-          if (m_MountedFileData.m_AutoSaves.Count > 0 && m_MountedFileData.m_AutoSaves[^1].m_BranchVersion == levelData.m_BranchVersion)
-            levelData.m_Version = m_MountedFileData.m_AutoSaves[^1].m_Version + 1;
-            
+          // Check if there are other autosaves branched from this manual
+          // If so, our version will be 1 more than the newest one
+          int lastVersion = FindLastAutoSaveVersion(version);
+          if (lastVersion != 0)
+            levelData.m_Version = m_MountedFileData.m_AutoSaves[lastVersion].m_Version + 1;
         }
 
         // Overwrite name for autosaves
@@ -499,7 +505,7 @@ public class FileSystem : MonoBehaviour
       // So just copy our file to the destination file
       copyFile = true;
     }
-    #endregion
+    #endregion Add level changes to level data
 
     // If we have reach the max manual saves for the first time, give a warning that we will start to delete saves.
     if (m_MountedFileData.m_ManualSaves.Count > 0 && s_MaxManualSaveCount == m_MountedFileData.m_ManualSaves[^1].m_Version)
@@ -641,14 +647,14 @@ public class FileSystem : MonoBehaviour
     m_TileGrid.LoadFromDictonary(GetGridDictionaryFromLevelData(version));
   }
 
-  public void LoadAutoSave(int version)
+  public void LoadAutoSave(int branchVersion, int version)
   {
     if (!FileDataExists())
     {
       Debug.LogWarning($"No file loaded to load spicific version");
       return;
     }
-    if (!FindAutoSaveVersion(version, out LevelData autoSaveData))
+    if (!FindAutoSaveVersion(branchVersion, version, out LevelData autoSaveData))
       return;
 
     var grid = GetGridDictionaryFromLevelData(autoSaveData.m_BranchVersion);
@@ -955,21 +961,26 @@ public class FileSystem : MonoBehaviour
     }
   }
 
-  bool FindAutoSaveVersion(int version, out LevelData levelData)
+  bool FindAutoSaveVersion(int branchVersion, int version, out LevelData levelData)
   {
-    return SaveFinderHelper(version, true, out levelData);
+    levelData = new();
+
+    foreach (var data in m_MountedFileData.m_AutoSaves)
+    {
+      if (data.m_BranchVersion == branchVersion && data.m_Version == version)
+      {
+        levelData = data;
+        return true;
+      }
+    }
+    return false;
   }
 
   bool FindManualSaveVersion(int version, out LevelData levelData)
   {
-    return SaveFinderHelper(version, false, out levelData);
-  }
-
-  bool SaveFinderHelper(int version, bool autoSave, out LevelData levelData)
-  {
     levelData = new();
 
-    foreach (var data in autoSave ? m_MountedFileData.m_AutoSaves : m_MountedFileData.m_ManualSaves)
+    foreach (var data in m_MountedFileData.m_ManualSaves)
     {
       if (data.m_Version == version)
       {
@@ -978,6 +989,19 @@ public class FileSystem : MonoBehaviour
       }
     }
     return false;
+  }
+  
+  // Finds the newest autosave from a branched version
+  // Returns 0 if no versions were found
+  int FindLastAutoSaveVersion(int branchVersion)
+  {
+    int lastVersion = 0;
+    foreach (var data in m_MountedFileData.m_AutoSaves)
+    {
+      if (data.m_BranchVersion == branchVersion && data.m_Version > lastVersion)
+        lastVersion = data.m_Version;
+    }
+    return lastVersion;
   }
 
   void SetDirectoryName(string name)

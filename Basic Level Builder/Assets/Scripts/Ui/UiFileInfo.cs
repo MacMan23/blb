@@ -1,10 +1,9 @@
 using UnityEngine;
-using static FileSystem;
 using System.Collections.Generic;
 
 public class UiFileInfo : MonoBehaviour
 {
-  private string m_fileFullPath;
+  private string m_FileFullPath;
   [SerializeField]
   private UiHistoryItem m_ManualSaveItemPrefab;
   [SerializeField]
@@ -14,11 +13,11 @@ public class UiFileInfo : MonoBehaviour
 
   public void InitLoad(string fullFilePath)
   {
-    m_fileFullPath = fullFilePath;
+    m_FileFullPath = fullFilePath;
 
     // Create all the file items
     // Load the files data
-    Instance.GetDataFromFullPath(fullFilePath, out FileData filedata, out Header _header);
+    FileSystem.Instance.GetDataFromFullPath(fullFilePath, out FileSystem.FileData filedata, out FileSystem.Header _header);
 
     List<UiHistoryItem> items = new();
 
@@ -54,7 +53,7 @@ public class UiFileInfo : MonoBehaviour
     ToggleSaveExpansion();
   }
 
-  private UiHistoryItem CreateHistoryItem(LevelData levelData, UiHistoryItem prefab)
+  private UiHistoryItem CreateHistoryItem(FileSystem.LevelData levelData, UiHistoryItem prefab)
   {
     UiHistoryItem historyItem = Instantiate(prefab);
     // Give level data so it can init its text and thumbnail
@@ -63,21 +62,22 @@ public class UiFileInfo : MonoBehaviour
     if (historyItem.TryGetComponent(out RectTransform rect))
     {
       rect.SetParent(m_Content);
-      // IDK copied from UiListView
-      rect.SetAsFirstSibling();
     }
     return historyItem;
   }
 
   public void ToggleSaveExpansion()
   {
-    bool expanding = GetNumberExpandedSaves() == 0;
+    // If we have no expanded saves, set to expand all
+    bool shouldExpand = GetNumberExpandedSaves() == 0;
 
+    // Loop all save versions
     for (int i = 0; i < m_Content.childCount; i++)
     {
       var child = m_Content.GetChild(i);
+      // If the version isn't what we want, toggle expand, else don't
       if (child != null && child.TryGetComponent<UiHistoryItem>(out var item) &&
-          item.IsManualSave() && item.IsExpanded() == !expanding)
+          item.IsManualSave() && item.IsExpanded() != shouldExpand)
       {
         item.ToggleExpand();
       }
