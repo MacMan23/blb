@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.UI;
 
 public class UiSaveFileInfoButton : MonoBehaviour
 {
@@ -17,9 +18,10 @@ public class UiSaveFileInfoButton : MonoBehaviour
       return;
     }
 
+    // Toggle on the black background
+    root.GetComponent<Image>().enabled = true;
+
     UiFileInfo infoBox = Instantiate(m_FileInfoPrefab, root.GetComponent<RectTransform>());
-    //RectTransform infoRect = infoBox.GetComponent<RectTransform>();
-    //infoRect.SetAsFirstSibling();
 
     UiSaveFileItem parent = GetComponentInParent<UiSaveFileItem>();
     if (parent != null)

@@ -30,7 +30,7 @@ public class FileSystem : MonoBehaviour
   readonly static public string s_FilenameExtension = ".blb";
   readonly static public string s_RootDirectoryName = "Basic Level Builder";
   readonly static public string s_DateTimeFormat = "h-mm-ss.ff tt, ddd d MMM yyyy";
-  readonly static private string s_AutoSaveName = "<i>Auto";
+  readonly static private string s_AutoSaveName = "Auto";
   readonly static private string s_ManualSaveName = "Version ";
   readonly static public int s_MaxAutoSaveCount = 20;
   readonly static public int s_MaxManualSaveCount = 100;
@@ -204,6 +204,7 @@ public class FileSystem : MonoBehaviour
   void MountFile(string filepath)
   {
     m_MountedSaveFilePath = filepath;
+    m_loadedBranchVersion = m_MountedFileData.m_ManualSaves[^1].m_Version;
   }
 
   bool IsFileMounted()
@@ -480,14 +481,12 @@ public class FileSystem : MonoBehaviour
           // Set the manual save version we are branching off from
           // Get the manual version or the branched manual version if we loaded an auto save
           int version = (m_loadedBranchVersion == 0) ? m_loadedVersion : m_loadedBranchVersion;
-          levelData.m_BranchVersion = m_MountedFileData.m_ManualSaves[version].m_Version;
-          levelData.m_Version = 1;
+          levelData.m_BranchVersion = version;
 
           // Check if there are other autosaves branched from this manual
           // If so, our version will be 1 more than the newest one
           int lastVersion = FindLastAutoSaveVersion(version);
-          if (lastVersion != 0)
-            levelData.m_Version = m_MountedFileData.m_AutoSaves[lastVersion].m_Version + 1;
+          levelData.m_Version = lastVersion + 1;
         }
 
         // Overwrite name for autosaves

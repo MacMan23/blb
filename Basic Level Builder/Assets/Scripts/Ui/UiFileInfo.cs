@@ -1,5 +1,8 @@
 using UnityEngine;
 using System.Collections.Generic;
+using UnityEngine.UI;
+using static UnityEditor.Progress;
+using System;
 
 public class UiFileInfo : MonoBehaviour
 {
@@ -10,6 +13,21 @@ public class UiFileInfo : MonoBehaviour
   private UiHistoryItem m_AutoSaveItemPrefab;
   [SerializeField]
   private RectTransform m_Content;
+  [SerializeField]
+  private TMPro.TextMeshProUGUI m_versionInfoText;
+  [SerializeField]
+  private Image m_VersionInfoThumbnail;
+
+  void OnEnable()
+  {
+    UiHistoryItem.OnSelected += UpdateVersionInfo;
+  }
+
+
+  void OnDisable()
+  {
+    UiHistoryItem.OnSelected -= UpdateVersionInfo;
+  }
 
   public void InitLoad(string fullFilePath)
   {
@@ -30,23 +48,7 @@ public class UiFileInfo : MonoBehaviour
       items.Add(CreateHistoryItem(levelData, m_AutoSaveItemPrefab));
     }
 
-    // Properly sort items
-    items.Sort((a, b) => a.CompareTo(b));
-    for (int i = 0; i < items.Count; i++)
-    {
-      items[i].transform.SetSiblingIndex(i);
-
-      // Set the prev item as the last auto save in the list so the branch lines don'e continue
-      if (i != 0 && items[i].IsManualSave())
-      {
-        items[i - 1].SetLastAutoSave();
-      }
-      // Or if this is the last item and auto, then do the same for this item
-      else if (i == items.Count - 1 && !items[i].IsManualSave())
-      {
-        items[i].SetLastAutoSave();
-      }
-    }
+    UpdateVersionList(items);
 
     items[0].Select();
     // First time run will collapse all
@@ -97,6 +99,87 @@ public class UiFileInfo : MonoBehaviour
       }
     }
     return num;
+  }
+
+  // Sorts, checks lone manual
+  private void UpdateVersionList(List<UiHistoryItem> items = null)
+  {
+    // If no items were passed in, create our own list
+    items ??= GetAllHistoryItems();
+
+    // Properly sort items
+    items.Sort((a, b) => a.CompareTo(b));
+
+    // Set sorted items index in hierarchy
+    for (int i = 0; i < items.Count; i++)
+    {
+      items[i].transform.SetSiblingIndex(i);
+
+      // Is there a previous item?
+      if (i > 0)
+      {
+        // Set the prev item as the last auto save in the list so the branch lines don'e continue
+        // (SetLastAutoSave is ignored if that item is a manual too)
+        if (items[i].IsManualSave())
+        {
+          items[i - 1].SetLastAutoSave();
+        }
+
+        // Check if the last item was a manual with no autos
+        if (items[i].IsManualSave() && items[i - 1].IsManualSave())
+        {
+          items[i - 1].SetArrowActive(false);
+        }
+        else
+        {
+          items[i - 1].SetArrowActive(true);
+        }
+      }
+
+      // If this is the last item
+      if (i == items.Count - 1)
+      {
+        // If this is the last item and auto, set as the last auto save in the list
+        if (!items[i].IsManualSave())
+        {
+          items[i].SetLastAutoSave();
+        }
+        else
+        {
+          // If we are the last item and manual save, we have no autos, so remove the arrow
+          items[i].SetArrowActive(false);
+        }
+      }
+    }
+  }
+
+  private List<UiHistoryItem> GetAllHistoryItems()
+  {
+    List<UiHistoryItem> items = new();
+
+    // Loop all save versions
+    for (int i = 0; i < m_Content.childCount; i++)
+    {
+      var child = m_Content.GetChild(i);
+      if (child != null && child.TryGetComponent<UiHistoryItem>(out var item) &&
+          item.IsManualSave() && item.IsExpanded())
+      {
+        items.Add(item);
+      }
+    }
+
+    return items;
+  }
+
+
+
+  private void UpdateVersionInfo(UiHistoryItem selectedItem)
+  {
+    if (selectedItem == null)
+      return;
+
+    m_versionInfoText.text = "<b>" + selectedItem.GetVersionName() + "</b>\r\n";
+    m_versionInfoText.text += "<color=#C6C6C6>" + selectedItem.GetVersionTimeStamp() + "</color>";
   }
 }
 

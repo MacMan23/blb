@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 public class UiHistoryItem : MonoBehaviour
@@ -11,6 +12,8 @@ public class UiHistoryItem : MonoBehaviour
   private readonly static Color s_UnselectedAutoSaveColor = new Color32(64, 64, 64, 255);
   private readonly static Color s_UnselectedAutoSaveBranchColor = new Color32(34, 34, 34, 255);
 
+  public delegate void SelectAction(UiHistoryItem item);
+  public static event SelectAction OnSelected;
 
   private FileSystem.LevelData m_LevelData;
   [SerializeField]
@@ -27,7 +30,7 @@ public class UiHistoryItem : MonoBehaviour
   private ManualSaveInfo m_ManualSaveInfo;
 
   private bool m_IsExpanded = true;
-  private float m_LastPressedTime = 0;
+  private float m_LastPressedTime = float.MinValue;
 
   private static float s_DoublePressTime = 0.3f;
 
@@ -49,13 +52,26 @@ public class UiHistoryItem : MonoBehaviour
   public void Init(FileSystem.LevelData levelData)
   {
     m_LevelData = levelData;
-    m_VersionName.text = levelData.m_Name;
-    m_VersionData.text = ((DateTime)levelData.m_TimeStamp).ToString("M/d/yy h:mm:sstt").ToLower();
+    if (IsManualSave())
+      m_VersionName.text = levelData.m_Name;
+    else
+      m_VersionName.text = "<i>" + levelData.m_Name;
+    m_VersionData.text = GetVersionTimeStamp();
   }
 
   public bool IsManualSave()
   {
     return m_LevelData.m_BranchVersion == 0;
+  }
+
+  public string GetVersionName()
+  {
+    return m_LevelData.m_Name;
+  }
+
+  public string GetVersionTimeStamp()
+  {
+    return ((DateTime)m_LevelData.m_TimeStamp).ToString("M/d/yy h:mm:sstt").ToLower();
   }
 
   // Sets this autosave as the end cap to the autosave list
@@ -94,7 +110,7 @@ public class UiHistoryItem : MonoBehaviour
     for (int i = 0; i < transform.parent.childCount; i++)
     {
       var child = transform.parent.GetChild(i);
-      if (child != null || child.TryGetComponent(out UiHistoryItem item))
+      if (child == null || !child.TryGetComponent(out UiHistoryItem item))
         continue;
 
       if (i == transform.GetSiblingIndex())
@@ -125,7 +141,8 @@ public class UiHistoryItem : MonoBehaviour
       }
     }
 
-    // TODO: Update preview tab
+    // Notify listeners that this item was selected
+    OnSelected(this);
   }
 
   private void SetSelected()
@@ -182,6 +199,13 @@ public class UiHistoryItem : MonoBehaviour
     }
   }
 
+  public void SetArrowActive(bool state)
+  {
+    if (!IsManualSave()) return;
+
+    m_ManualSaveInfo.m_Arrow.gameObject.SetActive(state);
+  }
+
   public int CompareTo(UiHistoryItem other)
   {
     // Sorts Largest to Smallest/Top to Bottom
@@ -214,7 +238,6 @@ public class UiHistoryItem : MonoBehaviour
         ? other.m_LevelData.m_BranchVersion - m_LevelData.m_BranchVersion
         : other.m_LevelData.m_Version - m_LevelData.m_Version;
   }
-
 }
 
 // TODO: Button highlight doesn't work on non selected auto saves. Maybe the button color is too dark to be tinted?
