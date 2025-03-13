@@ -8,9 +8,6 @@ public class UiSaveFileInfoButton : MonoBehaviour
 
   public void OnClick()
   {
-    // TODO: alot, make sure this isn't triggered when in other popups
-    // Center to screen
-
     GameObject root = GameObject.FindGameObjectWithTag("FileInfoRoot");
     if (!root)
     {

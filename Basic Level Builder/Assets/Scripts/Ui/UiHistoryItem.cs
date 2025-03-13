@@ -14,8 +14,14 @@ public class UiHistoryItem : MonoBehaviour
 
   public delegate void SelectAction(UiHistoryItem item);
   public static event SelectAction OnSelected;
+  public delegate void CloseInfoWindowAction();
+  public static event CloseInfoWindowAction OnCloseInfoWindow;
+  public delegate void LoadFileAction(string fullFilePath, int version = int.MaxValue, int branchVerion = 0);
+  public static event LoadFileAction OnLoadFile;
 
   private FileSystem.LevelData m_LevelData;
+  private string m_FullFilePath;
+
   [SerializeField]
   private Image m_ThumbnailImage;
   [SerializeField]
@@ -49,9 +55,10 @@ public class UiHistoryItem : MonoBehaviour
     public RectTransform m_Arrow;
   }
 
-  public void Init(FileSystem.LevelData levelData)
+  public void Init(FileSystem.LevelData levelData, string fullFilePath)
   {
     m_LevelData = levelData;
+    m_FullFilePath = fullFilePath;
     if (IsManualSave())
       m_VersionName.text = levelData.m_Name;
     else
@@ -83,6 +90,7 @@ public class UiHistoryItem : MonoBehaviour
   }
 
   // Sets this autosave as a T branch, extened for more autosaves below
+  [Obsolete]
   private void SetInterposedAutoSave()
   {
     if (IsManualSave()) return;
@@ -90,17 +98,13 @@ public class UiHistoryItem : MonoBehaviour
     m_AutoSaveInfo.m_BranchExtend.SetActive(true);
   }
 
-  private void LoadVersion()
-  {
-    // TODO
-  }
-
   public void Select()
   {
     // If we double clicked on this item
     if (Time.time - m_LastPressedTime <= s_DoublePressTime)
     {
-      LoadVersion();
+      OnLoadFile(m_FullFilePath, m_LevelData.m_Version, m_LevelData.m_BranchVersion);
+      OnCloseInfoWindow();
       return;
     }
 

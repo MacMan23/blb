@@ -49,6 +49,7 @@ public class FileSystem : MonoBehaviour
   ModalDialogAdder m_OverrideDialogAdder;
   [SerializeField]
   ModalDialogAdder m_SaveAsDialogAdder;
+
   string m_CurrentDirectoryPath;
   string m_PendingSaveFullPath = "";
 
@@ -150,13 +151,14 @@ public class FileSystem : MonoBehaviour
     m_DragAndDropHook = new UnityDragAndDropHook();
     m_DragAndDropHook.InstallHook();
     m_DragAndDropHook.OnDroppedFiles += OnDroppedFiles;
+    UiHistoryItem.OnLoadFile += LoadFromFullPath;
   }
-
 
   private void OnDisable()
   {
     m_DragAndDropHook.UninstallHook();
     m_DragAndDropHook.OnDroppedFiles -= OnDroppedFiles;
+    UiHistoryItem.OnLoadFile -= LoadFromFullPath;
   }
 
   // Check if any file got deleted when we were off the game
@@ -204,7 +206,9 @@ public class FileSystem : MonoBehaviour
   void MountFile(string filepath)
   {
     m_MountedSaveFilePath = filepath;
-    m_loadedBranchVersion = m_MountedFileData.m_ManualSaves[^1].m_Version;
+    m_loadedBranchVersion = 0;
+    if (FileDataExists() && m_MountedFileData.m_ManualSaves.Count > 0)
+     m_loadedBranchVersion = m_MountedFileData.m_ManualSaves[^1].m_Version;
   }
 
   bool IsFileMounted()
@@ -360,6 +364,9 @@ public class FileSystem : MonoBehaviour
     levelData.m_Name = s_ManualSaveName + "1";
 
     m_MountedFileData.m_ManualSaves.Add(levelData);
+
+    // Updates old grid to be the "new" grid
+    m_TileGrid.UpdateOldGrid();
 
     WriteMountedDataToFile(fullPath, overwriting, startTime, false, false);
   }
@@ -635,59 +642,6 @@ public class FileSystem : MonoBehaviour
     }
   }
 
-  public void LoadVersion(int version)
-  {
-    if (!FileDataExists())
-    {
-      Debug.LogWarning($"No file loaded to load spicific version");
-      return;
-    }
-
-    m_TileGrid.LoadFromDictonary(GetGridDictionaryFromLevelData(version));
-  }
-
-  public void LoadAutoSave(int branchVersion, int version)
-  {
-    if (!FileDataExists())
-    {
-      Debug.LogWarning($"No file loaded to load spicific version");
-      return;
-    }
-    if (!FindAutoSaveVersion(branchVersion, version, out LevelData autoSaveData))
-      return;
-
-    var grid = GetGridDictionaryFromLevelData(autoSaveData.m_BranchVersion);
-
-    foreach (var tile in autoSaveData.m_AddedTiles)
-    {
-      grid[tile.m_GridIndex] = tile;
-    }
-    foreach (var pos in autoSaveData.m_RemovedTiles)
-    {
-      grid.Remove(pos);
-    }
-
-    m_TileGrid.LoadFromDictonary(grid);
-  }
-
-  public void LoadFromFullPath(string fullPath)
-  {
-    if (GlobalData.AreEffectsUnderway())
-      return;
-
-    try
-    {
-      MountFile(fullPath);
-      LoadFromJson(File.ReadAllBytes(fullPath));
-    }
-    catch (Exception e)
-    {
-      // File not loaded, remove file mount
-      UnmountFile();
-      Debug.LogError($"Error while loading. {e.Message} ({e.GetType()})");
-    }
-  }
-
   public void GetDataFromFullPath(string fullPath, out FileData filedata, out Header header)
   {
     header = new();
@@ -703,6 +657,24 @@ public class FileSystem : MonoBehaviour
     }
   }
 
+  public void LoadFromFullPath(string fullPath, int version = int.MaxValue, int branchVersion = 0)
+  {
+    if (GlobalData.AreEffectsUnderway())
+      return;
+
+    try
+    {
+      MountFile(fullPath);
+      LoadFromJson(File.ReadAllBytes(fullPath), version, branchVersion);
+    }
+    catch (Exception e)
+    {
+      // File not loaded, remove file mount
+      UnmountFile();
+      Debug.LogError($"Error while loading. {e.Message} ({e.GetType()})");
+    }
+  }
+
   public void LoadFromTextAsset(TextAsset level)
   {
     if (GlobalData.AreEffectsUnderway())
@@ -714,7 +686,7 @@ public class FileSystem : MonoBehaviour
   }
 
   // Intermidiatarty load function. Calls the rest of the load functions.
-  void LoadFromJson(byte[] json)
+  void LoadFromJson(byte[] json, int version = int.MaxValue, int branchVersion = 0)
   {
     // Make sure we have file data for the load
     if (!FileDataExists())
@@ -722,9 +694,10 @@ public class FileSystem : MonoBehaviour
 
     GetDataFromJson(json, m_MountedFileData, m_MountedFileHeader, m_MountedSaveFilePath);
 
-    m_TileGrid.LoadFromDictonary(GetGridDictionaryFromLevelData());
+    m_TileGrid.LoadFromDictonary(GetGridDictionaryFromLevelData(version, branchVersion));
   }
 
+  // Grabs data from file and stores it in passed in FileData and a Header
   void GetDataFromJson(byte[] json, FileData filedata, Header header, string savePath)
   {
     try
@@ -741,9 +714,9 @@ public class FileSystem : MonoBehaviour
       // If the save file was made with a diffrent version
       if (!header.m_BlbVersion.Equals(s_EditorVersion))
       {
-        Debug.Log($"Save file {Path.GetFileName(savePath)} was made with a diffrent BLB version. There may be possible errors.");
-        m_MainThreadDispatcher.Enqueue(() =>
-        StatusBar.Print($"Save file {Path.GetFileName(savePath)} was made with a diffrent BLB version. There may be possible errors."));
+        string errorStr = $"Save file {Path.GetFileName(savePath)} was made with a diffrent BLB version. There may be possible errors.";
+        Debug.Log(errorStr);
+        m_MainThreadDispatcher.Enqueue(() => StatusBar.Print(errorStr));
         // TODO, should we return or keep going? Do we want to run a file with a diff version?
       }
 
@@ -759,13 +732,66 @@ public class FileSystem : MonoBehaviour
     }
     catch (System.ArgumentException e)
     {
-      Debug.Log($"Error loading save file {Path.GetFileName(savePath)} : {e}");
-      m_MainThreadDispatcher.Enqueue(() =>
-      StatusBar.Print($"Error loading save file {Path.GetFileName(savePath)} : {e}"));
+      string errorStr = $"Error loading save file {Path.GetFileName(savePath)} : {e}";
+      Debug.Log(errorStr);
+      m_MainThreadDispatcher.Enqueue(() => StatusBar.Print(errorStr));
       return;
     }
   }
 
+  // Will convert the level data to a Dictionary of elements up to the passed in version
+  // If no version is passed in, we will flatten to the latest version
+  Dictionary<Vector2Int, TileGrid.Element> GetGridDictionaryFromLevelData(int version = int.MaxValue, int branchVersion = 0)
+  {
+    int manualVersion = version;
+    // Check if we are loading an autosave
+    if (branchVersion != 0)
+      manualVersion = branchVersion;
+    
+    Dictionary<Vector2Int, TileGrid.Element> tiles = new();
+
+    // Load the version up the the specified manual save
+    foreach (var levelData in m_MountedFileData.m_ManualSaves)
+    {
+      // Stop flattening the level once we pass the version we want
+      if (levelData.m_Version > manualVersion)
+        break;
+
+      foreach (var tile in levelData.m_AddedTiles)
+      {
+        tiles[tile.m_GridIndex] = tile;
+      }
+      foreach (var pos in levelData.m_RemovedTiles)
+      {
+        tiles.Remove(pos);
+      }
+    }
+
+    // If we are loading a autosave, load the branch now
+    if (branchVersion != 0)
+    {
+      // Find the level data from the auto save version
+      // Return the maunal if we can't find it
+      if (!FindAutoSaveVersion(branchVersion, version, out LevelData autoSaveData))
+      {
+        Debug.Log($"Couldn't find the branched autosave version {version}, from maunal version {branchVersion} in file `{m_MountedSaveFilePath}");
+        m_MainThreadDispatcher.Enqueue(() => StatusBar.Print("Error, couldn't find the proper autosave to load. Loaded branched manual instead."));
+        return tiles;
+      }
+
+      foreach (var tile in autoSaveData.m_AddedTiles)
+      {
+        tiles[tile.m_GridIndex] = tile;
+      }
+      foreach (var pos in autoSaveData.m_RemovedTiles)
+      {
+        tiles.Remove(pos);
+      }
+    }
+
+    return tiles;
+  }
+  
   // Splits a byte array about a new line.
   // Returns true if the new line cant be found
   bool SplitNewLineBytes(in byte[] data, out byte[] left, out byte[] right)
@@ -789,30 +815,7 @@ public class FileSystem : MonoBehaviour
     return false;
   }
 
-  // Will convert the level data to a Dictionary of elements up to the passed in version
-  // If no version is passed in, we will flatten to the latest version
-  Dictionary<Vector2Int, TileGrid.Element> GetGridDictionaryFromLevelData(int version = int.MaxValue)
-  {
-    Dictionary<Vector2Int, TileGrid.Element> tiles = new();
-
-    foreach (var levelData in m_MountedFileData.m_ManualSaves)
-    {
-      // Stop flattening the level once we pass the version we want
-      if (levelData.m_Version > version)
-        break;
-
-      foreach (var tile in levelData.m_AddedTiles)
-      {
-        tiles[tile.m_GridIndex] = tile;
-      }
-      foreach (var pos in levelData.m_RemovedTiles)
-      {
-        tiles.Remove(pos);
-      }
-    }
-
-    return tiles;
-  }
+  
 
   // Removes an auto save
   // Returns true if we were successful
@@ -1058,7 +1061,6 @@ public class FileSystem : MonoBehaviour
     m_CurrentDirectoryPath = newDirectoryPath;
   }
 
-
   public void ShowDirectoryInExplorer()
   {
     if (Application.platform == RuntimePlatform.WebGLPlayer)
@@ -1066,7 +1068,6 @@ public class FileSystem : MonoBehaviour
 
     Application.OpenURL($"file://{m_CurrentDirectoryPath}");
   }
-
 
   void MoveFileItemToTop(UiListView fileList, string fullPath)
   {
@@ -1086,7 +1087,6 @@ public class FileSystem : MonoBehaviour
     var rt = AddHelper(fullPath, fileName);
     fileList.Add(rt);
   }
-
 
   void AddFileItemsForFiles(string[] fullPaths)
   {
@@ -1108,7 +1108,6 @@ public class FileSystem : MonoBehaviour
 
     m_SaveList.Add(listItems);
   }
-
 
   RectTransform AddHelper(string fullPath, string fileName)
   {
@@ -1238,7 +1237,6 @@ public class FileSystem : MonoBehaviour
   }
 }
 
-// TODO, make new level button
 // TODO, Star on file name to show unsaved changes.
 
 // Extra credit
@@ -1255,12 +1253,10 @@ public class FileSystem : MonoBehaviour
 
 
 // __Needs UI__
-// TODO, make new level button
 // TODO, add feature to select a range of versions and squash them together
 // TODO, right click version to delete auto or manual save
 // Unsaved changes prompt
 // Warning about max manual saves reached
-// Ability to load auto save
 
 
 // Auto versions will not be allowed to flatten as they are all based off the manual saves.
@@ -1270,6 +1266,10 @@ public class FileSystem : MonoBehaviour
 // No, because the will be deleted eventualy...
 // If yes, then should we have a "delete all auto saves" button?
 
+// TODO: If the last version is deleted from a save, show pop up asking "If you delete this (or theses) save(s) the file will be deleted. Do you wish to continue?"
+// then delete the file, unmount, and close the info window.
+// Either that, or just create a new version with nothing in it.
 
+// TODO: Be able to delete a file from the save files bar.
 
-
+// TODO: Discuss, should we allow saving empty files. Ie save a level with no blocks?

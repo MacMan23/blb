@@ -1,12 +1,9 @@
 using UnityEngine;
 using System.Collections.Generic;
 using UnityEngine.UI;
-using static UnityEditor.Progress;
-using System;
 
 public class UiFileInfo : MonoBehaviour
 {
-  private string m_FileFullPath;
   [SerializeField]
   private UiHistoryItem m_ManualSaveItemPrefab;
   [SerializeField]
@@ -21,18 +18,17 @@ public class UiFileInfo : MonoBehaviour
   void OnEnable()
   {
     UiHistoryItem.OnSelected += UpdateVersionInfo;
+    UiHistoryItem.OnCloseInfoWindow += CloseWindow;
   }
-
 
   void OnDisable()
   {
     UiHistoryItem.OnSelected -= UpdateVersionInfo;
+    UiHistoryItem.OnCloseInfoWindow -= CloseWindow;
   }
 
   public void InitLoad(string fullFilePath)
   {
-    m_FileFullPath = fullFilePath;
-
     // Create all the file items
     // Load the files data
     FileSystem.Instance.GetDataFromFullPath(fullFilePath, out FileSystem.FileData filedata, out FileSystem.Header _header);
@@ -41,11 +37,11 @@ public class UiFileInfo : MonoBehaviour
 
     foreach (var levelData in filedata.m_ManualSaves)
     {
-      items.Add(CreateHistoryItem(levelData, m_ManualSaveItemPrefab));
+      items.Add(CreateHistoryItem(levelData, fullFilePath, m_ManualSaveItemPrefab));
     }
     foreach (var levelData in filedata.m_AutoSaves)
     {
-      items.Add(CreateHistoryItem(levelData, m_AutoSaveItemPrefab));
+      items.Add(CreateHistoryItem(levelData, fullFilePath, m_AutoSaveItemPrefab));
     }
 
     UpdateVersionList(items);
@@ -55,11 +51,26 @@ public class UiFileInfo : MonoBehaviour
     ToggleSaveExpansion();
   }
 
-  private UiHistoryItem CreateHistoryItem(FileSystem.LevelData levelData, UiHistoryItem prefab)
+  public void CloseWindow()
+  {
+    GameObject root = GameObject.FindGameObjectWithTag("FileInfoRoot");
+    if (!root)
+    {
+      Debug.LogError("Could not find FileInfoRoot");
+      return;
+    }
+
+    // Toggle on the black background
+    root.GetComponent<Image>().enabled = false;
+
+    Destroy(gameObject);
+  }
+
+  private UiHistoryItem CreateHistoryItem(FileSystem.LevelData levelData, string fullFilePath, UiHistoryItem prefab)
   {
     UiHistoryItem historyItem = Instantiate(prefab);
     // Give level data so it can init its text and thumbnail
-    historyItem.Init(levelData);
+    historyItem.Init(levelData, fullFilePath);
     // Add item to list view
     if (historyItem.TryGetComponent(out RectTransform rect))
     {
@@ -170,8 +181,6 @@ public class UiFileInfo : MonoBehaviour
 
     return items;
   }
-
-
 
   private void UpdateVersionInfo(UiHistoryItem selectedItem)
   {

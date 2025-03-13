@@ -46,7 +46,7 @@ public class TileGrid : MonoBehaviour
         return false;
       if (m_Direction != other.m_Direction)
         return false;
-      if (PathsEqual(other))
+      if (!PathsEqual(other))
         return false;
       return true;
     }
@@ -261,9 +261,14 @@ public class TileGrid : MonoBehaviour
     bool hasDiffrences = GetDifferencesHelper(ref levelData, ref m_OldGrid);
 
     // Updates old grid to be the "new" grid
-    m_OldGrid = m_GridSaveBuffer.ToDictionary(pair => pair.Key, pair => pair.Value);
+    UpdateOldGrid();
 
     return hasDiffrences;
+  }
+
+  public void UpdateOldGrid()
+  {
+    m_OldGrid = m_GridSaveBuffer.ToDictionary(pair => pair.Key, pair => pair.Value);
   }
 
   // This is a modified version of GetDifferences that doesn't modify the m_OldGrid
