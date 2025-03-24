@@ -1,6 +1,6 @@
 ﻿/***************************************************
 File:           UIToolTip.cs
-Authors:        Christopher Onorati
+Authors:        Christopher Onorati, Brenden Epp
 Last Updated:   6/17/2019
 Last Version:   2019.1.4
 
@@ -79,6 +79,7 @@ public class UITooltipMaker : MonoBehaviour, IPointerEnterHandler, IPointerExitH
 
     var uiTooltip = m_Tooltip.GetComponent<UiTooltip>();
     uiTooltip.SetText(m_Text);
+    uiTooltip.SetInstantiator(gameObject);
   }
 
   public void OnPointerExit(PointerEventData eventData)
