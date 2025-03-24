@@ -1,3 +1,10 @@
+/***************************************************
+Authors:        Brenden Epp
+Last Updated:   3/24/2025
+
+Copyright 2018-2025, DigiPen Institute of Technology
+***************************************************/
+
 using UnityEngine;
 using System.Collections.Generic;
 using UnityEngine.UI;
@@ -14,6 +21,8 @@ public class UiFileInfo : MonoBehaviour
   private TMPro.TextMeshProUGUI m_versionInfoText;
   [SerializeField]
   private Image m_VersionInfoThumbnail;
+
+  private UiHistoryItem m_Selected = null;
 
   void OnEnable()
   {
@@ -95,6 +104,12 @@ public class UiFileInfo : MonoBehaviour
         item.ToggleExpand();
       }
     }
+  }
+
+  public void LoadSelectedVersion()
+  {
+    if (m_Selected)
+      m_Selected.Load();
   }
 
   private int GetNumberExpandedSaves()
@@ -186,6 +201,8 @@ public class UiFileInfo : MonoBehaviour
   {
     if (selectedItem == null)
       return;
+
+    m_Selected = selectedItem;
 
     m_versionInfoText.text = "<b>" + selectedItem.GetVersionName() + "</b>\r\n";
     m_versionInfoText.text += "<color=#C6C6C6>" + selectedItem.GetVersionTimeStamp() + "</color>";

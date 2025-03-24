@@ -1,3 +1,10 @@
+/***************************************************
+Authors:        Brenden Epp
+Last Updated:   3/24/2025
+
+Copyright 2018-2025, DigiPen Institute of Technology
+***************************************************/
+
 using UnityEngine;
 using UnityEngine.UI;
 

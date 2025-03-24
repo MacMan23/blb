@@ -1,4 +1,11 @@
-﻿using System.Collections.Generic;
+﻿/***************************************************
+Authors:        Douglas Zwick, Brenden Epp
+Last Updated:   3/24/2025
+
+Copyright 2018-2025, DigiPen Institute of Technology
+***************************************************/
+
+using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 using UnityEngine.UI;

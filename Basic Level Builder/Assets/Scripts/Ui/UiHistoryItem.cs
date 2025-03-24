@@ -1,6 +1,12 @@
+/***************************************************
+Authors:        Brenden Epp
+Last Updated:   3/24/2025
+
+Copyright 2018-2025, DigiPen Institute of Technology
+***************************************************/
+
 using System;
 using UnityEngine;
-using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 public class UiHistoryItem : MonoBehaviour
@@ -98,13 +104,18 @@ public class UiHistoryItem : MonoBehaviour
     m_AutoSaveInfo.m_BranchExtend.SetActive(true);
   }
 
+  public void Load()
+  {
+    OnLoadFile?.Invoke(m_FullFilePath, m_LevelData.m_Version, m_LevelData.m_BranchVersion);
+    OnCloseInfoWindow?.Invoke();
+  }
+
   public void Select()
   {
     // If we double clicked on this item
     if (Time.time - m_LastPressedTime <= s_DoublePressTime)
     {
-      OnLoadFile(m_FullFilePath, m_LevelData.m_Version, m_LevelData.m_BranchVersion);
-      OnCloseInfoWindow();
+      Load();
       return;
     }
 
@@ -146,7 +157,7 @@ public class UiHistoryItem : MonoBehaviour
     }
 
     // Notify listeners that this item was selected
-    OnSelected(this);
+    OnSelected?.Invoke(this);
   }
 
   private void SetSelected()

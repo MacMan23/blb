@@ -1,4 +1,11 @@
-﻿using System;
+﻿/***************************************************
+Authors:        Douglas Zwick, Brenden Epp
+Last Updated:   3/24/2025
+
+Copyright 2018-2025, DigiPen Institute of Technology
+***************************************************/
+
+using System;
 using System.IO;
 using System.IO.Compression;
 using System.Collections.Generic;
@@ -168,13 +175,15 @@ public class FileSystem : MonoBehaviour
     {
       if (IsFileMounted() && !File.Exists(m_MountedSaveFilePath))
       {
-        var errorString = $"Error: File with path \"{m_MountedSaveFilePath}\" could not be found." + Environment.NewLine +
+        var errorString = $"Error: File with path \"{m_MountedSaveFilePath}\" could not be found. " +
                "Loaded level has been saved with the same name.";
-        StatusBar.Print(errorString);
-        Debug.LogWarning(errorString);
         var tempPath = Path.GetFileNameWithoutExtension(m_MountedSaveFilePath);
+        Debug.LogWarning(errorString);
+        
         UnmountFile();
-        SaveAs(tempPath);
+        SaveAs(tempPath, false);
+
+        StatusBar.Print(errorString);
       }
 
       m_SaveList.ValidateAllItems();
@@ -239,12 +248,12 @@ public class FileSystem : MonoBehaviour
     Save(true);
   }
 
-  public void SaveAs(string name)
+  public void SaveAs(string name, bool printElapsedTime = true)
   {
-    Save(false, name);
+    Save(false, name, printElapsedTime);
   }
 
-  void Save(bool autosave, string name = null)
+  void Save(bool autosave, string name = null, bool printElapsedTime = true)
   {
     if (GlobalData.AreEffectsUnderway())
       return;
@@ -319,7 +328,7 @@ public class FileSystem : MonoBehaviour
       }
     }
 
-    StartSavingThread(fullPath, autosave, name != null);
+    StartSavingThread(fullPath, autosave, name != null, printElapsedTime);
   }
 
   public void ConfirmOverwrite()
@@ -327,13 +336,13 @@ public class FileSystem : MonoBehaviour
     StartSavingThread(m_PendingSaveFullPath, false);
   }
 
-  void StartSavingThread(string fullPath, bool autosave, bool isSaveAs = false)
+  void StartSavingThread(string fullPath, bool autosave, bool isSaveAs = false, bool printElapsedTime = true)
   {
     // Copy the map data into a buffer to use for the saving thread.
     m_TileGrid.CopyGridBuffer();
 
     // Define parameters for the branched thread function
-    object[] parameters = { fullPath, autosave };
+    object[] parameters = { fullPath, autosave, printElapsedTime };
 
     // Create a new thread and pass the ParameterizedThreadStart delegate
     if (isSaveAs)
@@ -368,7 +377,7 @@ public class FileSystem : MonoBehaviour
     // Updates old grid to be the "new" grid
     m_TileGrid.UpdateOldGrid();
 
-    WriteMountedDataToFile(fullPath, overwriting, startTime, false, false);
+    WriteMountedDataToFile(fullPath, overwriting, startTime, false, false, (bool)parameters[2]);
   }
 
   void SavingThread(object threadParameters)
@@ -521,10 +530,10 @@ public class FileSystem : MonoBehaviour
       // TODO, give warning popup
     }
 
-    WriteMountedDataToFile(fullPath, overwriting, startTime, autosave, copyFile);
+    WriteMountedDataToFile(fullPath, overwriting, startTime, autosave, copyFile, (bool)parameters[2]);
   }
 
-  private void WriteMountedDataToFile(string fullPath, bool overwriting, DateTime startTime, bool autosave, bool copyFile)
+  private void WriteMountedDataToFile(string fullPath, bool overwriting, DateTime startTime, bool autosave, bool copyFile, bool printElapsedTime = true)
   {
     // TODO: Find a way to not write empty tile information to file, such as:
     // "m_TileColor": 0,"m_Direction": 0, "m_Path": []
@@ -569,23 +578,26 @@ public class FileSystem : MonoBehaviour
       if (Application.platform == RuntimePlatform.WebGLPlayer)
         SyncFiles();
 
-      var duration = DateTime.Now - startTime;
-      var h = duration.Hours; // If this is greater than 0, we got beeg problems
-      var m = duration.Minutes;
-      var s = Math.Round(duration.TotalSeconds % 60.0, 2);
+      if (printElapsedTime)
+      {
+        var duration = DateTime.Now - startTime;
+        var h = duration.Hours; // If this is greater than 0, we got beeg problems
+        var m = duration.Minutes;
+        var s = Math.Round(duration.TotalSeconds % 60.0, 2);
 
-      var durationStr = "";
-      if (h > 0)
-        durationStr += $"{h}h ";
-      if (m > 0)
-        durationStr += $"{m}m ";
-      durationStr += $"{s}s";
+        var durationStr = "";
+        if (h > 0)
+          durationStr += $"{h}h ";
+        if (m > 0)
+          durationStr += $"{m}m ";
+        durationStr += $"{s}s";
 
-      var mainColor = "#ffffff99";
-      var fileColor = autosave ? "white" : "yellow";
-      var timeColor = "#ffffff66";
-      m_MainThreadDispatcher.Enqueue(() =>
-      StatusBar.Print($"<color={mainColor}>Saved</color> <color={fileColor}>{Path.GetFileName(fullPath)}</color> <color={timeColor}>in {durationStr}</color>"));
+        var mainColor = "#ffffff99";
+        var fileColor = autosave ? "white" : "yellow";
+        var timeColor = "#ffffff66";
+        m_MainThreadDispatcher.Enqueue(() =>
+        StatusBar.Print($"<color={mainColor}>Saved</color> <color={fileColor}>{Path.GetFileName(fullPath)}</color> <color={timeColor}>in {durationStr}</color>"));
+      }
     }
     catch (Exception e)
     {
@@ -744,8 +756,9 @@ public class FileSystem : MonoBehaviour
   Dictionary<Vector2Int, TileGrid.Element> GetGridDictionaryFromLevelData(int version = int.MaxValue, int branchVersion = 0)
   {
     int manualVersion = version;
+    bool isAutoSave = !IsManualSave(branchVersion);
     // Check if we are loading an autosave
-    if (branchVersion != 0)
+    if (isAutoSave)
       manualVersion = branchVersion;
     
     Dictionary<Vector2Int, TileGrid.Element> tiles = new();
@@ -768,7 +781,7 @@ public class FileSystem : MonoBehaviour
     }
 
     // If we are loading a autosave, load the branch now
-    if (branchVersion != 0)
+    if (isAutoSave)
     {
       // Find the level data from the auto save version
       // Return the maunal if we can't find it
@@ -1164,6 +1177,11 @@ public class FileSystem : MonoBehaviour
   string CreateTempFileName()
   {
     return Path.Combine(m_CurrentDirectoryPath, Guid.NewGuid().ToString() + ".blb");
+  }
+
+  bool IsManualSave(int branchVersion)
+  {
+    return branchVersion == 0;
   }
 
   void SortByDateModified(string[] files)

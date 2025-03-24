@@ -1,4 +1,11 @@
-﻿using System;
+﻿/***************************************************
+Authors:        Douglas Zwick, Brenden Epp
+Last Updated:   3/24/2025
+
+Copyright 2018-2025, DigiPen Institute of Technology
+***************************************************/
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
