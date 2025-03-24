@@ -158,14 +158,12 @@ public class FileSystem : MonoBehaviour
     m_DragAndDropHook = new UnityDragAndDropHook();
     m_DragAndDropHook.InstallHook();
     m_DragAndDropHook.OnDroppedFiles += OnDroppedFiles;
-    UiHistoryItem.OnLoadFile += LoadFromFullPath;
   }
 
   private void OnDisable()
   {
     m_DragAndDropHook.UninstallHook();
     m_DragAndDropHook.OnDroppedFiles -= OnDroppedFiles;
-    UiHistoryItem.OnLoadFile -= LoadFromFullPath;
   }
 
   // Check if any file got deleted when we were off the game
@@ -225,6 +223,14 @@ public class FileSystem : MonoBehaviour
     return !String.IsNullOrEmpty(m_MountedSaveFilePath);
   }
 
+  void ExportVersion(string fullFilePath, int version, int branchVersion)
+  {
+    LoadFromFullPath(fullFilePath, version, branchVersion);
+    // Damn. I need to request a name, wait for a reply, save, then close the file info view
+    //m_ActivationSequence = ActionMaster.Actions.Sequence();
+    //m_ModalDialogMaster.RequestDialogAtCenter();
+  }
+
   void OnDroppedFiles(List<string> paths, POINT dropPoint)
   {
     if (m_ModalDialogMaster.m_Active || GlobalData.AreEffectsUnderway() || GlobalData.IsInPlayMode())
@@ -248,12 +254,12 @@ public class FileSystem : MonoBehaviour
     Save(true);
   }
 
-  public void SaveAs(string name, bool printElapsedTime = true)
+  public void SaveAs(string name, bool shouldPrintElapsedTime = true)
   {
-    Save(false, name, printElapsedTime);
+    Save(false, name, shouldPrintElapsedTime);
   }
 
-  void Save(bool autosave, string name = null, bool printElapsedTime = true)
+  void Save(bool autosave, string name = null, bool shouldPrintElapsedTime = true)
   {
     if (GlobalData.AreEffectsUnderway())
       return;
@@ -328,7 +334,7 @@ public class FileSystem : MonoBehaviour
       }
     }
 
-    StartSavingThread(fullPath, autosave, name != null, printElapsedTime);
+    StartSavingThread(fullPath, autosave, name != null, shouldPrintElapsedTime);
   }
 
   public void ConfirmOverwrite()
@@ -336,13 +342,13 @@ public class FileSystem : MonoBehaviour
     StartSavingThread(m_PendingSaveFullPath, false);
   }
 
-  void StartSavingThread(string fullPath, bool autosave, bool isSaveAs = false, bool printElapsedTime = true)
+  void StartSavingThread(string fullPath, bool autosave, bool isSaveAs = false, bool shouldPrintElapsedTime = true)
   {
     // Copy the map data into a buffer to use for the saving thread.
     m_TileGrid.CopyGridBuffer();
 
     // Define parameters for the branched thread function
-    object[] parameters = { fullPath, autosave, printElapsedTime };
+    object[] parameters = { fullPath, autosave, shouldPrintElapsedTime };
 
     // Create a new thread and pass the ParameterizedThreadStart delegate
     if (isSaveAs)
@@ -533,7 +539,7 @@ public class FileSystem : MonoBehaviour
     WriteMountedDataToFile(fullPath, overwriting, startTime, autosave, copyFile, (bool)parameters[2]);
   }
 
-  private void WriteMountedDataToFile(string fullPath, bool overwriting, DateTime startTime, bool autosave, bool copyFile, bool printElapsedTime = true)
+  private void WriteMountedDataToFile(string fullPath, bool overwriting, DateTime startTime, bool autosave, bool copyFile, bool shouldPrintElapsedTime = true)
   {
     // TODO: Find a way to not write empty tile information to file, such as:
     // "m_TileColor": 0,"m_Direction": 0, "m_Path": []
@@ -578,7 +584,7 @@ public class FileSystem : MonoBehaviour
       if (Application.platform == RuntimePlatform.WebGLPlayer)
         SyncFiles();
 
-      if (printElapsedTime)
+      if (shouldPrintElapsedTime)
       {
         var duration = DateTime.Now - startTime;
         var h = duration.Hours; // If this is greater than 0, we got beeg problems

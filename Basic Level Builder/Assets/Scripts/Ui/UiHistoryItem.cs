@@ -22,8 +22,6 @@ public class UiHistoryItem : MonoBehaviour
   public static event SelectAction OnSelected;
   public delegate void CloseInfoWindowAction();
   public static event CloseInfoWindowAction OnCloseInfoWindow;
-  public delegate void LoadFileAction(string fullFilePath, int version = int.MaxValue, int branchVerion = 0);
-  public static event LoadFileAction OnLoadFile;
 
   private FileSystem.LevelData m_LevelData;
   private string m_FullFilePath;
@@ -106,7 +104,7 @@ public class UiHistoryItem : MonoBehaviour
 
   public void Load()
   {
-    OnLoadFile?.Invoke(m_FullFilePath, m_LevelData.m_Version, m_LevelData.m_BranchVersion);
+    FileSystem.Instance.LoadFromFullPath(m_FullFilePath, m_LevelData.m_Version, m_LevelData.m_BranchVersion);
     OnCloseInfoWindow?.Invoke();
   }
 
