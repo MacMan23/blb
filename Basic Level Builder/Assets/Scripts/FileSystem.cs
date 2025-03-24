@@ -14,6 +14,7 @@ using UnityEngine;
 using System.Runtime.InteropServices;
 using B83.Win32;
 using System.Threading;
+using static FileSystem;
 
 public class FileSystem : MonoBehaviour
 {
@@ -64,6 +65,7 @@ public class FileSystem : MonoBehaviour
   string m_MountedSaveFilePath = "";
   FileData m_MountedFileData;
   Header m_MountedFileHeader;
+
   // The version of the manual or autosave that is loaded
   int m_loadedVersion;
   // The branched manual save version the autosave is. 0 = manual save
@@ -177,7 +179,7 @@ public class FileSystem : MonoBehaviour
                "Loaded level has been saved with the same name.";
         var tempPath = Path.GetFileNameWithoutExtension(m_MountedSaveFilePath);
         Debug.LogWarning(errorString);
-        
+
         UnmountFile();
         SaveAs(tempPath, false);
 
@@ -215,7 +217,7 @@ public class FileSystem : MonoBehaviour
     m_MountedSaveFilePath = filepath;
     m_loadedBranchVersion = 0;
     if (FileDataExists() && m_MountedFileData.m_ManualSaves.Count > 0)
-     m_loadedBranchVersion = m_MountedFileData.m_ManualSaves[^1].m_Version;
+      m_loadedBranchVersion = m_MountedFileData.m_ManualSaves[^1].m_Version;
   }
 
   bool IsFileMounted()
@@ -440,7 +442,7 @@ public class FileSystem : MonoBehaviour
     {
       CreateFileData();
     }
-    
+
     // If we are doing an auto check if we have to many
     if (autosave)
     {
@@ -536,31 +538,59 @@ public class FileSystem : MonoBehaviour
       // TODO, give warning popup
     }
 
-    WriteMountedDataToFile(fullPath, overwriting, startTime, autosave, copyFile, (bool)parameters[2]);
+
+
+
+
+
+
+
+    string saveDataFilePath = m_MountedSaveFilePath;
+    Header saveDataFileHeader = m_MountedFileHeader;
+    FileData saveDataFileData = m_MountedFileData;
+    bool shouldMountSave = true;
+
+
+    WriteMountedDataToFile();
   }
 
-  private void WriteMountedDataToFile(string fullPath, bool overwriting, DateTime startTime, bool autosave, bool copyFile, bool shouldPrintElapsedTime = true)
+  private void UpdateFileToItemList(string fullPath, bool overwriting)
+  {
+    if (overwriting)
+      m_MainThreadDispatcher.Enqueue(() => MoveFileItemToTop(m_SaveList, fullPath));
+    else
+      m_MainThreadDispatcher.Enqueue(() => AddFileItemForFile(m_SaveList, fullPath));
+  }
+
+  // Returns true if an error ocurred
+  private bool CopyMountedFile(string fullPath)
+  {
+    try
+    {
+      File.Copy(m_MountedSaveFilePath, fullPath, true);
+    }
+    catch (Exception e)
+    {
+      var errorString = $"Error while saving. {e.Message} ({e.GetType()})";
+      m_MainThreadDispatcher.Enqueue(() => StatusBar.Print(errorString));
+      Debug.LogError(errorString);
+      return true;
+    }
+    return false;
+  }
+
+  private void WriteMountedDataToFile(string fullPath, string saveDataFilePath, Header saveDataFileHeader, FileData saveDataFileData, bool shouldMountSave,
+    bool isOverwriting, DateTime startTime, bool isAutosave, bool shouldCopyFile, bool shouldPrintElapsedTime = true)
   {
     // TODO: Find a way to not write empty tile information to file, such as:
     // "m_TileColor": 0,"m_Direction": 0, "m_Path": []
     // This will maybe also require a diffrent way to read in the json to the proper structure
-    try
+    if (shouldCopyFile)
     {
-      if (copyFile)
-      {
-        File.Copy(m_MountedSaveFilePath, fullPath, true);
-      }
-      else
-      {
-        List<byte> data = new();
-        data.AddRange(System.Text.Encoding.Default.GetBytes(JsonUtility.ToJson(m_MountedFileHeader) + "\n"));
-        if (s_ShouldCompress)
-          data.AddRange(StringCompression.Compress(JsonUtility.ToJson(m_MountedFileData)));
-        else
-          data.AddRange(System.Text.Encoding.Default.GetBytes(JsonUtility.ToJson(m_MountedFileData)));
-
-        File.WriteAllBytes(fullPath, data.ToArray());
-      }
+      bool error = CopyMountedFile(fullPath);
+      // Something went wrong, stop the saving process
+      if (error)
+        return;
 
       // If we did a manual save with a temp file, we no longer need the temp file.
       if (m_IsTempFile && !fullPath.Equals(m_MountedSaveFilePath))
@@ -568,49 +598,73 @@ public class FileSystem : MonoBehaviour
         File.Delete(m_MountedSaveFilePath);
         m_IsTempFile = false;
       }
+    }
+    else
+    {
+      bool error = WriteDataToFile(fullPath, saveDataFileHeader, saveDataFileData);
 
-      // Mount the file now that everything has been written
+      // Something went wrong, stop the saving process
+      if (error)
+        return;
+    }
+
+    // If we are saving from a loaded level and we aren't saving to a temp file
+    if (saveDataFilePath.Equals(m_MountedSaveFilePath) && !m_IsTempFile)
+    {
+      UpdateFileToItemList(fullPath, isOverwriting);
+    }
+
+    if (Application.platform == RuntimePlatform.WebGLPlayer)
+      SyncFiles();
+
+    if (shouldMountSave)
       MountFile(fullPath);
 
-      // Don't add the temp file to file view
-      if (!m_IsTempFile)
-      {
-        if (overwriting)
-          m_MainThreadDispatcher.Enqueue(() => MoveFileItemToTop(m_SaveList, fullPath));
-        else
-          m_MainThreadDispatcher.Enqueue(() => AddFileItemForFile(m_SaveList, fullPath));
-      }
+    if (shouldPrintElapsedTime)
+    {
+      var duration = DateTime.Now - startTime;
+      var h = duration.Hours; // If this is greater than 0, we got beeg problems
+      var m = duration.Minutes;
+      var s = Math.Round(duration.TotalSeconds % 60.0, 2);
 
-      if (Application.platform == RuntimePlatform.WebGLPlayer)
-        SyncFiles();
+      var durationStr = "";
+      if (h > 0)
+        durationStr += $"{h}h ";
+      if (m > 0)
+        durationStr += $"{m}m ";
+      durationStr += $"{s}s";
 
-      if (shouldPrintElapsedTime)
-      {
-        var duration = DateTime.Now - startTime;
-        var h = duration.Hours; // If this is greater than 0, we got beeg problems
-        var m = duration.Minutes;
-        var s = Math.Round(duration.TotalSeconds % 60.0, 2);
+      var mainColor = "#ffffff99";
+      var fileColor = isAutosave ? "white" : "yellow";
+      var timeColor = "#ffffff66";
+      m_MainThreadDispatcher.Enqueue(() =>
+      StatusBar.Print($"<color={mainColor}>Saved</color> <color={fileColor}>{Path.GetFileName(fullPath)}</color> <color={timeColor}>in {durationStr}</color>"));
+    }
+  }
 
-        var durationStr = "";
-        if (h > 0)
-          durationStr += $"{h}h ";
-        if (m > 0)
-          durationStr += $"{m}m ";
-        durationStr += $"{s}s";
+  // Removed checks if we are saving a temp file, or copying a file, and mounting
+  // Returns true if an error ocurred
+  private bool WriteDataToFile(string fullPath, Header fileHeader, FileData fileData)
+  {
+    try
+    {
+      List<byte> data = new();
+      data.AddRange(System.Text.Encoding.Default.GetBytes(JsonUtility.ToJson(fileHeader) + "\n"));
+      if (s_ShouldCompress)
+        data.AddRange(StringCompression.Compress(JsonUtility.ToJson(fileData)));
+      else
+        data.AddRange(System.Text.Encoding.Default.GetBytes(JsonUtility.ToJson(fileData)));
 
-        var mainColor = "#ffffff99";
-        var fileColor = autosave ? "white" : "yellow";
-        var timeColor = "#ffffff66";
-        m_MainThreadDispatcher.Enqueue(() =>
-        StatusBar.Print($"<color={mainColor}>Saved</color> <color={fileColor}>{Path.GetFileName(fullPath)}</color> <color={timeColor}>in {durationStr}</color>"));
-      }
+      File.WriteAllBytes(fullPath, data.ToArray());
     }
     catch (Exception e)
     {
       var errorString = $"Error while saving. {e.Message} ({e.GetType()})";
       m_MainThreadDispatcher.Enqueue(() => StatusBar.Print(errorString));
       Debug.LogError(errorString);
+      return true;
     }
+    return false;
   }
 
   public void CancelOverwrite()
@@ -766,7 +820,7 @@ public class FileSystem : MonoBehaviour
     // Check if we are loading an autosave
     if (isAutoSave)
       manualVersion = branchVersion;
-    
+
     Dictionary<Vector2Int, TileGrid.Element> tiles = new();
 
     // Load the version up the the specified manual save
@@ -810,7 +864,7 @@ public class FileSystem : MonoBehaviour
 
     return tiles;
   }
-  
+
   // Splits a byte array about a new line.
   // Returns true if the new line cant be found
   bool SplitNewLineBytes(in byte[] data, out byte[] left, out byte[] right)
@@ -834,7 +888,7 @@ public class FileSystem : MonoBehaviour
     return false;
   }
 
-  
+
 
   // Removes an auto save
   // Returns true if we were successful
@@ -937,7 +991,7 @@ public class FileSystem : MonoBehaviour
       }
     }
 
-    // Removed squashed versions
+    // Remove squashed versions
     int index = 0;
     while (index < m_MountedFileData.m_ManualSaves.Count)
     {
@@ -1011,7 +1065,7 @@ public class FileSystem : MonoBehaviour
     }
     return false;
   }
-  
+
   // Finds the newest autosave from a branched version
   // Returns 0 if no versions were found
   int FindLastAutoSaveVersion(int branchVersion)
