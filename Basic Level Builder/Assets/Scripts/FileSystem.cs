@@ -14,7 +14,6 @@ using UnityEngine;
 using System.Runtime.InteropServices;
 using B83.Win32;
 using System.Threading;
-using static FileSystem;
 
 public class FileSystem : MonoBehaviour
 {
@@ -61,10 +60,7 @@ public class FileSystem : MonoBehaviour
   string m_CurrentDirectoryPath;
   string m_PendingSaveFullPath = "";
 
-  bool m_IsTempFile = false;
-  string m_MountedSaveFilePath = "";
-  FileData m_MountedFileData;
-  Header m_MountedFileHeader;
+  FileInfo m_MountedFileInfo;
 
   // The version of the manual or autosave that is loaded
   int m_loadedVersion;
@@ -81,6 +77,15 @@ public class FileSystem : MonoBehaviour
   private static extern void SyncFiles();
 
   #region FileStructure classes
+
+  public struct FileInfo
+  {
+    public bool m_IsTempFile;
+    public string m_SaveFilePath;
+    public FileData m_FileData;
+    public Header m_FileHeader;
+  }
+
   [Serializable]
   public struct JsonDateTime
   {
@@ -173,11 +178,11 @@ public class FileSystem : MonoBehaviour
   {
     if (focus)
     {
-      if (IsFileMounted() && !File.Exists(m_MountedSaveFilePath))
+      if (FileExists(m_MountedFileInfo.m_SaveFilePath))
       {
-        var errorString = $"Error: File with path \"{m_MountedSaveFilePath}\" could not be found. " +
+        var errorString = $"Error: File with path \"{m_MountedFileInfo.m_SaveFilePath}\" could not be found. " +
                "Loaded level has been saved with the same name.";
-        var tempPath = Path.GetFileNameWithoutExtension(m_MountedSaveFilePath);
+        var tempPath = Path.GetFileNameWithoutExtension(m_MountedFileInfo.m_SaveFilePath);
         Debug.LogWarning(errorString);
 
         UnmountFile();
@@ -190,45 +195,67 @@ public class FileSystem : MonoBehaviour
     }
   }
 
-  void CreateFileData()
+  /// <summary>
+  /// Creates new file data structures.
+  /// </summary>
+  void CreateFileInfo(out FileInfo fileInfo, string filePath = "")
   {
-    m_MountedFileHeader = new(s_EditorVersion, s_ShouldCompress);
-    m_MountedFileData = new();
+    fileInfo = new();
+    fileInfo.m_SaveFilePath = filePath;
+    fileInfo.m_FileHeader = new(s_EditorVersion, s_ShouldCompress);
+    fileInfo.m_FileData = new();
   }
 
-  void ClearFileData()
+  /// <summary>
+  /// Clears the file data structures.
+  /// </summary>
+  void ClearFileData(FileInfo fileInfo)
   {
-    m_MountedFileHeader = null;
-    m_MountedFileData = null;
+    fileInfo.m_FileHeader = null;
+    fileInfo.m_FileData = null;
   }
 
-  bool FileDataExists()
+  /// <summary>
+  /// Checks if file data exists.
+  /// </summary>
+  /// <returns>True if file data exists, false otherwise</returns>
+  bool FileDataExists(FileData fileData)
   {
-    return m_MountedFileData != null;
+    return fileData != null;
   }
 
+  /// <summary>
+  /// Unmounts the current file.
+  /// </summary>
   void UnmountFile()
   {
-    m_MountedSaveFilePath = "";
+    m_MountedFileInfo.m_SaveFilePath = "";
   }
 
-  void MountFile(string filepath)
+  /// <summary>
+  /// Mounts a file at the specified path.
+  /// </summary>
+  /// <param name="filePath">The path to the file to mount</param>
+  void MountFile(string filePath, FileInfo fileInfo)
   {
-    m_MountedSaveFilePath = filepath;
+    m_MountedFileInfo = fileInfo;
+    m_MountedFileInfo.m_SaveFilePath = filePath;
     m_loadedBranchVersion = 0;
-    if (FileDataExists() && m_MountedFileData.m_ManualSaves.Count > 0)
-      m_loadedBranchVersion = m_MountedFileData.m_ManualSaves[^1].m_Version;
+    if (FileDataExists(m_MountedFileInfo.m_FileData) && m_MountedFileInfo.m_FileData.m_ManualSaves.Count > 0)
+      m_loadedBranchVersion = m_MountedFileInfo.m_FileData.m_ManualSaves[^1].m_Version;
   }
 
-  bool IsFileMounted()
+  bool FileExists(string filePath)
   {
-    return !String.IsNullOrEmpty(m_MountedSaveFilePath);
+    return !String.IsNullOrEmpty(filePath) && File.Exists(filePath);
   }
 
-  void ExportVersion(string fullFilePath, int version, int branchVersion)
+  void ExportVersion(FileInfo fileInfo, string fullFilePath, int version, int branchVersion)
   {
     LoadFromFullPath(fullFilePath, version, branchVersion);
     // Damn. I need to request a name, wait for a reply, save, then close the file info view
+    // Async maybe?
+    // Push the state that we are in, waiting for file input for a save.
     //m_ActivationSequence = ActionMaster.Actions.Sequence();
     //m_ModalDialogMaster.RequestDialogAtCenter();
   }
@@ -246,22 +273,33 @@ public class FileSystem : MonoBehaviour
       LoadFromFullPath(validPaths[0]);
   }
 
+  /// <summary>
+  /// Performs a manual save of the current level.
+  /// </summary>
   public void ManualSave()
   {
-    Save(false);
+    Save(m_MountedFileInfo, false);
   }
 
+  /// <summary>
+  /// Performs an automatic save of the current level.
+  /// </summary>
   public void Autosave()
   {
-    Save(true);
+    Save(m_MountedFileInfo, true);
   }
 
   public void SaveAs(string name, bool shouldPrintElapsedTime = true)
   {
-    Save(false, name, shouldPrintElapsedTime);
+    Save(m_MountedFileInfo, false, name, shouldPrintElapsedTime);
   }
 
-  void Save(bool autosave, string name = null, bool shouldPrintElapsedTime = true)
+  public void SaveFromFileInfo(FileInfo fileInfo)
+  {
+    Save(fileInfo, false);
+  }
+
+  void Save(FileInfo sourceFileInfo, bool autosave, string saveAsFileName = null, bool shouldPrintElapsedTime = true)
   {
     if (GlobalData.AreEffectsUnderway())
       return;
@@ -270,27 +308,27 @@ public class FileSystem : MonoBehaviour
     if (m_SavingThread != null && m_SavingThread.IsAlive)
       return;
 
-    string fullPath;
+    string destFilePath;
     // If we are doing a SAVE AS
-    if (name != null)
+    if (saveAsFileName != null)
     {
-      fullPath = Path.Combine(m_CurrentDirectoryPath, name + s_FilenameExtension);
+      destFilePath = Path.Combine(m_CurrentDirectoryPath, saveAsFileName + s_FilenameExtension);
 
       // Give prompt if we are going to write to and existing file
-      if (File.Exists(fullPath))
+      if (File.Exists(destFilePath))
       {
-        m_PendingSaveFullPath = fullPath;
+        m_PendingSaveFullPath = destFilePath;
 
-        m_OverrideDialogAdder.RequestDialogsAtCenterWithStrings(Path.GetFileName(fullPath));
+        m_OverrideDialogAdder.RequestDialogsAtCenterWithStrings(Path.GetFileName(destFilePath));
         return;
       }
     }
     else
     {
-      if (IsFileMounted())
+      if (FileExists(sourceFileInfo.m_SaveFilePath))
       {
         // If we are doing a save, but we only have a temp file
-        if (m_IsTempFile && !autosave)
+        if (sourceFileInfo.m_IsTempFile && !autosave)
         {
           // request a name for a new file to save to
           m_SaveAsDialogAdder.RequestDialogsAtCenterWithStrings();
@@ -298,19 +336,19 @@ public class FileSystem : MonoBehaviour
         }
         else
         {
-          fullPath = m_MountedSaveFilePath;
+          destFilePath = sourceFileInfo.m_SaveFilePath;
 
-          // If our mounted file is deleted/missing
-          if (!File.Exists(m_MountedSaveFilePath))
+          // If our file is deleted/missing
+          if (!File.Exists(sourceFileInfo.m_SaveFilePath))
           {
             // Because of the file validation on application focus, this SHOULD never happen.
             // But to be save incase the file is deleted while playing the game, do this
             // TODO, get this error to overwrite or concat with the saved message
-            var errorString = $"Error: File with path \"{m_MountedSaveFilePath}\" could not be found." + Environment.NewLine +
+            var errorString = $"Error: File with path \"{sourceFileInfo.m_SaveFilePath}\" could not be found." + Environment.NewLine +
               "A new file has been made for this save.";
             StatusBar.Print(errorString);
             Debug.LogWarning(errorString);
-            RemoveFileItem(m_SaveList, m_MountedSaveFilePath);
+            RemoveFileItem(m_SaveList, sourceFileInfo.m_SaveFilePath);
             UnmountFile();
           }
         }
@@ -321,10 +359,10 @@ public class FileSystem : MonoBehaviour
         // If an auto save, create a temp file and write to that
         if (autosave)
         {
-          fullPath = CreateTempFileName();
-          m_IsTempFile = true;
+          destFilePath = CreateTempFileName();
+          sourceFileInfo.m_IsTempFile = true;
           // Mount temp file so we can check when the full file path isn't the temp file
-          MountFile(fullPath);
+          MountFile(destFilePath, sourceFileInfo);
         }
         else
         {
@@ -336,7 +374,7 @@ public class FileSystem : MonoBehaviour
       }
     }
 
-    StartSavingThread(fullPath, autosave, name != null, shouldPrintElapsedTime);
+    StartSavingThread(destFilePath, autosave, saveAsFileName != null, shouldPrintElapsedTime);
   }
 
   public void ConfirmOverwrite()
@@ -344,13 +382,13 @@ public class FileSystem : MonoBehaviour
     StartSavingThread(m_PendingSaveFullPath, false);
   }
 
-  void StartSavingThread(string fullPath, bool autosave, bool isSaveAs = false, bool shouldPrintElapsedTime = true)
+  void StartSavingThread(string destFilePath, bool autosave, bool isSaveAs = false, bool shouldPrintElapsedTime = true)
   {
     // Copy the map data into a buffer to use for the saving thread.
     m_TileGrid.CopyGridBuffer();
 
     // Define parameters for the branched thread function
-    object[] parameters = { fullPath, autosave, shouldPrintElapsedTime };
+    object[] parameters = { destFilePath, autosave, shouldPrintElapsedTime };
 
     // Create a new thread and pass the ParameterizedThreadStart delegate
     if (isSaveAs)
@@ -369,10 +407,10 @@ public class FileSystem : MonoBehaviour
     object[] parameters = (object[])threadParameters;
 
     // Access the parameters
-    string fullPath = (string)parameters[0];
-    bool overwriting = File.Exists(fullPath);
+    string destFilePath = (string)parameters[0];
+    bool overwriting = File.Exists(destFilePath);
 
-    CreateFileData();
+    CreateFileInfo(out m_MountedFileInfo, destFilePath);
 
     m_TileGrid.GetLevelData(out LevelData levelData);
 
@@ -380,12 +418,12 @@ public class FileSystem : MonoBehaviour
     levelData.m_Version = 1;
     levelData.m_Name = s_ManualSaveName + "1";
 
-    m_MountedFileData.m_ManualSaves.Add(levelData);
+    m_MountedFileInfo.m_FileData.m_ManualSaves.Add(levelData);
 
     // Updates old grid to be the "new" grid
     m_TileGrid.UpdateOldGrid();
 
-    WriteMountedDataToFile(fullPath, overwriting, startTime, false, false, (bool)parameters[2]);
+    WriteDataToFile(destFilePath, m_MountedFileInfo, false, overwriting, startTime, false, false, (bool)parameters[2]);
   }
 
   void SavingThread(object threadParameters)
@@ -396,9 +434,10 @@ public class FileSystem : MonoBehaviour
     object[] parameters = (object[])threadParameters;
 
     // Access the parameters
-    string fullPath = (string)parameters[0];
+    string destFilePath = (string)parameters[0];
     bool autosave = (bool)parameters[1];
-    bool overwriting = File.Exists(fullPath);
+    bool shouldPrintElapsedTime = (bool)parameters[2];
+    bool overwriting = File.Exists(destFilePath);
     // TODO, Don't auto save if the diffences from the last auto save are the same. Ie no unsaved changes.
     #region Add level changes to level data
     // Edge cases
@@ -426,7 +465,7 @@ public class FileSystem : MonoBehaviour
 
     // If we are writting to our own file yet we have no changes, skip the save
     // Or we are writting to a temp file with no changes, ignore write
-    if (overwriting && IsFileMounted() && fullPath.Equals(m_MountedSaveFilePath) && !hasDifferences)
+    if (overwriting && FileExists(m_MountedFileInfo.m_SaveFilePath) && destFilePath.Equals(m_MountedFileInfo.m_SaveFilePath) && !hasDifferences)
     {
       // #7
       var errorString = "Skipped save because there is nothing new to save";
@@ -438,9 +477,9 @@ public class FileSystem : MonoBehaviour
     // TODO, see where we need to set and reset the m_MountedfileData
     // If we don't have a file mounted, mount the soon to be created file
     // TODO Maybe make a lock here incase two threads do it
-    if (!FileDataExists())
+    if (!FileDataExists(m_MountedFileInfo.m_FileData))
     {
-      CreateFileData();
+      CreateFileInfo(out m_MountedFileInfo, destFilePath);
     }
 
     // If we are doing an auto check if we have to many
@@ -453,23 +492,23 @@ public class FileSystem : MonoBehaviour
 
       // now, if the autosave count is at its limit, then we should
       // get rid of the oldest autosave
-      if (m_MountedFileData.m_AutoSaves.Count >= s_MaxAutoSaveCount)
+      if (m_MountedFileInfo.m_FileData.m_AutoSaves.Count >= s_MaxAutoSaveCount)
       {
-        m_MountedFileData.m_AutoSaves.RemoveAt(0);
+        m_MountedFileInfo.m_FileData.m_AutoSaves.RemoveAt(0);
       }
     }
     else
     {
       // now, if the manual count is at its limit, then we should
       // get rid of the oldest save
-      if (m_MountedFileData.m_ManualSaves.Count >= s_MaxManualSaveCount)
+      if (m_MountedFileInfo.m_FileData.m_ManualSaves.Count >= s_MaxManualSaveCount)
       {
-        m_MountedFileData.m_ManualSaves.RemoveAt(0);
+        m_MountedFileInfo.m_FileData.m_ManualSaves.RemoveAt(0);
       }
     }
 
     // TODO, check if the auto save has diffrences from the last auto save, if not, discard save,
-    // TODO, check if manual save is the same as the last auto save, if so just just move auto to manual
+    // TODO, check if manual save is the same as the last auto save, if so just move auto to manual
     if (hasDifferences)
     {
       // #6, 1, 3, 5, 8
@@ -477,7 +516,7 @@ public class FileSystem : MonoBehaviour
       levelData.m_TimeStamp = DateTime.Now;
 
       // Set the version of the save based off the last save
-      List<LevelData> savesList = autosave ? m_MountedFileData.m_AutoSaves : m_MountedFileData.m_ManualSaves;
+      List<LevelData> savesList = autosave ? m_MountedFileInfo.m_FileData.m_AutoSaves : m_MountedFileInfo.m_FileData.m_ManualSaves;
       if (savesList.Count > 0)
       {
         levelData.m_Version = savesList[^1].m_Version + 1;
@@ -494,7 +533,7 @@ public class FileSystem : MonoBehaviour
       if (autosave)
       {
         // If we a auto saving to a temp file
-        if (m_IsTempFile)
+        if (m_MountedFileInfo.m_IsTempFile)
         {
           // We aren't diffing from a manual save, but we list as 1 anyway since a val of 0 is treated as a manual save
           levelData.m_BranchVersion = 1;
@@ -509,7 +548,7 @@ public class FileSystem : MonoBehaviour
 
           // Check if there are other autosaves branched from this manual
           // If so, our version will be 1 more than the newest one
-          int lastVersion = FindLastAutoSaveVersion(version);
+          int lastVersion = FindLastAutoSaveVersion(m_MountedFileInfo.m_FileData, version);
           levelData.m_Version = lastVersion + 1;
         }
 
@@ -531,27 +570,15 @@ public class FileSystem : MonoBehaviour
     #endregion Add level changes to level data
 
     // If we have reach the max manual saves for the first time, give a warning that we will start to delete saves.
-    if (m_MountedFileData.m_ManualSaves.Count > 0 && s_MaxManualSaveCount == m_MountedFileData.m_ManualSaves[^1].m_Version)
+    if (m_MountedFileInfo.m_FileData.m_ManualSaves.Count > 0 && s_MaxManualSaveCount == m_MountedFileInfo.m_FileData.m_ManualSaves[^1].m_Version)
     {
       Debug.Log("You have reached the maximum number of manual saves. " +
         "Any more saves on this save file will delete your oldest save to make room for you new saves.");
       // TODO, give warning popup
     }
 
-
-
-
-
-
-
-
-    string saveDataFilePath = m_MountedSaveFilePath;
-    Header saveDataFileHeader = m_MountedFileHeader;
-    FileData saveDataFileData = m_MountedFileData;
-    bool shouldMountSave = true;
-
-
-    WriteMountedDataToFile();
+    WriteDataToFile(destFilePath, m_MountedFileInfo, true,
+      overwriting, startTime, autosave, copyFile, shouldPrintElapsedTime);
   }
 
   private void UpdateFileToItemList(string fullPath, bool overwriting)
@@ -563,11 +590,11 @@ public class FileSystem : MonoBehaviour
   }
 
   // Returns true if an error ocurred
-  private bool CopyMountedFile(string fullPath)
+  private bool CopyFile(string destFilePath, FileInfo sourceFileInfo)
   {
     try
     {
-      File.Copy(m_MountedSaveFilePath, fullPath, true);
+      File.Copy(sourceFileInfo.m_SaveFilePath, destFilePath, true);
     }
     catch (Exception e)
     {
@@ -579,7 +606,7 @@ public class FileSystem : MonoBehaviour
     return false;
   }
 
-  private void WriteMountedDataToFile(string fullPath, string saveDataFilePath, Header saveDataFileHeader, FileData saveDataFileData, bool shouldMountSave,
+  private void WriteDataToFile(string destFilePath, FileInfo sourceFileInfo, bool shouldMountSave,
     bool isOverwriting, DateTime startTime, bool isAutosave, bool shouldCopyFile, bool shouldPrintElapsedTime = true)
   {
     // TODO: Find a way to not write empty tile information to file, such as:
@@ -587,38 +614,38 @@ public class FileSystem : MonoBehaviour
     // This will maybe also require a diffrent way to read in the json to the proper structure
     if (shouldCopyFile)
     {
-      bool error = CopyMountedFile(fullPath);
+      bool error = CopyFile(destFilePath, sourceFileInfo);
       // Something went wrong, stop the saving process
       if (error)
         return;
 
       // If we did a manual save with a temp file, we no longer need the temp file.
-      if (m_IsTempFile && !fullPath.Equals(m_MountedSaveFilePath))
+      if (sourceFileInfo.m_IsTempFile && !destFilePath.Equals(sourceFileInfo.m_SaveFilePath))
       {
-        File.Delete(m_MountedSaveFilePath);
-        m_IsTempFile = false;
+        File.Delete(sourceFileInfo.m_SaveFilePath);
+        sourceFileInfo.m_IsTempFile = false;
       }
     }
     else
     {
-      bool error = WriteDataToFile(fullPath, saveDataFileHeader, saveDataFileData);
+      bool error = WriteDataToFile(destFilePath, sourceFileInfo);
 
       // Something went wrong, stop the saving process
       if (error)
         return;
     }
 
-    // If we are saving from a loaded level and we aren't saving to a temp file
-    if (saveDataFilePath.Equals(m_MountedSaveFilePath) && !m_IsTempFile)
+    // If we aren't saving to a temp file
+    if (!sourceFileInfo.m_IsTempFile)
     {
-      UpdateFileToItemList(fullPath, isOverwriting);
+      UpdateFileToItemList(destFilePath, isOverwriting);
     }
 
     if (Application.platform == RuntimePlatform.WebGLPlayer)
       SyncFiles();
 
     if (shouldMountSave)
-      MountFile(fullPath);
+      MountFile(destFilePath, sourceFileInfo);
 
     if (shouldPrintElapsedTime)
     {
@@ -638,24 +665,24 @@ public class FileSystem : MonoBehaviour
       var fileColor = isAutosave ? "white" : "yellow";
       var timeColor = "#ffffff66";
       m_MainThreadDispatcher.Enqueue(() =>
-      StatusBar.Print($"<color={mainColor}>Saved</color> <color={fileColor}>{Path.GetFileName(fullPath)}</color> <color={timeColor}>in {durationStr}</color>"));
+      StatusBar.Print($"<color={mainColor}>Saved</color> <color={fileColor}>{Path.GetFileName(destFilePath)}</color> <color={timeColor}>in {durationStr}</color>"));
     }
   }
 
   // Removed checks if we are saving a temp file, or copying a file, and mounting
   // Returns true if an error ocurred
-  private bool WriteDataToFile(string fullPath, Header fileHeader, FileData fileData)
+  private bool WriteDataToFile(string destFilePath, FileInfo sourceFileInfo)
   {
     try
     {
       List<byte> data = new();
-      data.AddRange(System.Text.Encoding.Default.GetBytes(JsonUtility.ToJson(fileHeader) + "\n"));
+      data.AddRange(System.Text.Encoding.Default.GetBytes(JsonUtility.ToJson(sourceFileInfo.m_FileHeader) + "\n"));
       if (s_ShouldCompress)
-        data.AddRange(StringCompression.Compress(JsonUtility.ToJson(fileData)));
+        data.AddRange(StringCompression.Compress(JsonUtility.ToJson(sourceFileInfo.m_FileData)));
       else
-        data.AddRange(System.Text.Encoding.Default.GetBytes(JsonUtility.ToJson(fileData)));
+        data.AddRange(System.Text.Encoding.Default.GetBytes(JsonUtility.ToJson(sourceFileInfo.m_FileData)));
 
-      File.WriteAllBytes(fullPath, data.ToArray());
+      File.WriteAllBytes(destFilePath, data.ToArray());
     }
     catch (Exception e)
     {
@@ -714,13 +741,12 @@ public class FileSystem : MonoBehaviour
     }
   }
 
-  public void GetDataFromFullPath(string fullPath, out FileData filedata, out Header header)
+  public void GetDataFromFullPath(string fullPath, out FileInfo fileInfo)
   {
-    header = new();
-    filedata = new();
+    CreateFileInfo(out fileInfo, fullPath);
     try
     {
-      GetDataFromJson(File.ReadAllBytes(fullPath), filedata, header, fullPath);
+      GetDataFromJson(File.ReadAllBytes(fullPath), fileInfo);
     }
     catch (Exception e)
     {
@@ -736,7 +762,7 @@ public class FileSystem : MonoBehaviour
 
     try
     {
-      MountFile(fullPath);
+      MountFile(fullPath, m_MountedFileInfo);
       LoadFromJson(File.ReadAllBytes(fullPath), version, branchVersion);
     }
     catch (Exception e)
@@ -761,16 +787,16 @@ public class FileSystem : MonoBehaviour
   void LoadFromJson(byte[] json, int version = int.MaxValue, int branchVersion = 0)
   {
     // Make sure we have file data for the load
-    if (!FileDataExists())
-      CreateFileData();
+    if (!FileDataExists(m_MountedFileInfo.m_FileData))
+      CreateFileInfo(out m_MountedFileInfo);
 
-    GetDataFromJson(json, m_MountedFileData, m_MountedFileHeader, m_MountedSaveFilePath);
+    GetDataFromJson(json, m_MountedFileInfo);
 
-    m_TileGrid.LoadFromDictonary(GetGridDictionaryFromLevelData(version, branchVersion));
+    m_TileGrid.LoadFromDictonary(GetGridDictionaryFromLevelData(m_MountedFileInfo.m_FileData, version, branchVersion));
   }
 
   // Grabs data from file and stores it in passed in FileData and a Header
-  void GetDataFromJson(byte[] json, FileData filedata, Header header, string savePath)
+  void GetDataFromJson(byte[] json, FileInfo fileInfo)
   {
     try
     {
@@ -781,12 +807,12 @@ public class FileSystem : MonoBehaviour
       if (splitError)
         throw new ArgumentException("Header and or Level data can not be found");
 
-      JsonUtility.FromJsonOverwrite(System.Text.Encoding.Default.GetString(headerBytes), header);
+      JsonUtility.FromJsonOverwrite(System.Text.Encoding.Default.GetString(headerBytes), fileInfo.m_FileHeader);
 
       // If the save file was made with a diffrent version
-      if (!header.m_BlbVersion.Equals(s_EditorVersion))
+      if (!fileInfo.m_FileHeader.m_BlbVersion.Equals(s_EditorVersion))
       {
-        string errorStr = $"Save file {Path.GetFileName(savePath)} was made with a diffrent BLB version. There may be possible errors.";
+        string errorStr = $"Save file {Path.GetFileName(fileInfo.m_SaveFilePath)} was made with a diffrent BLB version. There may be possible errors.";
         Debug.Log(errorStr);
         m_MainThreadDispatcher.Enqueue(() => StatusBar.Print(errorStr));
         // TODO, should we return or keep going? Do we want to run a file with a diff version?
@@ -795,16 +821,16 @@ public class FileSystem : MonoBehaviour
       string data;
 
       // Decompress string if needed
-      if (header.m_IsDataCompressed)
+      if (fileInfo.m_FileHeader.m_IsDataCompressed)
         data = StringCompression.Decompress(dataBytes);
       else
         data = System.Text.Encoding.Default.GetString(dataBytes);
 
-      JsonUtility.FromJsonOverwrite(data, filedata);
+      JsonUtility.FromJsonOverwrite(data, fileInfo.m_FileData);
     }
     catch (System.ArgumentException e)
     {
-      string errorStr = $"Error loading save file {Path.GetFileName(savePath)} : {e}";
+      string errorStr = $"Error loading save file {Path.GetFileName(fileInfo.m_SaveFilePath)} : {e}";
       Debug.Log(errorStr);
       m_MainThreadDispatcher.Enqueue(() => StatusBar.Print(errorStr));
       return;
@@ -813,7 +839,7 @@ public class FileSystem : MonoBehaviour
 
   // Will convert the level data to a Dictionary of elements up to the passed in version
   // If no version is passed in, we will flatten to the latest version
-  Dictionary<Vector2Int, TileGrid.Element> GetGridDictionaryFromLevelData(int version = int.MaxValue, int branchVersion = 0)
+  Dictionary<Vector2Int, TileGrid.Element> GetGridDictionaryFromLevelData(FileData fileData, int version = int.MaxValue, int branchVersion = 0)
   {
     int manualVersion = version;
     bool isAutoSave = !IsManualSave(branchVersion);
@@ -824,7 +850,7 @@ public class FileSystem : MonoBehaviour
     Dictionary<Vector2Int, TileGrid.Element> tiles = new();
 
     // Load the version up the the specified manual save
-    foreach (var levelData in m_MountedFileData.m_ManualSaves)
+    foreach (var levelData in fileData.m_ManualSaves)
     {
       // Stop flattening the level once we pass the version we want
       if (levelData.m_Version > manualVersion)
@@ -845,9 +871,9 @@ public class FileSystem : MonoBehaviour
     {
       // Find the level data from the auto save version
       // Return the maunal if we can't find it
-      if (!FindAutoSaveVersion(branchVersion, version, out LevelData autoSaveData))
+      if (!FindAutoSaveVersion(fileData, branchVersion, version, out LevelData autoSaveData))
       {
-        Debug.Log($"Couldn't find the branched autosave version {version}, from maunal version {branchVersion} in file `{m_MountedSaveFilePath}");
+        Debug.Log($"Couldn't find the branched autosave version {version}, from maunal version {branchVersion} in file `{m_MountedFileInfo.m_SaveFilePath}");
         m_MainThreadDispatcher.Enqueue(() => StatusBar.Print("Error, couldn't find the proper autosave to load. Loaded branched manual instead."));
         return tiles;
       }
@@ -892,19 +918,20 @@ public class FileSystem : MonoBehaviour
 
   // Removes an auto save
   // Returns true if we were successful
-  public bool DeleteAutoSave(int version)
+  // FileData is modified but the data will still need to be saved to a file
+  public bool DeleteAutoSave(FileData fileData, int version)
   {
-    if (!FileDataExists())
+    if (!FileDataExists(fileData))
     {
       Debug.LogWarning($"No file loaded to delete autosave");
       return false;
     }
 
-    for (int i = 0; i < m_MountedFileData.m_AutoSaves.Count; ++i)
+    for (int i = 0; i < fileData.m_AutoSaves.Count; ++i)
     {
-      if (m_MountedFileData.m_AutoSaves[i].m_Version == version)
+      if (fileData.m_AutoSaves[i].m_Version == version)
       {
-        m_MountedFileData.m_AutoSaves.RemoveAt(i);
+        fileData.m_AutoSaves.RemoveAt(i);
         return true;
       }
     }
@@ -914,25 +941,27 @@ public class FileSystem : MonoBehaviour
   }
 
   // Will delete a manual verion
-  public void DeleteLevelVersion(int version)
+  // FileData is modified but the data will still need to be saved to a file
+  public void DeleteLevelVersion(FileData fileData, int version)
   {
     // The easiest way to delete a version is to flatten it with the next verion
     // If this is the newest verion then we can just delete it
     // Luckly FlattenRange will deal with the endVerion going past the list length
 
-    if (!FileDataExists())
+    if (!FileDataExists(fileData))
     {
       Debug.LogWarning($"No file loaded to delete version");
       return;
     }
 
-    FlattenRange(version, version + 1);
+    FlattenRange(fileData, version, version + 1);
   }
 
   // Take a range of two versions and flatten them down to one data verion
   // Can only flatten MANUAL versions
   // Care is taken if endVersion is past the latest verion
-  public void FlattenRange(int startVersion, int endVersion)
+  // FileData is modified but the data will still need to be saved to a file
+  public void FlattenRange(FileData fileData, int startVersion, int endVersion)
   {
     // Invalid range
     if (startVersion > endVersion)
@@ -941,9 +970,9 @@ public class FileSystem : MonoBehaviour
       return;
     }
 
-    if (!FileDataExists())
+    if (!FileDataExists(fileData))
     {
-      Debug.LogWarning($"No file loaded to flatten range");
+      Debug.LogWarning($"No file data loaded to flatten range");
       return;
     }
 
@@ -955,7 +984,7 @@ public class FileSystem : MonoBehaviour
 
     // Care is taken if the endVerion is outside of the list
     // So we keep track of the last versions, well, version number
-    foreach (var levelData in m_MountedFileData.m_ManualSaves)
+    foreach (var levelData in fileData.m_ManualSaves)
     {
       if (levelData.m_Version < startVersion)
         continue;
@@ -993,19 +1022,19 @@ public class FileSystem : MonoBehaviour
 
     // Remove squashed versions
     int index = 0;
-    while (index < m_MountedFileData.m_ManualSaves.Count)
+    while (index < fileData.m_ManualSaves.Count)
     {
       // Get i up to the start version
-      if (m_MountedFileData.m_ManualSaves[index].m_Version < startVersion)
+      if (fileData.m_ManualSaves[index].m_Version < startVersion)
       {
         ++index;
         continue;
       }
 
       // Remove the indexs up to the end version
-      if (m_MountedFileData.m_ManualSaves[index].m_Version <= endVersion)
+      if (fileData.m_ManualSaves[index].m_Version <= endVersion)
       {
-        m_MountedFileData.m_ManualSaves.RemoveAt(index);
+        fileData.m_ManualSaves.RemoveAt(index);
         continue;
       }
 
@@ -1029,18 +1058,18 @@ public class FileSystem : MonoBehaviour
       };
 
       // If we had no endVersion. Then add a new version at the end
-      if (index > m_MountedFileData.m_ManualSaves.Count)
-        m_MountedFileData.m_ManualSaves.Add(levelData);
+      if (index > m_MountedFileInfo.m_FileData.m_ManualSaves.Count)
+        m_MountedFileInfo.m_FileData.m_ManualSaves.Add(levelData);
       else
-        m_MountedFileData.m_ManualSaves.Insert(index, levelData);
+        m_MountedFileInfo.m_FileData.m_ManualSaves.Insert(index, levelData);
     }
   }
 
-  bool FindAutoSaveVersion(int branchVersion, int version, out LevelData levelData)
+  bool FindAutoSaveVersion(FileData fileData, int branchVersion, int version, out LevelData levelData)
   {
     levelData = new();
 
-    foreach (var data in m_MountedFileData.m_AutoSaves)
+    foreach (var data in fileData.m_AutoSaves)
     {
       if (data.m_BranchVersion == branchVersion && data.m_Version == version)
       {
@@ -1051,11 +1080,11 @@ public class FileSystem : MonoBehaviour
     return false;
   }
 
-  bool FindManualSaveVersion(int version, out LevelData levelData)
+  bool FindManualSaveVersion(FileData fileData, int version, out LevelData levelData)
   {
     levelData = new();
 
-    foreach (var data in m_MountedFileData.m_ManualSaves)
+    foreach (var data in fileData.m_ManualSaves)
     {
       if (data.m_Version == version)
       {
@@ -1068,10 +1097,10 @@ public class FileSystem : MonoBehaviour
 
   // Finds the newest autosave from a branched version
   // Returns 0 if no versions were found
-  int FindLastAutoSaveVersion(int branchVersion)
+  int FindLastAutoSaveVersion(FileData fileData, int branchVersion)
   {
     int lastVersion = 0;
-    foreach (var data in m_MountedFileData.m_AutoSaves)
+    foreach (var data in fileData.m_AutoSaves)
     {
       if (data.m_BranchVersion == branchVersion && data.m_Version > lastVersion)
         lastVersion = data.m_Version;
@@ -1234,21 +1263,40 @@ public class FileSystem : MonoBehaviour
     }
   }
 
+  /// <summary>
+  /// Creates a temporary file name with a random GUID.
+  /// </summary>
+  /// <returns>The full path to the temporary file</returns>
   string CreateTempFileName()
   {
-    return Path.Combine(m_CurrentDirectoryPath, Guid.NewGuid().ToString() + ".blb");
+    return Path.Combine(m_CurrentDirectoryPath, Guid.NewGuid().ToString() + s_FilenameExtension);
   }
 
+  /// <summary>
+  /// Checks if a save is a manual save based on its branch version.
+  /// </summary>
+  /// <param name="branchVersion">The branch version to check</param>
+  /// <returns>True if it's a manual save, false if it's an auto save</returns>
   bool IsManualSave(int branchVersion)
   {
-    return branchVersion == 0;
+    return branchVersion == 0; // Branch version 0 indicates a manual save
   }
 
+  /// <summary>
+  /// Sorts an array of file paths by their last modified date.
+  /// </summary>
+  /// <param name="files">The array of file paths to sort</param>
   void SortByDateModified(string[] files)
   {
     Array.Sort(files, DateModifiedComparison);
   }
 
+  /// <summary>
+  /// Compares two file paths by their last modified date.
+  /// </summary>
+  /// <param name="a">The first file path</param>
+  /// <param name="b">The second file path</param>
+  /// <returns>A comparison value indicating the relative order of the files</returns>
   static int DateModifiedComparison(string a, string b)
   {
     var dateTimeA = File.GetLastWriteTime(a);
@@ -1257,9 +1305,16 @@ public class FileSystem : MonoBehaviour
     return DateTime.Compare(dateTimeA, dateTimeB);
   }
 
+  /// <summary>
+  /// Utility class for compressing and decompressing string data using GZip.
+  /// </summary>
   protected class StringCompression
   {
-    // Compresses the input data using GZip
+    /// <summary>
+    /// Compresses the input string data using GZip.
+    /// </summary>
+    /// <param name="input">The string to compress</param>
+    /// <returns>The compressed data as a byte array</returns>
     public static byte[] Compress(string input)
     {
       byte[] byteArray = System.Text.Encoding.Default.GetBytes(input);
@@ -1272,7 +1327,11 @@ public class FileSystem : MonoBehaviour
       return ms.ToArray();
     }
 
-    // Decompresses the input data using GZip
+    /// <summary>
+    /// Decompresses the input data using GZip.
+    /// </summary>
+    /// <param name="compressedData">The compressed data as a byte array</param>
+    /// <returns>The decompressed string</returns>
     public static string Decompress(byte[] compressedData)
     {
       using MemoryStream ms = new(compressedData);
@@ -1282,14 +1341,19 @@ public class FileSystem : MonoBehaviour
     }
   }
 
-  // A list of actions in a queue for use by threads to store unity internal related functions that must be run on the main thread.
+  /// <summary>
+  /// A thread-safe dispatcher for executing actions on the main Unity thread.
+  /// Used by background threads to queue up actions that must run on the main thread.
+  /// </summary>
   public class MainThreadDispatcher
   {
     private static readonly object s_LockObject = new();
     private Queue<System.Action> m_ActionQueue = new();
 
-    // Runs all the Queued up actions in the list
-    // Run in a place where only the main thread is run.
+    /// <summary>
+    /// Runs all the queued actions in the list.
+    /// This should only be called from the main Unity thread.
+    /// </summary>
     public void Update()
     {
       lock (s_LockObject)
@@ -1303,7 +1367,11 @@ public class FileSystem : MonoBehaviour
       }
     }
 
-    // Add a function call to the queue
+    /// <summary>
+    /// Adds a function call to the queue to be executed on the main thread.
+    /// This can be called from any thread.
+    /// </summary>
+    /// <param name="action">The action to execute on the main thread</param>
     public void Enqueue(System.Action action)
     {
       lock (s_LockObject)
