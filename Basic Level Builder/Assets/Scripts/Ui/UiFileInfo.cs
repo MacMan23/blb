@@ -40,15 +40,15 @@ public class UiFileInfo : MonoBehaviour
   {
     // Create all the file items
     // Load the files data
-    FileSystem.Instance.GetDataFromFullPath(fullFilePath, out FileSystem.FileData filedata, out FileSystem.Header _header);
+    FileSystem.Instance.GetDataFromFullPath(fullFilePath, out FileSystem.FileInfo fileInfo);
 
     List<UiHistoryItem> items = new();
 
-    foreach (var levelData in filedata.m_ManualSaves)
+    foreach (var levelData in fileInfo.m_FileData.m_ManualSaves)
     {
       items.Add(CreateHistoryItem(levelData, fullFilePath, m_ManualSaveItemPrefab));
     }
-    foreach (var levelData in filedata.m_AutoSaves)
+    foreach (var levelData in fileInfo.m_FileData.m_AutoSaves)
     {
       items.Add(CreateHistoryItem(levelData, fullFilePath, m_AutoSaveItemPrefab));
     }
