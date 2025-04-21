@@ -1096,6 +1096,7 @@ public class FileSystem : MonoBehaviour
       if (fileData.m_AutoSaves[index].m_BranchVersion == endVersion)
       {
         fileData.m_AutoSaves[index].m_BranchVersion = lastVersion;
+        ++index;
         continue;
       }
 
