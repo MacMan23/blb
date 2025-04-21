@@ -112,6 +112,32 @@ public class UiFileInfo : MonoBehaviour
       m_Selected.Load();
   }
 
+  public void DeleteSelectedVersion()
+  {
+    // Remove all the autosave UiHistoryItems from the scene
+    if (m_Selected.IsManualSave())
+    {
+      DeleteMaunalsAutosaves(m_Selected.GetVersion());
+    }
+
+    // Delete the manaul version, which also deletes the autosaves from the data
+    m_Selected.DeleteVersion();
+    UpdateVersionList();
+    Deselect();
+  }
+
+  private void DeleteMaunalsAutosaves(int version)
+  {
+    List<UiHistoryItem> items = GetAllHistoryItems();
+    foreach (var item in items)
+    {
+      if (!item.IsManualSave() && item.GetBranchVersion() == version)
+      {
+        Destroy(item);
+      }
+    }
+  }
+
   private int GetNumberExpandedSaves()
   {
     int num = 0;
@@ -187,8 +213,7 @@ public class UiFileInfo : MonoBehaviour
     for (int i = 0; i < m_Content.childCount; i++)
     {
       var child = m_Content.GetChild(i);
-      if (child != null && child.TryGetComponent<UiHistoryItem>(out var item) &&
-          item.IsManualSave() && item.IsExpanded())
+      if (child != null && child.TryGetComponent<UiHistoryItem>(out var item))
       {
         items.Add(item);
       }
@@ -197,10 +222,20 @@ public class UiFileInfo : MonoBehaviour
     return items;
   }
 
+  private void Deselect()
+  {
+    UpdateVersionInfo(null);
+  }
+
   private void UpdateVersionInfo(UiHistoryItem selectedItem)
   {
+    // Clear text if null
     if (selectedItem == null)
+    {
+      m_Selected = null;
+      m_versionInfoText.text = "";
       return;
+    }
 
     m_Selected = selectedItem;
 

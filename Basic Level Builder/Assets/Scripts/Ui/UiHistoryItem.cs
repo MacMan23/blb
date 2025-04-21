@@ -75,6 +75,16 @@ public class UiHistoryItem : MonoBehaviour
     return m_LevelData.m_BranchVersion == 0;
   }
 
+  public int GetVersion()
+  {
+    return m_LevelData.m_Version;
+  }
+
+  public int GetBranchVersion()
+  {
+    return m_LevelData.m_BranchVersion;
+  }
+
   public string GetVersionName()
   {
     return m_LevelData.m_Name;
@@ -217,6 +227,22 @@ public class UiHistoryItem : MonoBehaviour
     if (!IsManualSave()) return;
 
     m_ManualSaveInfo.m_Arrow.gameObject.SetActive(state);
+  }
+
+  public void DeleteVersion()
+  {
+    bool error;
+    error = FileSystem.Instance.GetDataFromFullPath(m_FullFilePath, out FileSystem.FileInfo fileInfo);
+    if (error)
+      return;
+    
+    if (IsManualSave())
+      error = FileSystem.Instance.DeleteLevelVersion(fileInfo, m_LevelData.m_Version);
+    else
+      error = FileSystem.Instance.DeleteAutoSave(fileInfo, m_LevelData.m_Version, m_LevelData.m_BranchVersion);
+
+    if (!error)
+      DestroyImmediate(gameObject);
   }
 
   public int CompareTo(UiHistoryItem other)

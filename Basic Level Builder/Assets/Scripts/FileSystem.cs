@@ -14,6 +14,8 @@ using UnityEngine;
 using System.Runtime.InteropServices;
 using B83.Win32;
 using System.Threading;
+using UnityEngine.Assertions;
+using static FileSystem;
 
 public class FileSystem : MonoBehaviour
 {
@@ -178,7 +180,7 @@ public class FileSystem : MonoBehaviour
   {
     if (focus)
     {
-      if (FileExists(m_MountedFileInfo.m_SaveFilePath))
+      if (IsFileMounted() && !FileExists(m_MountedFileInfo.m_SaveFilePath))
       {
         var errorString = $"Error: File with path \"{m_MountedFileInfo.m_SaveFilePath}\" could not be found. " +
                "Loaded level has been saved with the same name.";
@@ -198,7 +200,7 @@ public class FileSystem : MonoBehaviour
   /// <summary>
   /// Creates new file data structures.
   /// </summary>
-  void CreateFileInfo(out FileInfo fileInfo, string filePath = "")
+  public static void CreateFileInfo(out FileInfo fileInfo, string filePath = "")
   {
     fileInfo = new()
     {
@@ -252,6 +254,11 @@ public class FileSystem : MonoBehaviour
     return !String.IsNullOrEmpty(filePath) && File.Exists(filePath);
   }
 
+  bool IsFileMounted()
+  {
+    return !String.IsNullOrEmpty(m_MountedFileInfo.m_SaveFilePath);
+  }
+
   void ExportVersion(FileInfo fileInfo, string fullFilePath, int version, int branchVersion)
   {
     LoadFromFullPath(fullFilePath, version, branchVersion);
@@ -280,7 +287,7 @@ public class FileSystem : MonoBehaviour
   /// </summary>
   public void ManualSave()
   {
-    Save(m_MountedFileInfo, false);
+    Save(false);
   }
 
   /// <summary>
@@ -288,20 +295,15 @@ public class FileSystem : MonoBehaviour
   /// </summary>
   public void Autosave()
   {
-    Save(m_MountedFileInfo, true);
+    Save(true);
   }
 
   public void SaveAs(string name, bool shouldPrintElapsedTime = true)
   {
-    Save(m_MountedFileInfo, false, name, shouldPrintElapsedTime);
+    Save(false, name, shouldPrintElapsedTime);
   }
 
-  public void SaveFromFileInfo(FileInfo fileInfo)
-  {
-    Save(fileInfo, false);
-  }
-
-  void Save(FileInfo sourceFileInfo, bool autosave, string saveAsFileName = null, bool shouldPrintElapsedTime = true)
+  void Save(bool autosave, string saveAsFileName = null, bool shouldPrintElapsedTime = true)
   {
     if (GlobalData.AreEffectsUnderway())
       return;
@@ -309,6 +311,11 @@ public class FileSystem : MonoBehaviour
     // If we have a thread running
     if (m_SavingThread != null && m_SavingThread.IsAlive)
       return;
+
+    if (!FileDataExists(m_MountedFileInfo.m_FileData))
+    {
+      CreateFileInfo(out m_MountedFileInfo);
+    }
 
     string destFilePath;
     // If we are doing a SAVE AS
@@ -327,10 +334,10 @@ public class FileSystem : MonoBehaviour
     }
     else
     {
-      if (FileExists(sourceFileInfo.m_SaveFilePath))
+      if (IsFileMounted())
       {
         // If we are doing a save, but we only have a temp file
-        if (sourceFileInfo.m_IsTempFile && !autosave)
+        if (m_MountedFileInfo.m_IsTempFile && !autosave)
         {
           // request a name for a new file to save to
           m_SaveAsDialogAdder.RequestDialogsAtCenterWithStrings();
@@ -338,19 +345,19 @@ public class FileSystem : MonoBehaviour
         }
         else
         {
-          destFilePath = sourceFileInfo.m_SaveFilePath;
+          destFilePath = m_MountedFileInfo.m_SaveFilePath;
 
           // If our file is deleted/missing
-          if (!File.Exists(sourceFileInfo.m_SaveFilePath))
+          if (!File.Exists(m_MountedFileInfo.m_SaveFilePath))
           {
             // Because of the file validation on application focus, this SHOULD never happen.
-            // But to be save incase the file is deleted while playing the game, do this
+            // But to be safe incase the file is deleted while playing the game, do this
             // TODO, get this error to overwrite or concat with the saved message
-            var errorString = $"Error: File with path \"{sourceFileInfo.m_SaveFilePath}\" could not be found." + Environment.NewLine +
+            var errorString = $"Error: File with path \"{m_MountedFileInfo.m_SaveFilePath}\" could not be found." + Environment.NewLine +
               "A new file has been made for this save.";
             StatusBar.Print(errorString);
             Debug.LogWarning(errorString);
-            RemoveFileItem(m_SaveList, sourceFileInfo.m_SaveFilePath);
+            RemoveFileItem(m_SaveList, m_MountedFileInfo.m_SaveFilePath);
             UnmountFile();
           }
         }
@@ -362,9 +369,9 @@ public class FileSystem : MonoBehaviour
         if (autosave)
         {
           destFilePath = CreateTempFileName();
-          sourceFileInfo.m_IsTempFile = true;
+          m_MountedFileInfo.m_IsTempFile = true;
           // Mount temp file so we can check when the full file path isn't the temp file
-          MountFile(destFilePath, sourceFileInfo);
+          MountFile(destFilePath, m_MountedFileInfo);
         }
         else
         {
@@ -410,9 +417,10 @@ public class FileSystem : MonoBehaviour
 
     // Access the parameters
     string destFilePath = (string)parameters[0];
-    bool overwriting = File.Exists(destFilePath);
+    bool isOverwriting = File.Exists(destFilePath);
 
-    CreateFileInfo(out m_MountedFileInfo, destFilePath);
+    // Create new file date to clear out the old and only write in the current tile grid
+    m_MountedFileInfo.m_FileData = new();
 
     m_TileGrid.GetLevelData(out LevelData levelData);
 
@@ -425,7 +433,7 @@ public class FileSystem : MonoBehaviour
     // Updates old grid to be the "new" grid
     m_TileGrid.UpdateOldGrid();
 
-    WriteDataToFile(destFilePath, m_MountedFileInfo, false, overwriting, startTime, false, false, (bool)parameters[2]);
+    WriteDataToFile(destFilePath, m_MountedFileInfo, true, isOverwriting, startTime, false, false, (bool)parameters[2]);
   }
 
   void SavingThread(object threadParameters)
@@ -481,7 +489,7 @@ public class FileSystem : MonoBehaviour
     // TODO Maybe make a lock here incase two threads do it
     if (!FileDataExists(m_MountedFileInfo.m_FileData))
     {
-      CreateFileInfo(out m_MountedFileInfo, destFilePath);
+      Debug.LogError("Damn, This should not happen. Check why file data doesn't exist here.");
     }
 
     // If we are doing an auto check if we have to many
@@ -511,7 +519,8 @@ public class FileSystem : MonoBehaviour
 
     // TODO, check if the auto save has diffrences from the last auto save, if not, discard save,
     // TODO, check if manual save is the same as the last auto save, if so just move auto to manual
-    if (hasDifferences)
+    // Only write if we have diffrences, or we have no user created file yet
+    if (hasDifferences || m_MountedFileInfo.m_IsTempFile)
     {
       // #6, 1, 3, 5, 8
       // We have data to add/overwite to any file
@@ -611,22 +620,12 @@ public class FileSystem : MonoBehaviour
   private void WriteDataToFile(string destFilePath, FileInfo sourceFileInfo, bool shouldMountSave,
     bool isOverwriting, DateTime startTime, bool isAutosave, bool shouldCopyFile, bool shouldPrintElapsedTime = true)
   {
-    // TODO: Find a way to not write empty tile information to file, such as:
-    // "m_TileColor": 0,"m_Direction": 0, "m_Path": []
-    // This will maybe also require a diffrent way to read in the json to the proper structure
     if (shouldCopyFile)
     {
       bool error = CopyFile(destFilePath, sourceFileInfo);
       // Something went wrong, stop the saving process
       if (error)
         return;
-
-      // If we did a manual save with a temp file, we no longer need the temp file.
-      if (sourceFileInfo.m_IsTempFile && !destFilePath.Equals(sourceFileInfo.m_SaveFilePath))
-      {
-        File.Delete(sourceFileInfo.m_SaveFilePath);
-        sourceFileInfo.m_IsTempFile = false;
-      }
     }
     else
     {
@@ -635,6 +634,13 @@ public class FileSystem : MonoBehaviour
       // Something went wrong, stop the saving process
       if (error)
         return;
+    }
+
+    // If we did a manual save with a temp file, we no longer need the temp file.
+    if (sourceFileInfo.m_IsTempFile && !destFilePath.Equals(m_MountedFileInfo.m_SaveFilePath))
+    {
+      File.Delete(sourceFileInfo.m_SaveFilePath);
+      sourceFileInfo.m_IsTempFile = false;
     }
 
     // If we aren't saving to a temp file
@@ -743,17 +749,20 @@ public class FileSystem : MonoBehaviour
     }
   }
 
-  public void GetDataFromFullPath(string fullPath, out FileInfo fileInfo)
+  // Returns true if an error occured
+  public bool GetDataFromFullPath(string fullPath, out FileInfo fileInfo)
   {
     CreateFileInfo(out fileInfo, fullPath);
     try
     {
       GetDataFromJson(File.ReadAllBytes(fullPath), fileInfo);
+      return false;
     }
     catch (Exception e)
     {
       // File not loaded, remove file mount
       Debug.LogError($"Error while loading. {e.Message} ({e.GetType()})");
+      return true;
     }
   }
 
@@ -918,14 +927,14 @@ public class FileSystem : MonoBehaviour
 
 
   // Removes an auto save
-  // Returns true if we were successful
+  // Returns true if an error occured
   // Deletes the autosave then saves the file
   public bool DeleteAutoSave(FileInfo fileInfo, int version, int branchVersion)
   {
     if (!FileDataExists(fileInfo.m_FileData))
     {
       Debug.LogWarning($"No file loaded to delete autosave");
-      return false;
+      return true;
     }
 
     for (int i = 0; i < fileInfo.m_FileData.m_AutoSaves.Count; ++i)
@@ -940,16 +949,17 @@ public class FileSystem : MonoBehaviour
         MoveFileItemToTop(m_SaveList, fileInfo.m_SaveFilePath);
 
         StatusBar.Print($"Sucessfuly deleted autosave ({branchVersion}:{version}) from {fileInfo.m_SaveFilePath}");
-        return true;
+        return false;
       }
     }
 
     Debug.LogWarning($"Couldn't find auto save version {version} to delete");
-    return false;
+    return true;
   }
 
   // Will delete a manual verion and save the file
-  public void DeleteLevelVersion(FileInfo fileInfo, int version)
+  // Returns true if an error occured
+  public bool DeleteLevelVersion(FileInfo fileInfo, int version)
   {
     // The easiest way to delete a version is to flatten it with the next verion
     // If this is the newest verion then we can just delete it
@@ -958,16 +968,20 @@ public class FileSystem : MonoBehaviour
     if (!FileDataExists(fileInfo.m_FileData))
     {
       Debug.LogWarning($"No file loaded to delete version");
-      return;
+      return true;
     }
 
-    FlattenRange(fileInfo.m_FileData, version, version + 1);
+    if (FlattenRange(fileInfo.m_FileData, version, version + 1))
+      return true;
 
     // Save data
-    WriteDataToFile(fileInfo.m_SaveFilePath, fileInfo);
+    if (WriteDataToFile(fileInfo.m_SaveFilePath, fileInfo))
+      return true;
+
     MoveFileItemToTop(m_SaveList, fileInfo.m_SaveFilePath);
 
     StatusBar.Print($"Sucessfuly deleted save version : {version} from {fileInfo.m_SaveFilePath}");
+    return false;
   }
 
   // Take a range of two versions and flatten them down to one data verion
@@ -975,19 +989,20 @@ public class FileSystem : MonoBehaviour
   // Autosaves attached to flattend version will be removed
   // Care is taken if endVersion is past the latest verion
   // FileData is modified but the data will still need to be saved to a file
-  public void FlattenRange(FileData fileData, int startVersion, int endVersion)
+  // Returns true if an error occured
+  public bool FlattenRange(FileData fileData, int startVersion, int endVersion)
   {
     // Invalid range
     if (startVersion > endVersion)
     {
       Debug.LogWarning($"Invalid level flatten range of {startVersion} to {endVersion}");
-      return;
+      return true;
     }
 
     if (!FileDataExists(fileData))
     {
       Debug.LogWarning($"No file data loaded to flatten range");
-      return;
+      return true;
     }
 
     Dictionary<Vector2Int, TileGrid.Element> squashedLevelAdd = new();
@@ -1109,6 +1124,8 @@ public class FileSystem : MonoBehaviour
       else
         m_MountedFileInfo.m_FileData.m_ManualSaves.Insert(index, levelData);
     }
+
+    return false;
   }
 
   bool FindAutoSaveVersion(FileData fileData, int branchVersion, int version, out LevelData levelData)
