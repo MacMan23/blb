@@ -200,10 +200,12 @@ public class FileSystem : MonoBehaviour
   /// </summary>
   void CreateFileInfo(out FileInfo fileInfo, string filePath = "")
   {
-    fileInfo = new();
-    fileInfo.m_SaveFilePath = filePath;
-    fileInfo.m_FileHeader = new(s_EditorVersion, s_ShouldCompress);
-    fileInfo.m_FileData = new();
+    fileInfo = new()
+    {
+      m_SaveFilePath = filePath,
+      m_FileHeader = new(s_EditorVersion, s_ShouldCompress),
+      m_FileData = new()
+    };
   }
 
   /// <summary>
@@ -915,23 +917,29 @@ public class FileSystem : MonoBehaviour
   }
 
 
-
   // Removes an auto save
   // Returns true if we were successful
-  // FileData is modified but the data will still need to be saved to a file
-  public bool DeleteAutoSave(FileData fileData, int version)
+  // Deletes the autosave then saves the file
+  public bool DeleteAutoSave(FileInfo fileInfo, int version, int branchVersion)
   {
-    if (!FileDataExists(fileData))
+    if (!FileDataExists(fileInfo.m_FileData))
     {
       Debug.LogWarning($"No file loaded to delete autosave");
       return false;
     }
 
-    for (int i = 0; i < fileData.m_AutoSaves.Count; ++i)
+    for (int i = 0; i < fileInfo.m_FileData.m_AutoSaves.Count; ++i)
     {
-      if (fileData.m_AutoSaves[i].m_Version == version)
+      if (fileInfo.m_FileData.m_AutoSaves[i].m_BranchVersion == branchVersion &&
+        fileInfo.m_FileData.m_AutoSaves[i].m_Version == version)
       {
-        fileData.m_AutoSaves.RemoveAt(i);
+        fileInfo.m_FileData.m_AutoSaves.RemoveAt(i);
+
+        // Save data
+        WriteDataToFile(fileInfo.m_SaveFilePath, fileInfo);
+        MoveFileItemToTop(m_SaveList, fileInfo.m_SaveFilePath);
+
+        StatusBar.Print($"Sucessfuly deleted autosave ({branchVersion}:{version}) from {fileInfo.m_SaveFilePath}");
         return true;
       }
     }
@@ -940,25 +948,31 @@ public class FileSystem : MonoBehaviour
     return false;
   }
 
-  // Will delete a manual verion
-  // FileData is modified but the data will still need to be saved to a file
-  public void DeleteLevelVersion(FileData fileData, int version)
+  // Will delete a manual verion and save the file
+  public void DeleteLevelVersion(FileInfo fileInfo, int version)
   {
     // The easiest way to delete a version is to flatten it with the next verion
     // If this is the newest verion then we can just delete it
     // Luckly FlattenRange will deal with the endVerion going past the list length
 
-    if (!FileDataExists(fileData))
+    if (!FileDataExists(fileInfo.m_FileData))
     {
       Debug.LogWarning($"No file loaded to delete version");
       return;
     }
 
-    FlattenRange(fileData, version, version + 1);
+    FlattenRange(fileInfo.m_FileData, version, version + 1);
+
+    // Save data
+    WriteDataToFile(fileInfo.m_SaveFilePath, fileInfo);
+    MoveFileItemToTop(m_SaveList, fileInfo.m_SaveFilePath);
+
+    StatusBar.Print($"Sucessfuly deleted save version : {version} from {fileInfo.m_SaveFilePath}");
   }
 
   // Take a range of two versions and flatten them down to one data verion
   // Can only flatten MANUAL versions
+  // Autosaves attached to flattend version will be removed
   // Care is taken if endVersion is past the latest verion
   // FileData is modified but the data will still need to be saved to a file
   public void FlattenRange(FileData fileData, int startVersion, int endVersion)
@@ -978,6 +992,8 @@ public class FileSystem : MonoBehaviour
 
     Dictionary<Vector2Int, TileGrid.Element> squashedLevelAdd = new();
     HashSet<Vector2Int> squashedLevelRemove = new();
+
+    // Create default date to be overwitten later
     DateTime timeStamp = DateTime.Now;
     int lastVersion = startVersion;
     string versionName = s_ManualSaveName + lastVersion;
@@ -1035,6 +1051,36 @@ public class FileSystem : MonoBehaviour
       if (fileData.m_ManualSaves[index].m_Version <= endVersion)
       {
         fileData.m_ManualSaves.RemoveAt(index);
+        continue;
+      }
+
+      // If there are more versions but we removed all out indexes, break the loop
+      break;
+    }
+
+    // Remove squashed autosave versions
+    index = 0;
+    while (index < fileData.m_AutoSaves.Count)
+    {
+      // Get i up to the start version
+      if (fileData.m_AutoSaves[index].m_BranchVersion < startVersion)
+      {
+        ++index;
+        continue;
+      }
+
+      // Remove the indexs up to before the end version, as the endversion can attach to the new sqaushed save
+      if (fileData.m_AutoSaves[index].m_BranchVersion < endVersion)
+      {
+        fileData.m_AutoSaves.RemoveAt(index);
+        continue;
+      }
+
+      // Update the endversion autos to branch off our new manual saves version
+      // This step realy only matters if endVersion is past the avalible versions
+      if (fileData.m_AutoSaves[index].m_BranchVersion == endVersion)
+      {
+        fileData.m_AutoSaves[index].m_BranchVersion = lastVersion;
         continue;
       }
 
