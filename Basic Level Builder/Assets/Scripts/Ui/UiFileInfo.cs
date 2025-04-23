@@ -24,6 +24,8 @@ public class UiFileInfo : MonoBehaviour
 
   private UiHistoryItem m_Selected = null;
 
+  private string m_FullFilePath;
+
   void OnEnable()
   {
     UiHistoryItem.OnSelected += UpdateVersionInfo;
@@ -38,19 +40,33 @@ public class UiFileInfo : MonoBehaviour
 
   public void InitLoad(string fullFilePath)
   {
+    m_FullFilePath = fullFilePath;
+    LoadHistoryItemList();
+  }
+
+  private void ClearHistoryItemList()
+  {
+    while (m_Content.childCount > 0)
+    {
+      DestroyImmediate(m_Content.GetChild(0).gameObject);
+    }
+  }
+
+  private void LoadHistoryItemList()
+  {
     // Create all the file items
     // Load the files data
-    FileSystem.Instance.GetDataFromFullPath(fullFilePath, out FileSystem.FileInfo fileInfo);
+    FileSystem.Instance.GetDataFromFullPath(m_FullFilePath, out FileSystem.FileInfo fileInfo);
 
     List<UiHistoryItem> items = new();
 
     foreach (var levelData in fileInfo.m_FileData.m_ManualSaves)
     {
-      items.Add(CreateHistoryItem(levelData, fullFilePath, m_ManualSaveItemPrefab));
+      items.Add(CreateHistoryItem(levelData, m_FullFilePath, m_ManualSaveItemPrefab));
     }
     foreach (var levelData in fileInfo.m_FileData.m_AutoSaves)
     {
-      items.Add(CreateHistoryItem(levelData, fullFilePath, m_AutoSaveItemPrefab));
+      items.Add(CreateHistoryItem(levelData, m_FullFilePath, m_AutoSaveItemPrefab));
     }
 
     UpdateVersionList(items);
@@ -112,6 +128,8 @@ public class UiFileInfo : MonoBehaviour
       m_Selected.Load();
   }
 
+  // TODO: If deleting last manual save ask if want to delete whole file.
+  // Or remove delete button if there is only one version left
   public void DeleteSelectedVersion()
   {
     // Remove all the autosave UiHistoryItems from the scene
@@ -122,8 +140,19 @@ public class UiFileInfo : MonoBehaviour
 
     // Delete the manaul version, which also deletes the autosaves from the data
     m_Selected.DeleteVersion();
-    UpdateVersionList();
-    Deselect();
+
+    // We changed up a lot deleting the manual and its autos
+    // So delete and recreate the item list
+    if (m_Selected.IsManualSave())
+    {
+      ClearHistoryItemList();
+      LoadHistoryItemList();
+    }
+    else
+    {
+      UpdateVersionList();
+      Deselect();
+    }
   }
 
   private void DeleteMaunalsAutosaves(int version)
@@ -133,7 +162,7 @@ public class UiFileInfo : MonoBehaviour
     {
       if (!item.IsManualSave() && item.GetBranchVersion() == version)
       {
-        Destroy(item);
+        DestroyImmediate(item.gameObject);
       }
     }
   }

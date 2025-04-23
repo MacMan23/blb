@@ -235,9 +235,11 @@ public class UiHistoryItem : MonoBehaviour
     error = FileSystem.Instance.GetDataFromFullPath(m_FullFilePath, out FileSystem.FileInfo fileInfo);
     if (error)
       return;
-    
+
     if (IsManualSave())
+    {
       error = FileSystem.Instance.DeleteLevelVersion(fileInfo, m_LevelData.m_Version);
+    }
     else
       error = FileSystem.Instance.DeleteAutoSave(fileInfo, m_LevelData.m_Version, m_LevelData.m_BranchVersion);
 

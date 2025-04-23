@@ -14,8 +14,6 @@ using UnityEngine;
 using System.Runtime.InteropServices;
 using B83.Win32;
 using System.Threading;
-using UnityEngine.Assertions;
-using static FileSystem;
 
 public class FileSystem : MonoBehaviour
 {
@@ -559,7 +557,7 @@ public class FileSystem : MonoBehaviour
 
           // Check if there are other autosaves branched from this manual
           // If so, our version will be 1 more than the newest one
-          int lastVersion = FindLastAutoSaveVersion(m_MountedFileInfo.m_FileData, version);
+          int lastVersion = GetLastAutoSaveVersion(m_MountedFileInfo.m_FileData, version);
           levelData.m_Version = lastVersion + 1;
         }
 
@@ -882,7 +880,7 @@ public class FileSystem : MonoBehaviour
     {
       // Find the level data from the auto save version
       // Return the maunal if we can't find it
-      if (!FindAutoSaveVersion(fileData, branchVersion, version, out LevelData autoSaveData))
+      if (!GetAutoSaveVersion(fileData, branchVersion, version, out LevelData autoSaveData))
       {
         Debug.Log($"Couldn't find the branched autosave version {version}, from maunal version {branchVersion} in file `{m_MountedFileInfo.m_SaveFilePath}");
         m_MainThreadDispatcher.Enqueue(() => StatusBar.Print("Error, couldn't find the proper autosave to load. Loaded branched manual instead."));
@@ -971,8 +969,40 @@ public class FileSystem : MonoBehaviour
       return true;
     }
 
-    if (FlattenRange(fileInfo.m_FileData, version, version + 1))
-      return true;
+    int nextVersion = GetNextManualVersion(fileInfo.m_FileData, version);
+
+    // If we are the newest version
+    if (nextVersion == -1)
+    {
+      // Remove the last index of manual save, which is always the newest version
+      fileInfo.m_FileData.m_ManualSaves.RemoveAt(fileInfo.m_FileData.m_ManualSaves.Count - 1);
+
+      // Remove attached autosave versions
+      int index = 0;
+      while (index < fileInfo.m_FileData.m_AutoSaves.Count)
+      {
+        // Get i up to the start version
+        if (fileInfo.m_FileData.m_AutoSaves[index].m_BranchVersion < version)
+        {
+          ++index;
+          continue;
+        }
+
+        // Remove the indexs up to before the end version, as the endversion can attach to the new sqaushed save
+        if (fileInfo.m_FileData.m_AutoSaves[index].m_BranchVersion == version)
+        {
+          fileInfo.m_FileData.m_AutoSaves.RemoveAt(index);
+          continue;
+        }
+
+        break;
+      }
+    }
+    else
+    {
+      if (FlattenRange(fileInfo.m_FileData, version, nextVersion))
+        return true;
+    }
 
     // Save data
     if (WriteDataToFile(fileInfo.m_SaveFilePath, fileInfo))
@@ -1120,16 +1150,31 @@ public class FileSystem : MonoBehaviour
       };
 
       // If we had no endVersion. Then add a new version at the end
-      if (index > m_MountedFileInfo.m_FileData.m_ManualSaves.Count)
-        m_MountedFileInfo.m_FileData.m_ManualSaves.Add(levelData);
+      if (index > fileData.m_ManualSaves.Count)
+        fileData.m_ManualSaves.Add(levelData);
       else
-        m_MountedFileInfo.m_FileData.m_ManualSaves.Insert(index, levelData);
+        fileData.m_ManualSaves.Insert(index, levelData);
     }
 
     return false;
   }
 
-  bool FindAutoSaveVersion(FileData fileData, int branchVersion, int version, out LevelData levelData)
+  public int GetNextManualVersion(FileData fileData, int startVersion)
+  {
+    bool startFound = false;
+    foreach (var data in fileData.m_ManualSaves)
+    {
+      if (startFound)
+        return data.m_Version;
+      if (data.m_Version == startVersion)
+      {
+        startFound = true;
+      }
+    }
+    return -1;
+  }
+
+  public bool GetAutoSaveVersion(FileData fileData, int branchVersion, int version, out LevelData levelData)
   {
     levelData = new();
 
@@ -1144,7 +1189,7 @@ public class FileSystem : MonoBehaviour
     return false;
   }
 
-  bool FindManualSaveVersion(FileData fileData, int version, out LevelData levelData)
+  public bool GetManualSaveVersion(FileData fileData, int version, out LevelData levelData)
   {
     levelData = new();
 
@@ -1161,7 +1206,7 @@ public class FileSystem : MonoBehaviour
 
   // Finds the newest autosave from a branched version
   // Returns 0 if no versions were found
-  int FindLastAutoSaveVersion(FileData fileData, int branchVersion)
+  int GetLastAutoSaveVersion(FileData fileData, int branchVersion)
   {
     int lastVersion = 0;
     foreach (var data in fileData.m_AutoSaves)
