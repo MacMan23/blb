@@ -431,7 +431,16 @@ public class FileSystem : MonoBehaviour
     // Updates old grid to be the "new" grid
     m_TileGrid.UpdateOldGrid();
 
-    WriteDataToFile(destFilePath, m_MountedFileInfo, true, isOverwriting, startTime, false, false, (bool)parameters[2]);
+    try
+    {
+      WriteDataToFile(destFilePath, m_MountedFileInfo, true, isOverwriting, startTime, false, false, (bool)parameters[2]);
+    }
+    catch (Exception e)
+    {
+      var errorString = $"Error while flattening and saving file: {e.Message} ({e.GetType()})";
+      m_MainThreadDispatcher.Enqueue(() => StatusBar.Print(errorString));
+      Debug.LogError(errorString);
+    }
   }
 
   void SavingThread(object threadParameters)
@@ -585,9 +594,17 @@ public class FileSystem : MonoBehaviour
         "Any more saves on this save file will delete your oldest save to make room for you new saves.");
       // TODO, give warning popup
     }
-
-    WriteDataToFile(destFilePath, m_MountedFileInfo, true,
+    try
+    {
+      WriteDataToFile(destFilePath, m_MountedFileInfo, true,
       overwriting, startTime, autosave, copyFile, shouldPrintElapsedTime);
+    }
+    catch (Exception e)
+    {
+      var errorString = $"Error while saving file: {e.Message} ({e.GetType()})";
+      m_MainThreadDispatcher.Enqueue(() => StatusBar.Print(errorString));
+      Debug.LogError(errorString);
+    }
   }
 
   private void UpdateFileToItemList(string fullPath, bool overwriting)
@@ -598,40 +615,37 @@ public class FileSystem : MonoBehaviour
       m_MainThreadDispatcher.Enqueue(() => AddFileItemForFile(m_SaveList, fullPath));
   }
 
-  // Returns true if an error ocurred
-  private bool CopyFile(string destFilePath, FileInfo sourceFileInfo)
+  /// <summary>
+  /// Copies a file from the source file info to the destination path.
+  /// </summary>
+  /// <exception cref="Exception">Thrown when an error occurs during the copy operation.</exception>
+  private void CopyFile(string destFilePath, FileInfo sourceFileInfo)
   {
-    try
-    {
-      File.Copy(sourceFileInfo.m_SaveFilePath, destFilePath, true);
-    }
-    catch (Exception e)
-    {
-      var errorString = $"Error while saving. {e.Message} ({e.GetType()})";
-      m_MainThreadDispatcher.Enqueue(() => StatusBar.Print(errorString));
-      Debug.LogError(errorString);
-      return true;
-    }
-    return false;
+    File.Copy(sourceFileInfo.m_SaveFilePath, destFilePath, true);
   }
 
+  /// <summary>
+  /// Writes data to a file with additional operations like mounting and UI updates.
+  /// </summary>
+  /// <param name="destFilePath">The destination file path.</param>
+  /// <param name="sourceFileInfo">The source file info.</param>
+  /// <param name="shouldMountSave">Whether to mount the save after writing.</param>
+  /// <param name="isOverwriting">Whether the operation is overwriting an existing file.</param>
+  /// <param name="startTime">The start time of the operation for duration calculation.</param>
+  /// <param name="isAutosave">Whether the operation is an autosave.</param>
+  /// <param name="shouldCopyFile">Whether to copy the file instead of writing data.</param>
+  /// <param name="shouldPrintElapsedTime">Whether to print the elapsed time.</param>
+  /// <exception cref="Exception">Thrown when an error occurs during file operations.</exception>
   private void WriteDataToFile(string destFilePath, FileInfo sourceFileInfo, bool shouldMountSave,
     bool isOverwriting, DateTime startTime, bool isAutosave, bool shouldCopyFile, bool shouldPrintElapsedTime = true)
   {
     if (shouldCopyFile)
     {
-      bool error = CopyFile(destFilePath, sourceFileInfo);
-      // Something went wrong, stop the saving process
-      if (error)
-        return;
+      CopyFile(destFilePath, sourceFileInfo);
     }
     else
     {
-      bool error = WriteDataToFile(destFilePath, sourceFileInfo);
-
-      // Something went wrong, stop the saving process
-      if (error)
-        return;
+      WriteDataToFile(destFilePath, sourceFileInfo);
     }
 
     // If we did a manual save with a temp file, we no longer need the temp file.
@@ -675,29 +689,22 @@ public class FileSystem : MonoBehaviour
     }
   }
 
-  // Removed checks if we are saving a temp file, or copying a file, and mounting
-  // Returns true if an error ocurred
-  private bool WriteDataToFile(string destFilePath, FileInfo sourceFileInfo)
+  /// <summary>
+  /// Writes data to a file.
+  /// </summary>
+  /// <param name="destFilePath">The destination file path.</param>
+  /// <param name="sourceFileInfo">The source file info.</param>
+  /// <exception cref="Exception">Thrown when an error occurs during file operations.</exception>
+  private void WriteDataToFile(string destFilePath, FileInfo sourceFileInfo)
   {
-    try
-    {
-      List<byte> data = new();
-      data.AddRange(System.Text.Encoding.Default.GetBytes(JsonUtility.ToJson(sourceFileInfo.m_FileHeader) + "\n"));
-      if (s_ShouldCompress)
-        data.AddRange(StringCompression.Compress(JsonUtility.ToJson(sourceFileInfo.m_FileData)));
-      else
-        data.AddRange(System.Text.Encoding.Default.GetBytes(JsonUtility.ToJson(sourceFileInfo.m_FileData)));
+    List<byte> data = new();
+    data.AddRange(System.Text.Encoding.Default.GetBytes(JsonUtility.ToJson(sourceFileInfo.m_FileHeader) + "\n"));
+    if (s_ShouldCompress)
+      data.AddRange(StringCompression.Compress(JsonUtility.ToJson(sourceFileInfo.m_FileData)));
+    else
+      data.AddRange(System.Text.Encoding.Default.GetBytes(JsonUtility.ToJson(sourceFileInfo.m_FileData)));
 
-      File.WriteAllBytes(destFilePath, data.ToArray());
-    }
-    catch (Exception e)
-    {
-      var errorString = $"Error while saving. {e.Message} ({e.GetType()})";
-      m_MainThreadDispatcher.Enqueue(() => StatusBar.Print(errorString));
-      Debug.LogError(errorString);
-      return true;
-    }
-    return false;
+    File.WriteAllBytes(destFilePath, data.ToArray());
   }
 
   public void CancelOverwrite()
@@ -789,7 +796,14 @@ public class FileSystem : MonoBehaviour
 
     // There is no file loaded from, so mount no files
     UnmountFile();
-    LoadFromJson(level.bytes);
+    try
+    {
+      LoadFromJson(level.bytes);
+    }
+    catch (Exception e)
+    {
+      Debug.LogError($"Error while loading. {e.Message} ({e.GetType()})");
+    }
   }
 
   // Intermidiatarty load function. Calls the rest of the load functions.
@@ -804,46 +818,48 @@ public class FileSystem : MonoBehaviour
     m_TileGrid.LoadFromDictonary(GetGridDictionaryFromLevelData(m_MountedFileInfo.m_FileData, version, branchVersion));
   }
 
-  // Grabs data from file and stores it in passed in FileData and a Header
+  /// <summary>
+  /// Grabs data from file and stores it in passed in FileData and a Header.
+  /// </summary>
+  /// <param name="json">The JSON data as bytes.</param>
+  /// <param name="fileInfo">The file info to populate.</param>
+  /// <exception cref="FormatException">Thrown when the file format is invalid.</exception>
   void GetDataFromJson(byte[] json, FileInfo fileInfo)
   {
+    // Read the header first
+    // The header is always uncompressed, and the data might be
+    byte[] headerBytes;
+    byte[] dataBytes;
+
     try
     {
-      // Read the header first
-      // The header is always uncompressed, and the data might be
-      bool splitError = SplitNewLineBytes(json, out byte[] headerBytes, out byte[] dataBytes);
-
-      if (splitError)
-        throw new ArgumentException("Header and or Level data can not be found");
-
-      JsonUtility.FromJsonOverwrite(System.Text.Encoding.Default.GetString(headerBytes), fileInfo.m_FileHeader);
-
-      // If the save file was made with a diffrent version
-      if (!fileInfo.m_FileHeader.m_BlbVersion.Equals(s_EditorVersion))
-      {
-        string errorStr = $"Save file {Path.GetFileName(fileInfo.m_SaveFilePath)} was made with a diffrent BLB version. There may be possible errors.";
-        Debug.Log(errorStr);
-        m_MainThreadDispatcher.Enqueue(() => StatusBar.Print(errorStr));
-        // TODO, should we return or keep going? Do we want to run a file with a diff version?
-      }
-
-      string data;
-
-      // Decompress string if needed
-      if (fileInfo.m_FileHeader.m_IsDataCompressed)
-        data = StringCompression.Decompress(dataBytes);
-      else
-        data = System.Text.Encoding.Default.GetString(dataBytes);
-
-      JsonUtility.FromJsonOverwrite(data, fileInfo.m_FileData);
+      SplitNewLineBytes(json, out headerBytes, out dataBytes);
     }
-    catch (System.ArgumentException e)
+    catch (FormatException e)
     {
-      string errorStr = $"Error loading save file {Path.GetFileName(fileInfo.m_SaveFilePath)} : {e}";
+      throw new FormatException("Header and/or level data cannot be found", e);
+    }
+
+    JsonUtility.FromJsonOverwrite(System.Text.Encoding.Default.GetString(headerBytes), fileInfo.m_FileHeader);
+
+    // If the save file was made with a diffrent version
+    if (!fileInfo.m_FileHeader.m_BlbVersion.Equals(s_EditorVersion))
+    {
+      string errorStr = $"Save file {Path.GetFileName(fileInfo.m_SaveFilePath)} was made with a different BLB version. There may be possible errors.";
       Debug.Log(errorStr);
       m_MainThreadDispatcher.Enqueue(() => StatusBar.Print(errorStr));
-      return;
+      // TODO, should we return or keep going? Do we want to run a file with a diff version?
     }
+
+    string data;
+
+    // Decompress string if needed
+    if (fileInfo.m_FileHeader.m_IsDataCompressed)
+      data = StringCompression.Decompress(dataBytes);
+    else
+      data = System.Text.Encoding.Default.GetString(dataBytes);
+
+    JsonUtility.FromJsonOverwrite(data, fileInfo.m_FileData);
   }
 
   // Will convert the level data to a Dictionary of elements up to the passed in version
@@ -878,31 +894,39 @@ public class FileSystem : MonoBehaviour
     // If we are loading a autosave, load the branch now
     if (isAutoSave)
     {
-      // Find the level data from the auto save version
-      // Return the maunal if we can't find it
-      if (!GetAutoSaveVersion(fileData, branchVersion, version, out LevelData autoSaveData))
+      try
       {
-        Debug.Log($"Couldn't find the branched autosave version {version}, from maunal version {branchVersion} in file `{m_MountedFileInfo.m_SaveFilePath}");
-        m_MainThreadDispatcher.Enqueue(() => StatusBar.Print("Error, couldn't find the proper autosave to load. Loaded branched manual instead."));
-        return tiles;
-      }
+        // Find the level data from the auto save version
+        GetAutoSaveVersion(fileData, branchVersion, version, out LevelData autoSaveData);
 
-      foreach (var tile in autoSaveData.m_AddedTiles)
-      {
-        tiles[tile.m_GridIndex] = tile;
+        foreach (var tile in autoSaveData.m_AddedTiles)
+        {
+          tiles[tile.m_GridIndex] = tile;
+        }
+        foreach (var pos in autoSaveData.m_RemovedTiles)
+        {
+          tiles.Remove(pos);
+        }
       }
-      foreach (var pos in autoSaveData.m_RemovedTiles)
+      catch (InvalidOperationException)
       {
-        tiles.Remove(pos);
+        Debug.Log($"Couldn't find the branched autosave version {version}, from manual version {branchVersion} in file `{m_MountedFileInfo.m_SaveFilePath}");
+        m_MainThreadDispatcher.Enqueue(() => StatusBar.Print("Error, couldn't find the proper autosave to load. Loaded branched manual instead."));
+        // Just return the tiles we've loaded so far (the manual save)
       }
     }
 
     return tiles;
   }
 
-  // Splits a byte array about a new line.
-  // Returns true if the new line cant be found
-  bool SplitNewLineBytes(in byte[] data, out byte[] left, out byte[] right)
+  /// <summary>
+  /// Splits a byte array at the first newline character.
+  /// </summary>
+  /// <param name="data">The data to split.</param>
+  /// <param name="left">The left part of the split (before the newline).</param>
+  /// <param name="right">The right part of the split (after the newline).</param>
+  /// <exception cref="FormatException">Thrown when no newline character is found.</exception>
+  void SplitNewLineBytes(in byte[] data, out byte[] left, out byte[] right)
   {
     left = new byte[0];
     int i;
@@ -919,8 +943,9 @@ public class FileSystem : MonoBehaviour
     right = data.Skip(i + 1).ToArray();
 
     if (left.Length == 0)
-      return true;
-    return false;
+    {
+      throw new FormatException("No newline character found in the data");
+    }
   }
 
 
@@ -946,9 +971,13 @@ public class FileSystem : MonoBehaviour
         fileInfo.m_FileData.m_AutoSaves.RemoveAt(i);
 
         // Save data
-        if (WriteDataToFile(fileInfo.m_SaveFilePath, fileInfo))
+        try
         {
-          throw new Exception($"Failed to save file after deleting autosave ({branchVersion}:{version})");
+          WriteDataToFile(fileInfo.m_SaveFilePath, fileInfo);
+        }
+        catch (Exception e)
+        {
+          throw new Exception($"Failed to save file after deleting autosave ({branchVersion}:{version})\nException {e.Message}, {e.GetType()}");
         }
 
         MoveFileItemToTop(m_SaveList, fileInfo.m_SaveFilePath);
@@ -1013,9 +1042,13 @@ public class FileSystem : MonoBehaviour
     }
 
     // Save data
-    if (WriteDataToFile(fileInfo.m_SaveFilePath, fileInfo))
+    try
     {
-      throw new Exception($"Failed to save file after deleting version {version}");
+      WriteDataToFile(fileInfo.m_SaveFilePath, fileInfo);
+    }
+    catch (Exception e)
+    {
+      throw new Exception($"Failed to save file after deleting version {version}\nException {e.Message}, {e.GetType()}");
     }
 
     MoveFileItemToTop(m_SaveList, fileInfo.m_SaveFilePath);
@@ -1179,34 +1212,61 @@ public class FileSystem : MonoBehaviour
     return -1;
   }
 
-  public bool GetAutoSaveVersion(FileData fileData, int branchVersion, int version, out LevelData levelData)
+  /// <summary>
+  /// Gets an auto save version from the file data.
+  /// </summary>
+  /// <param name="fileData">The file data to search in.</param>
+  /// <param name="branchVersion">The branch version to find.</param>
+  /// <param name="version">The version to find.</param>
+  /// <param name="levelData">The level data output parameter.</param>
+  /// <exception cref="InvalidOperationException">Thrown when the version cannot be found.</exception>
+  public void GetAutoSaveVersion(FileData fileData, int branchVersion, int version, out LevelData levelData)
   {
     levelData = new();
+
+    if (fileData == null)
+    {
+      throw new InvalidOperationException("File data is null");
+    }
 
     foreach (var data in fileData.m_AutoSaves)
     {
       if (data.m_BranchVersion == branchVersion && data.m_Version == version)
       {
         levelData = data;
-        return true;
+        return;
       }
     }
-    return false;
+
+    throw new InvalidOperationException($"Auto save version {version} with branch version {branchVersion} not found");
   }
 
-  public bool GetManualSaveVersion(FileData fileData, int version, out LevelData levelData)
+  /// <summary>
+  /// Gets a manual save version from the file data.
+  /// </summary>
+  /// <param name="fileData">The file data to search in.</param>
+  /// <param name="version">The version to find.</param>
+  /// <param name="levelData">The level data output parameter.</param>
+  /// <exception cref="InvalidOperationException">Thrown when the version cannot be found.</exception>
+  public void GetManualSaveVersion(FileData fileData, int version, out LevelData levelData)
   {
     levelData = new();
+
+    if (fileData == null)
+    {
+      throw new InvalidOperationException("File data is null");
+    }
 
     foreach (var data in fileData.m_ManualSaves)
     {
       if (data.m_Version == version)
       {
         levelData = data;
-        return true;
+        return;
       }
     }
-    return false;
+
+    throw new InvalidOperationException($"Manual save version {version} not found");
   }
 
   // Finds the newest autosave from a branched version
