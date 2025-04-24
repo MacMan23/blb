@@ -231,20 +231,32 @@ public class UiHistoryItem : MonoBehaviour
 
   public void DeleteVersion()
   {
-    bool error;
-    error = FileSystem.Instance.GetDataFromFullPath(m_FullFilePath, out FileSystem.FileInfo fileInfo);
-    if (error)
-      return;
-
-    if (IsManualSave())
+    try
     {
-      error = FileSystem.Instance.DeleteLevelVersion(fileInfo, m_LevelData.m_Version);
-    }
-    else
-      error = FileSystem.Instance.DeleteAutoSave(fileInfo, m_LevelData.m_Version, m_LevelData.m_BranchVersion);
+      // Get file data
+      FileSystem.Instance.GetDataFromFullPath(m_FullFilePath, out FileSystem.FileInfo fileInfo);
 
-    if (!error)
+      // Delete the version
+      if (IsManualSave())
+      {
+        // Delete manual save version
+        FileSystem.Instance.DeleteLevelVersion(fileInfo, m_LevelData.m_Version);
+      }
+      else
+      {
+        // Delete auto save version
+        FileSystem.Instance.DeleteAutoSave(fileInfo, m_LevelData.m_Version, m_LevelData.m_BranchVersion);
+      }
+
+      // If we get here, deletion was successful
       DestroyImmediate(gameObject);
+    }
+    catch (Exception e)
+    {
+      string versionType = IsManualSave() ? "manual save" : "auto save";
+      Debug.LogError($"Unexpected exception while deleting {versionType} version: {e.Message} ({e.GetType()})");
+      StatusBar.Print($"Error: Could not delete version due to an unexpected error: {e.Message}");
+    }
   }
 
   public int CompareTo(UiHistoryItem other)

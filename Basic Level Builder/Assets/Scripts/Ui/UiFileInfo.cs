@@ -54,26 +54,55 @@ public class UiFileInfo : MonoBehaviour
 
   private void LoadHistoryItemList()
   {
-    // Create all the file items
-    // Load the files data
-    FileSystem.Instance.GetDataFromFullPath(m_FullFilePath, out FileSystem.FileInfo fileInfo);
-
-    List<UiHistoryItem> items = new();
-
-    foreach (var levelData in fileInfo.m_FileData.m_ManualSaves)
+    try
     {
-      items.Add(CreateHistoryItem(levelData, m_FullFilePath, m_ManualSaveItemPrefab));
+      // Create all the file items
+      // Load the files data
+      FileSystem.FileInfo fileInfo;
+
+      try
+      {
+        FileSystem.Instance.GetDataFromFullPath(m_FullFilePath, out fileInfo);
+      }
+      catch (System.Exception e)
+      {
+        Debug.LogWarning($"Failed to get data from file path: {m_FullFilePath}. {e.Message}");
+        StatusBar.Print($"Error: Could not load file history.");
+        CloseWindow();
+        return;
+      }
+
+      List<UiHistoryItem> items = new();
+
+      foreach (var levelData in fileInfo.m_FileData.m_ManualSaves)
+      {
+        items.Add(CreateHistoryItem(levelData, m_FullFilePath, m_ManualSaveItemPrefab));
+      }
+      foreach (var levelData in fileInfo.m_FileData.m_AutoSaves)
+      {
+        items.Add(CreateHistoryItem(levelData, m_FullFilePath, m_AutoSaveItemPrefab));
+      }
+
+      if (items.Count == 0)
+      {
+        Debug.LogWarning($"No versions found in file: {m_FullFilePath}");
+        StatusBar.Print($"Error: File empty");
+        CloseWindow();
+        return;
+      }
+
+      UpdateVersionList(items);
+
+      items[0].Select();
+      // First time run will collapse all
+      ToggleSaveExpansion();
     }
-    foreach (var levelData in fileInfo.m_FileData.m_AutoSaves)
+    catch (System.Exception e)
     {
-      items.Add(CreateHistoryItem(levelData, m_FullFilePath, m_AutoSaveItemPrefab));
+      Debug.LogError($"Unexpected error loading file history: {e.Message} ({e.GetType()})");
+      StatusBar.Print($"Error: Could not load file history due to an unexpected error.");
+      CloseWindow();
     }
-
-    UpdateVersionList(items);
-
-    items[0].Select();
-    // First time run will collapse all
-    ToggleSaveExpansion();
   }
 
   public void CloseWindow()

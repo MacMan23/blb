@@ -156,7 +156,7 @@ public class FileSystem : MonoBehaviour
 
   void Update()
   {
-    // Calls the unity functions that the save thread can not 
+    // Calls the unity functions that the save thread can not
     m_MainThreadDispatcher.Update();
   }
 
@@ -747,21 +747,21 @@ public class FileSystem : MonoBehaviour
     }
   }
 
-  // Returns true if an error occured
-  public bool GetDataFromFullPath(string fullPath, out FileInfo fileInfo)
+  /// <summary>
+  /// Gets data from a file at the specified path.
+  /// </summary>
+  /// <param name="fullPath">The full path to the file.</param>
+  /// <param name="fileInfo">The file info to populate.</param>
+  /// <exception cref="Exception">Thrown when the file cannot be found.</exception>
+  public void GetDataFromFullPath(string fullPath, out FileInfo fileInfo)
   {
     CreateFileInfo(out fileInfo, fullPath);
-    try
+    if (!File.Exists(fullPath))
     {
-      GetDataFromJson(File.ReadAllBytes(fullPath), fileInfo);
-      return false;
+      throw new Exception($"File not found: {fullPath}");
     }
-    catch (Exception e)
-    {
-      // File not loaded, remove file mount
-      Debug.LogError($"Error while loading. {e.Message} ({e.GetType()})");
-      return true;
-    }
+
+    GetDataFromJson(File.ReadAllBytes(fullPath), fileInfo);
   }
 
   public void LoadFromFullPath(string fullPath, int version = int.MaxValue, int branchVersion = 0)
@@ -924,15 +924,18 @@ public class FileSystem : MonoBehaviour
   }
 
 
-  // Removes an auto save
-  // Returns true if an error occured
-  // Deletes the autosave then saves the file
-  public bool DeleteAutoSave(FileInfo fileInfo, int version, int branchVersion)
+  /// <summary>
+  /// Removes an auto save and saves the file.
+  /// </summary>
+  /// <param name="fileInfo">The file info containing the auto save.</param>
+  /// <param name="version">The version of the auto save to delete.</param>
+  /// <param name="branchVersion">The branch version of the auto save to delete.</param>
+  /// <exception cref="Exception">Thrown when an error occurs.</exception>
+  public void DeleteAutoSave(FileInfo fileInfo, int version, int branchVersion)
   {
     if (!FileDataExists(fileInfo.m_FileData))
     {
-      Debug.LogWarning($"No file loaded to delete autosave");
-      return true;
+      throw new Exception("No file data exists to delete autosave");
     }
 
     for (int i = 0; i < fileInfo.m_FileData.m_AutoSaves.Count; ++i)
@@ -943,30 +946,36 @@ public class FileSystem : MonoBehaviour
         fileInfo.m_FileData.m_AutoSaves.RemoveAt(i);
 
         // Save data
-        WriteDataToFile(fileInfo.m_SaveFilePath, fileInfo);
+        if (WriteDataToFile(fileInfo.m_SaveFilePath, fileInfo))
+        {
+          throw new Exception($"Failed to save file after deleting autosave ({branchVersion}:{version})");
+        }
+
         MoveFileItemToTop(m_SaveList, fileInfo.m_SaveFilePath);
 
         StatusBar.Print($"Sucessfuly deleted autosave ({branchVersion}:{version}) from {fileInfo.m_SaveFilePath}");
-        return false;
+        return;
       }
     }
 
-    Debug.LogWarning($"Couldn't find auto save version {version} to delete");
-    return true;
+    throw new Exception($"Couldn't find auto save version {version} to delete");
   }
 
-  // Will delete a manual verion and save the file
-  // Returns true if an error occured
-  public bool DeleteLevelVersion(FileInfo fileInfo, int version)
+  /// <summary>
+  /// Deletes a manual version and saves the file.
+  /// </summary>
+  /// <param name="fileInfo">The file info containing the version to delete.</param>
+  /// <param name="version">The version to delete.</param>
+  /// <exception cref="Exception">Thrown when an error occurs.</exception>
+  public void DeleteLevelVersion(FileInfo fileInfo, int version)
   {
-    // The easiest way to delete a version is to flatten it with the next verion
-    // If this is the newest verion then we can just delete it
-    // Luckly FlattenRange will deal with the endVerion going past the list length
+    // The easiest way to delete a version is to flatten it with the next version
+    // If this is the newest version then we can just delete it
+    // Luckily FlattenRange will deal with the endVersion going past the list length
 
     if (!FileDataExists(fileInfo.m_FileData))
     {
-      Debug.LogWarning($"No file loaded to delete version");
-      return true;
+      throw new Exception("No file data exists to delete version");
     }
 
     int nextVersion = GetNextManualVersion(fileInfo.m_FileData, version);
@@ -1000,18 +1009,18 @@ public class FileSystem : MonoBehaviour
     }
     else
     {
-      if (FlattenRange(fileInfo.m_FileData, version, nextVersion))
-        return true;
+      FlattenRange(fileInfo.m_FileData, version, nextVersion);
     }
 
     // Save data
     if (WriteDataToFile(fileInfo.m_SaveFilePath, fileInfo))
-      return true;
+    {
+      throw new Exception($"Failed to save file after deleting version {version}");
+    }
 
     MoveFileItemToTop(m_SaveList, fileInfo.m_SaveFilePath);
 
     StatusBar.Print($"Sucessfuly deleted save version : {version} from {fileInfo.m_SaveFilePath}");
-    return false;
   }
 
   // Take a range of two versions and flatten them down to one data verion
@@ -1019,20 +1028,18 @@ public class FileSystem : MonoBehaviour
   // Autosaves attached to flattend version will be removed
   // Care is taken if endVersion is past the latest verion
   // FileData is modified but the data will still need to be saved to a file
-  // Returns true if an error occured
-  public bool FlattenRange(FileData fileData, int startVersion, int endVersion)
+  /// <exception cref="Exception">Thrown when an error occurs.</exception>
+  public void FlattenRange(FileData fileData, int startVersion, int endVersion)
   {
     // Invalid range
     if (startVersion > endVersion)
     {
-      Debug.LogWarning($"Invalid level flatten range of {startVersion} to {endVersion}");
-      return true;
+      throw new Exception($"Invalid level flatten range of {startVersion} to {endVersion}");
     }
 
     if (!FileDataExists(fileData))
     {
-      Debug.LogWarning($"No file data loaded to flatten range");
-      return true;
+      throw new Exception($"No file data exists to flatten range");
     }
 
     Dictionary<Vector2Int, TileGrid.Element> squashedLevelAdd = new();
@@ -1155,8 +1162,6 @@ public class FileSystem : MonoBehaviour
       else
         fileData.m_ManualSaves.Insert(index, levelData);
     }
-
-    return false;
   }
 
   public int GetNextManualVersion(FileData fileData, int startVersion)
