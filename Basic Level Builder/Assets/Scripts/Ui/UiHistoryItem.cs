@@ -85,6 +85,11 @@ public class UiHistoryItem : MonoBehaviour
     return m_LevelData.m_BranchVersion;
   }
 
+  public string GetFilePath()
+  {
+    return m_FullFilePath;
+  }
+
   public string GetVersionName()
   {
     return m_LevelData.m_Name;

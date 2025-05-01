@@ -56,9 +56,12 @@ public class FileSystem : MonoBehaviour
   ModalDialogAdder m_OverrideDialogAdder;
   [SerializeField]
   ModalDialogAdder m_SaveAsDialogAdder;
+  [SerializeField]
+  ModalDialogAdder m_ExportAsDialogAdder;
 
   string m_CurrentDirectoryPath;
   string m_PendingSaveFullPath = "";
+  LevelData m_PendingExportLevelData = null;
 
   FileInfo m_MountedFileInfo;
 
@@ -257,14 +260,22 @@ public class FileSystem : MonoBehaviour
     return !String.IsNullOrEmpty(m_MountedFileInfo.m_SaveFilePath);
   }
 
-  void ExportVersion(FileInfo fileInfo, string fullFilePath, int version, int branchVersion)
+  public void ExportVersion(string sourcePath, int version, int branchVersion)
   {
-    LoadFromFullPath(fullFilePath, version, branchVersion);
-    // Damn. I need to request a name, wait for a reply, save, then close the file info view
-    // Async maybe?
-    // Push the state that we are in, waiting for file input for a save.
-    //m_ActivationSequence = ActionMaster.Actions.Sequence();
-    //m_ModalDialogMaster.RequestDialogAtCenter();
+    // Gather the level data to export
+    GetDataFromFullPath(sourcePath, out FileInfo sourceFileInfo);
+    if (IsManualSave(branchVersion))
+    {
+      GetManualSaveVersion(sourceFileInfo.m_FileData, version, out m_PendingExportLevelData);
+    }
+    else
+    {
+      GetAutoSaveVersion(sourceFileInfo.m_FileData, branchVersion, version, out m_PendingExportLevelData);
+    }
+
+    // Call dialogue to get export file name
+    m_ExportAsDialogAdder.RequestDialogsAtCenterWithStrings();
+
   }
 
   void OnDroppedFiles(List<string> paths, POINT dropPoint)
@@ -402,6 +413,28 @@ public class FileSystem : MonoBehaviour
       m_SavingThread = new Thread(new ParameterizedThreadStart(SavingThreadFlatten));
     else
       m_SavingThread = new Thread(new ParameterizedThreadStart(SavingThread));
+
+    m_SavingThread.Start(parameters);
+  }
+
+  public void StartExportSavingThread(string fileName)
+  {
+    string destFilePath = Path.Combine(m_CurrentDirectoryPath, fileName + s_FilenameExtension);
+
+    // TODO Add check if we are overwriting a file
+    // Give prompt if we are going to write to and existing file
+    /*if (File.Exists(destFilePath))
+    {
+      m_PendingSaveFullPath = destFilePath;
+
+      m_OverrideDialogAdder.RequestDialogsAtCenterWithStrings(Path.GetFileName(destFilePath));
+      return;
+    }*/
+
+
+    m_SavingThread = new Thread(new ParameterizedThreadStart(ExportSavingThread));
+
+    object[] parameters = { destFilePath };
 
     m_SavingThread.Start(parameters);
   }
@@ -602,6 +635,36 @@ public class FileSystem : MonoBehaviour
     catch (Exception e)
     {
       var errorString = $"Error while saving file: {e.Message} ({e.GetType()})";
+      m_MainThreadDispatcher.Enqueue(() => StatusBar.Print(errorString));
+      Debug.LogError(errorString);
+    }
+  }
+
+  void ExportSavingThread(object threadParameters)
+  {
+    var startTime = DateTime.Now;
+
+    // Extract the parameters from the object array
+    object[] parameters = (object[])threadParameters;
+    string destFilePath = (string)parameters[0];
+
+    bool isOverwriting = File.Exists(destFilePath);
+
+    m_PendingExportLevelData.m_TimeStamp = DateTime.Now;
+    m_PendingExportLevelData.m_Version = 1;
+    m_PendingExportLevelData.m_Name = s_ManualSaveName + "1";
+
+    CreateFileInfo(out FileInfo desInfo, destFilePath);
+
+    desInfo.m_FileData.m_ManualSaves.Add(m_PendingExportLevelData);
+
+    try
+    {
+      WriteDataToFile(destFilePath, desInfo, false, isOverwriting, startTime, false, false, true);
+    }
+    catch (Exception e)
+    {
+      var errorString = $"Error while exporting and saving file: {e.Message} ({e.GetType()})";
       m_MainThreadDispatcher.Enqueue(() => StatusBar.Print(errorString));
       Debug.LogError(errorString);
     }

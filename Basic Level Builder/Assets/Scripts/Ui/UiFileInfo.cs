@@ -157,6 +157,12 @@ public class UiFileInfo : MonoBehaviour
       m_Selected.Load();
   }
 
+  public void ExportSelectedVersion()
+  {
+    if (m_Selected)
+      FileSystem.Instance.ExportVersion(m_Selected.GetFilePath(), m_Selected.GetVersion(), m_Selected.GetBranchVersion());
+  }
+
   // TODO: If deleting last manual save ask if want to delete whole file.
   // Or remove delete button if there is only one version left
   public void DeleteSelectedVersion()
