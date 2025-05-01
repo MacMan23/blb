@@ -170,7 +170,7 @@ public class UiFileInfo : MonoBehaviour
     // Remove all the autosave UiHistoryItems from the scene
     if (m_Selected.IsManualSave())
     {
-      DeleteManualsAutosaves(m_Selected.GetVersion());
+      DeleteAutosavesInManual(m_Selected.GetVersion());
     }
 
     // Delete the manaul version, which also deletes the autosaves from the data
@@ -191,7 +191,7 @@ public class UiFileInfo : MonoBehaviour
     }
   }
 
-  private void DeleteManualsAutosaves(int version)
+  private void DeleteAutosavesInManual(int version)
   {
     List<UiHistoryItem> items = GetAllHistoryItems();
     foreach (var item in items)
@@ -293,7 +293,7 @@ public class UiFileInfo : MonoBehaviour
 
     foreach(var item in GetAllHistoryItems())
     {
-      item.SetUnselected();
+      item.Deselect();
     }
   }
 

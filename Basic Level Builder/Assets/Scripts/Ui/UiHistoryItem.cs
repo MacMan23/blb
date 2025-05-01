@@ -147,7 +147,7 @@ public class UiHistoryItem : MonoBehaviour
         // And select the whole bg too, not just the branch pannel
         if (!IsManualSave())
         {
-          SetSelected();
+          SetColorAsSelected();
           m_AutoSaveInfo.m_BoxBG.color = s_SelectedAutoSaveColor;
           continue;
         }
@@ -161,11 +161,11 @@ public class UiHistoryItem : MonoBehaviour
 
       if (selecting)
       {
-        item.SetSelected();
+        item.SetColorAsSelected();
       }
       else
       {
-        item.SetUnselected();
+        item.SetColorAsUnselected();
       }
     }
 
@@ -173,7 +173,12 @@ public class UiHistoryItem : MonoBehaviour
     OnSelected?.Invoke(this);
   }
 
-  private void SetSelected()
+  public void Deselect()
+  {
+    SetColorAsUnselected();
+  }
+
+  private void SetColorAsSelected()
   {
     if (IsManualSave())
       m_SelectBG.color = s_SelectedManualSaveColor;
@@ -184,7 +189,7 @@ public class UiHistoryItem : MonoBehaviour
     }
   }
 
-  public void SetUnselected()
+  private void SetColorAsUnselected()
   {
     if (IsManualSave())
       m_SelectBG.color = s_UnselectedManualSaveColor;

@@ -264,14 +264,13 @@ public class FileSystem : MonoBehaviour
   {
     // Gather the level data to export
     GetDataFromFullPath(sourcePath, out FileInfo sourceFileInfo);
-    if (IsManualSave(branchVersion))
+    m_PendingExportLevelData = new()
     {
-      GetManualSaveVersion(sourceFileInfo.m_FileData, version, out m_PendingExportLevelData);
-    }
-    else
-    {
-      GetAutoSaveVersion(sourceFileInfo.m_FileData, branchVersion, version, out m_PendingExportLevelData);
-    }
+      m_TimeStamp = DateTime.Now,
+      m_Version = 1,
+      m_Name = s_ManualSaveName + "1",
+      m_AddedTiles = new List<TileGrid.Element>(GetGridDictionaryFromFileData(sourceFileInfo.m_FileData, version, branchVersion).Values)
+    };
 
     // Call dialogue to get export file name
     m_ExportAsDialogAdder.RequestDialogsAtCenterWithStrings();
@@ -434,9 +433,7 @@ public class FileSystem : MonoBehaviour
 
     m_SavingThread = new Thread(new ParameterizedThreadStart(ExportSavingThread));
 
-    object[] parameters = { destFilePath };
-
-    m_SavingThread.Start(parameters);
+    m_SavingThread.Start(destFilePath);
   }
 
   void SavingThreadFlatten(object threadParameters)
@@ -466,7 +463,11 @@ public class FileSystem : MonoBehaviour
 
     try
     {
-      WriteDataToFile(destFilePath, m_MountedFileInfo, true, isOverwriting, startTime, false, false, (bool)parameters[2]);
+      bool shouldMountSave = true;
+      bool isAutosave = false;
+      bool shouldCopyFile = false;
+      bool shouldPrintElapsedTime = (bool)parameters[2];
+      WriteDataToFile(destFilePath, m_MountedFileInfo, shouldMountSave, isOverwriting, startTime, isAutosave, shouldCopyFile, shouldPrintElapsedTime);
     }
     catch (Exception e)
     {
@@ -629,7 +630,8 @@ public class FileSystem : MonoBehaviour
     }
     try
     {
-      WriteDataToFile(destFilePath, m_MountedFileInfo, true,
+      bool shouldMountSave = true;
+      WriteDataToFile(destFilePath, m_MountedFileInfo, shouldMountSave,
       overwriting, startTime, autosave, copyFile, shouldPrintElapsedTime);
     }
     catch (Exception e)
@@ -640,27 +642,26 @@ public class FileSystem : MonoBehaviour
     }
   }
 
-  void ExportSavingThread(object threadParameters)
+  void ExportSavingThread(object threadParameter)
   {
     var startTime = DateTime.Now;
 
     // Extract the parameters from the object array
-    object[] parameters = (object[])threadParameters;
-    string destFilePath = (string)parameters[0];
+    string destFilePath = (string)threadParameter;
 
     bool isOverwriting = File.Exists(destFilePath);
 
-    m_PendingExportLevelData.m_TimeStamp = DateTime.Now;
-    m_PendingExportLevelData.m_Version = 1;
-    m_PendingExportLevelData.m_Name = s_ManualSaveName + "1";
+    CreateFileInfo(out FileInfo sourceInfo, destFilePath);
 
-    CreateFileInfo(out FileInfo desInfo, destFilePath);
-
-    desInfo.m_FileData.m_ManualSaves.Add(m_PendingExportLevelData);
+    sourceInfo.m_FileData.m_ManualSaves.Add(m_PendingExportLevelData);
 
     try
     {
-      WriteDataToFile(destFilePath, desInfo, false, isOverwriting, startTime, false, false, true);
+      bool shouldMountSave = false;
+      bool isAutosave = false;
+      bool shouldCopyFile = false;
+      bool shouldPrintElapsedTime = true;
+      WriteDataToFile(destFilePath, sourceInfo, shouldMountSave, isOverwriting, startTime, isAutosave, shouldCopyFile, shouldPrintElapsedTime);
     }
     catch (Exception e)
     {
@@ -878,7 +879,7 @@ public class FileSystem : MonoBehaviour
 
     GetDataFromJson(json, m_MountedFileInfo);
 
-    m_TileGrid.LoadFromDictonary(GetGridDictionaryFromLevelData(m_MountedFileInfo.m_FileData, version, branchVersion));
+    m_TileGrid.LoadFromDictonary(GetGridDictionaryFromFileData(m_MountedFileInfo.m_FileData, version, branchVersion));
   }
 
   /// <summary>
@@ -927,7 +928,7 @@ public class FileSystem : MonoBehaviour
 
   // Will convert the level data to a Dictionary of elements up to the passed in version
   // If no version is passed in, we will flatten to the latest version
-  Dictionary<Vector2Int, TileGrid.Element> GetGridDictionaryFromLevelData(FileData fileData, int version = int.MaxValue, int branchVersion = 0)
+  Dictionary<Vector2Int, TileGrid.Element> GetGridDictionaryFromFileData(FileData fileData, int version = int.MaxValue, int branchVersion = 0)
   {
     int manualVersion = version;
     bool isAutoSave = !IsManualSave(branchVersion);
@@ -960,7 +961,7 @@ public class FileSystem : MonoBehaviour
       try
       {
         // Find the level data from the auto save version
-        GetAutoSaveVersion(fileData, branchVersion, version, out LevelData autoSaveData);
+        GetAutoSaveVersionLevelData(fileData, branchVersion, version, out LevelData autoSaveData);
 
         foreach (var tile in autoSaveData.m_AddedTiles)
         {
@@ -1275,6 +1276,18 @@ public class FileSystem : MonoBehaviour
     return -1;
   }
 
+  public void GetVersionLevelData(FileData fileData, out LevelData levelData, int version, int branchVersion = 0)
+  {
+    if (IsManualSave(branchVersion))
+    {
+      GetManualSaveVersionLevelData(fileData, version, out levelData);
+    }
+    else
+    {
+      GetAutoSaveVersionLevelData(fileData, branchVersion, version, out levelData);
+    }
+  }
+
   /// <summary>
   /// Gets an auto save version from the file data.
   /// </summary>
@@ -1283,7 +1296,7 @@ public class FileSystem : MonoBehaviour
   /// <param name="version">The version to find.</param>
   /// <param name="levelData">The level data output parameter.</param>
   /// <exception cref="InvalidOperationException">Thrown when the version cannot be found.</exception>
-  public void GetAutoSaveVersion(FileData fileData, int branchVersion, int version, out LevelData levelData)
+  public void GetAutoSaveVersionLevelData(FileData fileData, int branchVersion, int version, out LevelData levelData)
   {
     levelData = new();
 
@@ -1311,7 +1324,7 @@ public class FileSystem : MonoBehaviour
   /// <param name="version">The version to find.</param>
   /// <param name="levelData">The level data output parameter.</param>
   /// <exception cref="InvalidOperationException">Thrown when the version cannot be found.</exception>
-  public void GetManualSaveVersion(FileData fileData, int version, out LevelData levelData)
+  public void GetManualSaveVersionLevelData(FileData fileData, int version, out LevelData levelData)
   {
     levelData = new();
 
@@ -1625,7 +1638,6 @@ public class FileSystem : MonoBehaviour
 // Extra credit
 // TODO, fix area placement taking forever
 // TODO, Large level creation and deletion still takes a long time.
-// TODO, Make RequestDialogAtCenterWithStrings an async function that waits for the user to finish the dialog then continue.
 
 
 // These three are the same:
@@ -1633,21 +1645,19 @@ public class FileSystem : MonoBehaviour
 // TODO, add are you sure, if you load a level with unsaved changes.
 // TODO, When closeing app, ask to save if there are unsaved changes.
 // If no, delete temp file on close
+// OOOR we could just autosave to the latest manual
 
 
 // __Needs UI__
-// TODO, add feature to select a range of versions and squash them together
+// TONOTDO, add feature to select a range of versions and squash them together
+//   No, just have them delete the old ones instead. It would do the same thing
 // TODO, right click version to delete auto or manual save
 // Unsaved changes prompt
 // Warning about max manual saves reached
 
 
-// Auto versions will not be allowed to flatten as they are all based off the manual saves.
 // If they want an auto save to be perminant, then load it and save.
-// Should they be allowed to delete auto saves?
-// Yes, because if they want to save memory
-// No, because the will be deleted eventualy...
-// If yes, then should we have a "delete all auto saves" button?
+// Should we have a "delete all auto saves" button?
 
 // TODO: If the last version is deleted from a save, show pop up asking "If you delete this (or theses) save(s) the file will be deleted. Do you wish to continue?"
 // then delete the file, unmount, and close the info window.
