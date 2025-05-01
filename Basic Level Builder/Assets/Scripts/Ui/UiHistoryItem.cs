@@ -179,7 +179,7 @@ public class UiHistoryItem : MonoBehaviour
     }
   }
 
-  private void SetUnselected()
+  public void SetUnselected()
   {
     if (IsManualSave())
       m_SelectBG.color = s_UnselectedManualSaveColor;
@@ -249,7 +249,9 @@ public class UiHistoryItem : MonoBehaviour
       }
 
       // If we get here, deletion was successful
-      DestroyImmediate(gameObject);
+      // Remove ui from tree so we can update knowing it won't be there
+      transform.SetParent(null);
+      Destroy(gameObject);
     }
     catch (Exception e)
     {

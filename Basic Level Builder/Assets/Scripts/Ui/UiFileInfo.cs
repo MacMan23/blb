@@ -176,6 +176,7 @@ public class UiFileInfo : MonoBehaviour
     {
       ClearHistoryItemList();
       LoadHistoryItemList();
+      Deselect();
     }
     else
     {
@@ -191,7 +192,7 @@ public class UiFileInfo : MonoBehaviour
     {
       if (!item.IsManualSave() && item.GetBranchVersion() == version)
       {
-        DestroyImmediate(item.gameObject);
+        Destroy(item.gameObject);
       }
     }
   }
@@ -283,6 +284,11 @@ public class UiFileInfo : MonoBehaviour
   private void Deselect()
   {
     UpdateVersionInfo(null);
+
+    foreach(var item in GetAllHistoryItems())
+    {
+      item.SetUnselected();
+    }
   }
 
   private void UpdateVersionInfo(UiHistoryItem selectedItem)
