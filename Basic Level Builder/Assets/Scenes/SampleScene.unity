@@ -1597,6 +1597,7 @@ GameObject:
   - component: {fileID: 128438541}
   - component: {fileID: 128438542}
   - component: {fileID: 128438543}
+  - component: {fileID: 128438546}
   - component: {fileID: 128438544}
   m_Layer: 5
   m_Name: FilesPanel
@@ -1702,6 +1703,7 @@ MonoBehaviour:
   m_TileGrid: {fileID: 2031376952}
   m_OverrideDialogAdder: {fileID: 128438542}
   m_SaveAsDialogAdder: {fileID: 128438543}
+  m_ExportAsDialogAdder: {fileID: 128438546}
 --- !u!114 &128438542
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1774,6 +1776,20 @@ MonoBehaviour:
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
   m_PixelsPerUnitMultiplier: 1
+--- !u!114 &128438546
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 128438535}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 669a6586aefca754ba1732319aa8a037, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_ModalDialogPrefabs:
+  - {fileID: 8052299752710395991, guid: e981754835814ed40a43fe226ff0e652, type: 3}
 --- !u!1 &146315540
 GameObject:
   m_ObjectHideFlags: 0
