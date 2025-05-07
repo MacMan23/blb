@@ -729,7 +729,7 @@ MonoBehaviour:
       m_Calls:
       - m_Target: {fileID: 8052299752710395991}
         m_TargetAssemblyTypeName: ExportAsDialog, Assembly-CSharp
-        m_MethodName: Save
+        m_MethodName: Confirm
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
