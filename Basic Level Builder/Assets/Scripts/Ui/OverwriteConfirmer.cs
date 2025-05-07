@@ -1,4 +1,11 @@
-﻿using UnityEngine;
+﻿/***************************************************
+Authors:        Douglas Zwick
+Last Updated:   ???
+
+Copyright 2018-2025, DigiPen Institute of Technology
+***************************************************/
+
+using UnityEngine;
 using TMPro;
 
 public class OverwriteConfirmer : ModalDialog

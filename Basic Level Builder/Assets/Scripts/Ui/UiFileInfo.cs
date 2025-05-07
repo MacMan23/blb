@@ -22,19 +22,26 @@ public class UiFileInfo : MonoBehaviour
   [SerializeField]
   private Image m_VersionInfoThumbnail;
 
-  private UiHistoryItem m_Selected = null;
+  [SerializeField]
+  private GameObject m_ExportButton;
+  [SerializeField]
+  private GameObject m_LoadButton;
+  [SerializeField]
+  private GameObject m_DeleteButton;
+
+  private List<UiHistoryItem> m_Selected = new();
 
   private string m_FullFilePath;
 
   void OnEnable()
   {
-    UiHistoryItem.OnSelected += UpdateVersionInfo;
+    UiHistoryItem.OnSelected += OnHistoryItemSelected;
     UiHistoryItem.OnCloseInfoWindow += CloseWindow;
   }
 
   void OnDisable()
   {
-    UiHistoryItem.OnSelected -= UpdateVersionInfo;
+    UiHistoryItem.OnSelected -= OnHistoryItemSelected;
     UiHistoryItem.OnCloseInfoWindow -= CloseWindow;
   }
 
@@ -153,32 +160,40 @@ public class UiFileInfo : MonoBehaviour
 
   public void LoadSelectedVersion()
   {
-    if (m_Selected)
-      m_Selected.Load();
+    UiHistoryItem item = m_Selected[0];
+
+    if (item)
+      item.Load();
   }
 
   public void ExportSelectedVersion()
   {
-    if (m_Selected)
-      FileSystem.Instance.ExportVersion(m_Selected.GetFilePath(), m_Selected.GetVersion(), m_Selected.GetBranchVersion());
+    UiHistoryItem item = m_Selected[0];
+
+    if (item)
+      FileSystem.Instance.ExportVersion(item.GetFilePath(), item.GetVersion(), item.GetBranchVersion());
   }
 
   // TODO: If deleting last manual save ask if want to delete whole file.
   // Or remove delete button if there is only one version left
   public void DeleteSelectedVersion()
   {
-    // Remove all the autosave UiHistoryItems from the scene
-    if (m_Selected.IsManualSave())
+    foreach (var item in m_Selected)
     {
-      DeleteAutosavesInManual(m_Selected.GetVersion());
+      // Remove all the autosave UiHistoryItems from the scene
+      if (item.IsManualSave())
+      {
+        DeleteAutosavesInManual(item.GetVersion());
+      }
+
+      // Delete the manaul version, which also deletes the autosaves from the data
+      item.DeleteVersion();
     }
 
-    // Delete the manaul version, which also deletes the autosaves from the data
-    m_Selected.DeleteVersion();
-
-    // We changed up a lot deleting the manual and its autos
+    // We changed up a lot if we deleted a manual and its autos
+    // Or if we deleted multiple files,
     // So delete and recreate the item list
-    if (m_Selected.IsManualSave())
+    if (m_Selected.Count > 1 || m_Selected[0].IsManualSave())
     {
       ClearHistoryItemList();
       LoadHistoryItemList();
@@ -289,28 +304,74 @@ public class UiFileInfo : MonoBehaviour
 
   private void Deselect()
   {
-    UpdateVersionInfo(null);
+    OnHistoryItemSelected(null);
 
-    foreach(var item in GetAllHistoryItems())
+    foreach (var item in GetAllHistoryItems())
     {
       item.Deselect();
     }
   }
 
-  private void UpdateVersionInfo(UiHistoryItem selectedItem)
+  private void OnHistoryItemSelected(UiHistoryItem selectedItem)
   {
     // Clear text if null
     if (selectedItem == null)
     {
-      m_Selected = null;
-      m_versionInfoText.text = "";
+      m_Selected.Clear();
+      UpdateVersionInfo();
       return;
     }
 
-    m_Selected = selectedItem;
+    if (HotkeyMaster.IsPrimaryModifierHeld())
+    {
+      if (!m_Selected.Contains(selectedItem))
+        m_Selected.Add(selectedItem);
+    }
+    else
+    {
+      m_Selected.Clear();
+      m_Selected.Add(selectedItem);
+    }
 
-    m_versionInfoText.text = "<b>" + selectedItem.GetVersionName() + "</b>\r\n";
-    m_versionInfoText.text += "<color=#C6C6C6>" + selectedItem.GetVersionTimeStamp() + "</color>";
+    UpdateVersionInfo();
+  }
+
+  private void UpdateVersionInfo()
+  {
+    if (m_Selected.Count == 0)
+    {
+      m_versionInfoText.text = "<b>No Version Selected</b>\r\n";
+
+      // Reenable buttons if they were gone before
+      m_ExportButton.SetActive(false);
+      m_LoadButton.SetActive(false);
+      m_DeleteButton.SetActive(false);
+    }
+    else if (m_Selected.Count == 1)
+    {
+      m_versionInfoText.text = "<b>" + m_Selected[0].GetVersionName() + "</b>\r\n";
+      m_versionInfoText.text += "<color=#C6C6C6>" + m_Selected[0].GetVersionTimeStamp() + "</color>";
+
+      // Reenable buttons if they were gone before
+      m_ExportButton.SetActive(true);
+      m_LoadButton.SetActive(true);
+      m_DeleteButton.SetActive(true);
+    }
+    else
+    {
+      m_versionInfoText.text = "<b>Multiple Version Selected</b>\r\n";
+
+      m_versionInfoText.text += "<color=#C6C6C6>" + m_Selected[0].GetVersionName() + "</color>";
+      foreach (var item in m_Selected.GetRange(1, m_Selected.Count - 1))
+      {
+        m_versionInfoText.text += "<color=#C6C6C6>, " + item.GetVersionName() + "</color>";
+      }
+
+      // Remove the export and load buttons as we can't do that when multiple versions are selected
+      m_ExportButton.SetActive(false);
+      m_LoadButton.SetActive(false);
+      m_DeleteButton.SetActive(true);
+    }
   }
 }
 

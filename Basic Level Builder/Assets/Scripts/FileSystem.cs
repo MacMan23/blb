@@ -429,7 +429,6 @@ public class FileSystem : MonoBehaviour
   {
     string destFilePath = Path.Combine(m_CurrentDirectoryPath, fileName + s_FilenameExtension);
 
-    // TODO Add check if we are overwriting a file
     // Give prompt if we are going to write to and existing file
     if (File.Exists(destFilePath))
     {

@@ -933,6 +933,9 @@ MonoBehaviour:
   m_Content: {fileID: 8628277483756882403}
   m_versionInfoText: {fileID: 2064626419696782994}
   m_VersionInfoThumbnail: {fileID: 6806447045765781826}
+  m_ExportButton: {fileID: 7420511363008162458}
+  m_LoadButton: {fileID: 5722571221885826180}
+  m_DeleteButton: {fileID: 8545896915410068236}
 --- !u!1 &1955358157916619433
 GameObject:
   m_ObjectHideFlags: 0

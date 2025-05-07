@@ -1,5 +1,11 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿/***************************************************
+Authors:        Douglas Zwick
+Last Updated:   ???
+
+Copyright 2018-2025, DigiPen Institute of Technology
+***************************************************/
+
+
 using UnityEngine;
 
 public class HotkeyMaster : MonoBehaviour

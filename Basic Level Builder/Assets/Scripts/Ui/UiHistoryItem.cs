@@ -165,7 +165,9 @@ public class UiHistoryItem : MonoBehaviour
       }
       else
       {
-        item.SetColorAsUnselected();
+        // Only deselect last item if we aren't multiselecting
+        if (!HotkeyMaster.IsPrimaryModifierHeld())
+          item.SetColorAsUnselected();
       }
     }
 
