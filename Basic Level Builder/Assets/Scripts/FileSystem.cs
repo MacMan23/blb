@@ -360,7 +360,6 @@ public class FileSystem : MonoBehaviour
           {
             // Because of the file validation on application focus, this SHOULD never happen.
             // But to be safe incase the file is deleted while playing the game, do this
-            // TODO, get this error to overwrite or concat with the saved message
             var errorString = $"Error: File with path \"{m_MountedFileInfo.m_SaveFilePath}\" could not be found." + Environment.NewLine +
               "A new file has been made for this save.";
             StatusBar.Print(errorString);
@@ -396,7 +395,17 @@ public class FileSystem : MonoBehaviour
 
   public void ConfirmOverwrite()
   {
-    StartSavingThread(m_PendingSaveFullPath, false);
+    // Check if we were doing a SaveAs or an Export
+    // If the Export data is empty, then we are doing a SaveAs
+    if (m_PendingExportLevelData == null)
+    {
+      StartSavingThread(m_PendingSaveFullPath, false);
+    }
+    else
+    {
+      StartExportSavingThread(m_PendingSaveFullPath);
+    }
+    m_PendingSaveFullPath = "";
   }
 
   void StartSavingThread(string destFilePath, bool autosave, bool isSaveAs = false, bool shouldPrintElapsedTime = true)
@@ -416,21 +425,25 @@ public class FileSystem : MonoBehaviour
     m_SavingThread.Start(parameters);
   }
 
-  public void StartExportSavingThread(string fileName)
+  public void TryStartExportSavingThread(string fileName)
   {
     string destFilePath = Path.Combine(m_CurrentDirectoryPath, fileName + s_FilenameExtension);
 
     // TODO Add check if we are overwriting a file
     // Give prompt if we are going to write to and existing file
-    /*if (File.Exists(destFilePath))
+    if (File.Exists(destFilePath))
     {
       m_PendingSaveFullPath = destFilePath;
 
       m_OverrideDialogAdder.RequestDialogsAtCenterWithStrings(Path.GetFileName(destFilePath));
       return;
-    }*/
+    }
 
+    StartExportSavingThread(destFilePath);
+  }
 
+  private void StartExportSavingThread(string destFilePath)
+  {
     m_SavingThread = new Thread(new ParameterizedThreadStart(ExportSavingThread));
 
     m_SavingThread.Start(destFilePath);
@@ -654,6 +667,9 @@ public class FileSystem : MonoBehaviour
     CreateFileInfo(out FileInfo sourceInfo, destFilePath);
 
     sourceInfo.m_FileData.m_ManualSaves.Add(m_PendingExportLevelData);
+
+    // Null out data so we know if we finished our export
+    m_PendingExportLevelData = null;
 
     try
     {

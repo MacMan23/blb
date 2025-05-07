@@ -4155,6 +4155,11 @@ PrefabInstance:
       propertyPath: m_IsActive
       value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: 8320027039918689860, guid: ea4794da28b5d084fad42ef1fddc27ce,
+        type: 3}
+      propertyPath: m_Text
+      value: Delete this version
+      objectReference: {fileID: 0}
     - target: {fileID: 8320027039918689912, guid: ea4794da28b5d084fad42ef1fddc27ce,
         type: 3}
       propertyPath: m_Pivot.x
@@ -4598,6 +4603,11 @@ PrefabInstance:
         type: 3}
       propertyPath: m_IsActive
       value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8320027039918689860, guid: ea4794da28b5d084fad42ef1fddc27ce,
+        type: 3}
+      propertyPath: m_Text
+      value: Save this version with a specified file name
       objectReference: {fileID: 0}
     - target: {fileID: 8320027039918689912, guid: ea4794da28b5d084fad42ef1fddc27ce,
         type: 3}
