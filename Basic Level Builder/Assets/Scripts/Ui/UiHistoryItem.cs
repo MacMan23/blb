@@ -42,7 +42,7 @@ public class UiHistoryItem : MonoBehaviour
   private bool m_IsExpanded = true;
   private float m_LastPressedTime = float.MinValue;
 
-  private static float s_DoublePressTime = 0.3f;
+  private static readonly float s_DoublePressTime = 0.3f;
 
 
   [Serializable]
@@ -166,7 +166,7 @@ public class UiHistoryItem : MonoBehaviour
       else
       {
         // Only deselect last item if we aren't multiselecting
-        if (!HotkeyMaster.IsPrimaryModifierHeld())
+        if (!HotkeyMaster.IsMultiSelectHeld())
           item.SetColorAsUnselected();
       }
     }
@@ -180,7 +180,7 @@ public class UiHistoryItem : MonoBehaviour
     SetColorAsUnselected();
   }
 
-  private void SetColorAsSelected()
+  public void SetColorAsSelected()
   {
     if (IsManualSave())
       m_SelectBG.color = s_SelectedManualSaveColor;
@@ -239,38 +239,6 @@ public class UiHistoryItem : MonoBehaviour
     if (!IsManualSave()) return;
 
     m_ManualSaveInfo.m_Arrow.gameObject.SetActive(state);
-  }
-
-  public void DeleteVersion()
-  {
-    try
-    {
-      // Get file data
-      FileSystem.Instance.GetDataFromFullPath(m_FullFilePath, out FileSystem.FileInfo fileInfo);
-
-      // Delete the version
-      if (IsManualSave())
-      {
-        // Delete manual save version
-        FileSystem.Instance.DeleteLevelVersion(fileInfo, m_LevelData.m_Version);
-      }
-      else
-      {
-        // Delete auto save version
-        FileSystem.Instance.DeleteAutoSave(fileInfo, m_LevelData.m_Version, m_LevelData.m_BranchVersion);
-      }
-
-      // If we get here, deletion was successful
-      // Remove ui from tree so we can update knowing it won't be there
-      transform.SetParent(null);
-      Destroy(gameObject);
-    }
-    catch (Exception e)
-    {
-      string versionType = IsManualSave() ? "manual save" : "auto save";
-      Debug.LogError($"Unexpected exception while deleting {versionType} version: {e.Message} ({e.GetType()})");
-      StatusBar.Print($"Error: Could not delete version due to an unexpected error: {e.Message}");
-    }
   }
 
   public int CompareTo(UiHistoryItem other)

@@ -1027,268 +1027,159 @@ public class FileSystem : MonoBehaviour
     }
   }
 
-
   /// <summary>
-  /// Removes an auto save and saves the file.
+  /// Removes a number od saved versions and saves the file
   /// </summary>
-  /// <param name="fileInfo">The file info containing the auto save.</param>
-  /// <param name="version">The version of the auto save to delete.</param>
-  /// <param name="branchVersion">The branch version of the auto save to delete.</param>
+  /// <param name="fileInfo">The file info containing the save.</param>
+  /// <param name="versions">A list of versions to delete in pairs of <version, branch version>.</param>
   /// <exception cref="Exception">Thrown when an error occurs.</exception>
-  public void DeleteAutoSave(FileInfo fileInfo, int version, int branchVersion)
+  public void DeleteVersions(FileInfo fileInfo, List<Tuple<int, int>> versions)
   {
-    if (!FileDataExists(fileInfo.m_FileData))
+    foreach (var version in versions)
     {
-      throw new Exception("No file data exists to delete autosave");
+      DeleteVersionEx(fileInfo, version.Item1, version.Item2, false);
     }
 
-    for (int i = 0; i < fileInfo.m_FileData.m_AutoSaves.Count; ++i)
-    {
-      if (fileInfo.m_FileData.m_AutoSaves[i].m_BranchVersion == branchVersion &&
-        fileInfo.m_FileData.m_AutoSaves[i].m_Version == version)
-      {
-        fileInfo.m_FileData.m_AutoSaves.RemoveAt(i);
-
-        // Save data
-        try
-        {
-          WriteDataToFile(fileInfo.m_SaveFilePath, fileInfo);
-        }
-        catch (Exception e)
-        {
-          throw new Exception($"Failed to save file after deleting autosave ({branchVersion}:{version})\nException {e.Message}, {e.GetType()}");
-        }
-
-        MoveFileItemToTop(m_SaveList, fileInfo.m_SaveFilePath);
-
-        StatusBar.Print($"Sucessfuly deleted autosave ({branchVersion}:{version}) from {fileInfo.m_SaveFilePath}");
-        return;
-      }
-    }
-
-    throw new Exception($"Couldn't find auto save version {version} to delete");
-  }
-
-  /// <summary>
-  /// Deletes a manual version and saves the file.
-  /// </summary>
-  /// <param name="fileInfo">The file info containing the version to delete.</param>
-  /// <param name="version">The version to delete.</param>
-  /// <exception cref="Exception">Thrown when an error occurs.</exception>
-  public void DeleteLevelVersion(FileInfo fileInfo, int version)
-  {
-    // The easiest way to delete a version is to flatten it with the next version
-    // If this is the newest version then we can just delete it
-    // Luckily FlattenRange will deal with the endVersion going past the list length
-
-    if (!FileDataExists(fileInfo.m_FileData))
-    {
-      throw new Exception("No file data exists to delete version");
-    }
-
-    int nextVersion = GetNextManualVersion(fileInfo.m_FileData, version);
-
-    // If we are the newest version
-    if (nextVersion == -1)
-    {
-      // Remove the last index of manual save, which is always the newest version
-      fileInfo.m_FileData.m_ManualSaves.RemoveAt(fileInfo.m_FileData.m_ManualSaves.Count - 1);
-
-      // Remove attached autosave versions
-      int index = 0;
-      while (index < fileInfo.m_FileData.m_AutoSaves.Count)
-      {
-        // Get i up to the start version
-        if (fileInfo.m_FileData.m_AutoSaves[index].m_BranchVersion < version)
-        {
-          ++index;
-          continue;
-        }
-
-        // Remove the indexs up to before the end version, as the endversion can attach to the new sqaushed save
-        if (fileInfo.m_FileData.m_AutoSaves[index].m_BranchVersion == version)
-        {
-          fileInfo.m_FileData.m_AutoSaves.RemoveAt(index);
-          continue;
-        }
-
-        break;
-      }
-    }
-    else
-    {
-      FlattenRange(fileInfo.m_FileData, version, nextVersion);
-    }
-
-    // Save data
     try
     {
       WriteDataToFile(fileInfo.m_SaveFilePath, fileInfo);
     }
     catch (Exception e)
     {
-      throw new Exception($"Failed to save file after deleting version {version}\nException {e.Message}, {e.GetType()}");
+      throw new Exception($"Failed to save file after deleting multiple versions\nException {e.Message}, {e.GetType()}");
     }
 
     MoveFileItemToTop(m_SaveList, fileInfo.m_SaveFilePath);
 
-    StatusBar.Print($"Sucessfuly deleted save version : {version} from {fileInfo.m_SaveFilePath}");
+    StatusBar.Print($"Sucessfuly deleted multiple versions from {fileInfo.m_SaveFilePath}");
   }
 
-  // Take a range of two versions and flatten them down to one data verion
-  // Can only flatten MANUAL versions
-  // Autosaves attached to flattend version will be removed
-  // Care is taken if endVersion is past the latest verion
-  // FileData is modified but the data will still need to be saved to a file
+  /// <summary>
+  /// Removes one saved version and saves the file
+  /// </summary>
+  /// <param name="fileInfo">The file info containing the save.</param>
+  /// <param name="version">The version of the save to delete.</param>
+  /// <param name="branchVersion">The branch version of the save to delete.</param>
   /// <exception cref="Exception">Thrown when an error occurs.</exception>
-  public void FlattenRange(FileData fileData, int startVersion, int endVersion)
+  /// 
+  public void DeleteVersion(FileInfo fileInfo, int version, int branchVersion = 0)
   {
-    // Invalid range
-    if (startVersion > endVersion)
+    DeleteVersionEx(fileInfo, version, branchVersion, true);
+  }
+
+  private void DeleteVersionEx(FileInfo fileInfo, int version, int branchVersion, bool shouldSaveFile = true)
+  {
+    if (!FileDataExists(fileInfo.m_FileData))
     {
-      throw new Exception($"Invalid level flatten range of {startVersion} to {endVersion}");
+      throw new Exception("No file data exists to delete version");
     }
 
-    if (!FileDataExists(fileData))
+    if (IsManualSave(branchVersion))
     {
-      throw new Exception($"No file data exists to flatten range");
+      // Loop to find our manual save
+      for (int i = 0; i < fileInfo.m_FileData.m_ManualSaves.Count; ++i)
+      {
+        if (fileInfo.m_FileData.m_ManualSaves[i].m_Version != version)
+          continue;
+
+        // If this is the first manaul on the list, ie: no newer manual exists
+        // We don't need to combine versions and can just delete this version
+        if (i == fileInfo.m_FileData.m_ManualSaves.Count - 1)
+        {
+          fileInfo.m_FileData.m_ManualSaves.RemoveAt(i);
+        }
+        else
+        {
+          fileInfo.m_FileData.m_ManualSaves[i + 1] = FlattenLevelData(fileInfo.m_FileData.m_ManualSaves[i + 1], fileInfo.m_FileData.m_ManualSaves[i]);
+          fileInfo.m_FileData.m_ManualSaves.RemoveAt(i);
+        }
+
+        if (shouldSaveFile)
+          SaveAfterDeletion(fileInfo, version, branchVersion);
+        return;
+      }
+
+      throw new Exception($"Couldn't find maual save version {version} to delete");
+    }
+    else
+    {
+      // Find auto save version
+      for (int i = 0; i < fileInfo.m_FileData.m_AutoSaves.Count; ++i)
+      {
+        if (fileInfo.m_FileData.m_AutoSaves[i].m_BranchVersion == branchVersion &&
+          fileInfo.m_FileData.m_AutoSaves[i].m_Version == version)
+        {
+          fileInfo.m_FileData.m_AutoSaves.RemoveAt(i);
+
+          if (shouldSaveFile)
+            SaveAfterDeletion(fileInfo, version, branchVersion);
+          return;
+        }
+      }
+
+      throw new Exception($"Couldn't find autosave ({branchVersion}:{version}) to delete");
+    }
+  }
+
+  private void SaveAfterDeletion(FileInfo fileInfo, int version, int branchVersion)
+  {
+    try
+    {
+      WriteDataToFile(fileInfo.m_SaveFilePath, fileInfo);
+    }
+    catch (Exception e)
+    {
+      if (IsManualSave(branchVersion))
+        throw new Exception($"Failed to save file after deleting version {version}\nException {e.Message}, {e.GetType()}");
+      else
+        throw new Exception($"Failed to save file after deleting autosave ({branchVersion}:{version})\nException {e.Message}, {e.GetType()}");
     }
 
+    MoveFileItemToTop(m_SaveList, fileInfo.m_SaveFilePath);
+
+    if (IsManualSave(branchVersion))
+      StatusBar.Print($"Sucessfuly deleted save version : {version} from {fileInfo.m_SaveFilePath}");
+    else
+      StatusBar.Print($"Sucessfuly deleted autosave ({branchVersion}:{version}) from {fileInfo.m_SaveFilePath}");
+  }
+
+  // Combines two versions level data
+  // Add the level data from "from" to "to"
+  // Returns the combine data
+  private LevelData FlattenLevelData(LevelData to, LevelData from)
+  {
     Dictionary<Vector2Int, TileGrid.Element> squashedLevelAdd = new();
     HashSet<Vector2Int> squashedLevelRemove = new();
 
-    // Create default date to be overwitten later
-    DateTime timeStamp = DateTime.Now;
-    int lastVersion = startVersion;
-    string versionName = s_ManualSaveName + lastVersion;
+    SquashLevelDataAdder(ref squashedLevelAdd, ref squashedLevelRemove, from);
+    SquashLevelDataAdder(ref squashedLevelAdd, ref squashedLevelRemove, to);
 
-    // Care is taken if the endVerion is outside of the list
-    // So we keep track of the last versions, well, version number
-    foreach (var levelData in fileData.m_ManualSaves)
-    {
-      if (levelData.m_Version < startVersion)
-        continue;
+    to.m_AddedTiles = squashedLevelAdd.Values.ToList();
+    to.m_RemovedTiles = squashedLevelRemove.ToList();
 
-      // If we finished our version loop, break
-      if (levelData.m_Version > endVersion)
-        break;
-
-      // Keep track of the last verions stats
-      timeStamp = levelData.m_TimeStamp;
-      lastVersion = levelData.m_Version;
-      versionName = levelData.m_Name;
-
-      // Convert this version into the collected grid
-      // We might not start at version 1, so we need to keep track of the removes as they record the removes from the prior version
-      // However the next version might add a tile where we were going to do a remove, so we need to remove the removes when adding a tile
-      foreach (var tile in levelData.m_AddedTiles)
-      {
-        // Add the tile to the list
-        // If we had record to remove it earlier, remove the record
-        if (squashedLevelRemove.Contains(tile.m_GridIndex))
-          squashedLevelRemove.Remove(tile.m_GridIndex);
-        squashedLevelAdd[tile.m_GridIndex] = tile;
-      }
-      foreach (var pos in levelData.m_RemovedTiles)
-      {
-        // Remove a tile if we have one
-        // Else add it to a remove list
-        if (squashedLevelAdd.ContainsKey(pos))
-          squashedLevelAdd.Remove(pos);
-        else
-          squashedLevelRemove.Add(pos);
-      }
-    }
-
-    // Remove squashed versions
-    int index = 0;
-    while (index < fileData.m_ManualSaves.Count)
-    {
-      // Get i up to the start version
-      if (fileData.m_ManualSaves[index].m_Version < startVersion)
-      {
-        ++index;
-        continue;
-      }
-
-      // Remove the indexs up to the end version
-      if (fileData.m_ManualSaves[index].m_Version <= endVersion)
-      {
-        fileData.m_ManualSaves.RemoveAt(index);
-        continue;
-      }
-
-      // If there are more versions but we removed all out indexes, break the loop
-      break;
-    }
-
-    // Remove squashed autosave versions
-    index = 0;
-    while (index < fileData.m_AutoSaves.Count)
-    {
-      // Get i up to the start version
-      if (fileData.m_AutoSaves[index].m_BranchVersion < startVersion)
-      {
-        ++index;
-        continue;
-      }
-
-      // Remove the indexs up to before the end version, as the endversion can attach to the new sqaushed save
-      if (fileData.m_AutoSaves[index].m_BranchVersion < endVersion)
-      {
-        fileData.m_AutoSaves.RemoveAt(index);
-        continue;
-      }
-
-      // Update the endversion autos to branch off our new manual saves version
-      // This step realy only matters if endVersion is past the avalible versions
-      if (fileData.m_AutoSaves[index].m_BranchVersion == endVersion)
-      {
-        fileData.m_AutoSaves[index].m_BranchVersion = lastVersion;
-        ++index;
-        continue;
-      }
-
-      // If there are more versions but we removed all out indexes, break the loop
-      break;
-    }
-
-    // At this point the endVersion data will exist, or never existed and everything after startVersion was deleted
-
-    // If we have diffrences, add thoes combined diffs to the version list
-    // The addition will replace the endVersion
-    if (squashedLevelRemove.Count > 0 || squashedLevelAdd.Count > 0)
-    {
-      LevelData levelData = new()
-      {
-        m_Version = lastVersion,
-        m_Name = versionName,
-        m_TimeStamp = timeStamp,
-        m_AddedTiles = squashedLevelAdd.Values.ToList(),
-        m_RemovedTiles = squashedLevelRemove.ToList()
-      };
-
-      // If we had no endVersion. Then add a new version at the end
-      if (index > fileData.m_ManualSaves.Count)
-        fileData.m_ManualSaves.Add(levelData);
-      else
-        fileData.m_ManualSaves.Insert(index, levelData);
-    }
+    return to;
   }
 
-  public int GetNextManualVersion(FileData fileData, int startVersion)
+  // Adds the level datas deltas to an add/removed tiles arrays
+  private void SquashLevelDataAdder(ref Dictionary<Vector2Int, TileGrid.Element> squashedLevelAdd, ref HashSet<Vector2Int> squashedLevelRemove, LevelData addedData)
   {
-    bool startFound = false;
-    foreach (var data in fileData.m_ManualSaves)
+    foreach (var tile in addedData.m_AddedTiles)
     {
-      if (startFound)
-        return data.m_Version;
-      if (data.m_Version == startVersion)
-      {
-        startFound = true;
-      }
+      // Add the tile to the list
+      // If we had record to remove it earlier, remove the record
+      if (squashedLevelRemove.Contains(tile.m_GridIndex))
+        squashedLevelRemove.Remove(tile.m_GridIndex);
+      squashedLevelAdd[tile.m_GridIndex] = tile;
     }
-    return -1;
+    foreach (var pos in addedData.m_RemovedTiles)
+    {
+      // Remove a tile if we have one
+      // Else add it to a remove list
+      if (squashedLevelAdd.ContainsKey(pos))
+        squashedLevelAdd.Remove(pos);
+      else
+        squashedLevelRemove.Add(pos);
+    }
   }
 
   public void GetVersionLevelData(FileData fileData, out LevelData levelData, int version, int branchVersion = 0)

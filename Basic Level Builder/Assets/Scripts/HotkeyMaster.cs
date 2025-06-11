@@ -12,6 +12,18 @@ public class HotkeyMaster : MonoBehaviour
 {
   public static bool s_HotkeysEnabled = true;
 
+  public static bool IsMultiSelectHeld()
+  {
+    if (Application.platform == RuntimePlatform.OSXPlayer)
+      return Input.GetKey(KeyCode.LeftCommand) || Input.GetKey(KeyCode.RightCommand);
+
+    return Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
+  }
+
+  public static bool IsRangeSelectHeld()
+  {
+    return Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+  }
 
   public static bool IsPrimaryModifierHeld()
   {

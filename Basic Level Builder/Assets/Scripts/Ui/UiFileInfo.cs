@@ -8,6 +8,7 @@ Copyright 2018-2025, DigiPen Institute of Technology
 using UnityEngine;
 using System.Collections.Generic;
 using UnityEngine.UI;
+using System;
 
 public class UiFileInfo : MonoBehaviour
 {
@@ -29,7 +30,7 @@ public class UiFileInfo : MonoBehaviour
   [SerializeField]
   private GameObject m_DeleteButton;
 
-  private List<UiHistoryItem> m_Selected = new();
+  private List<UiHistoryItem> m_Selection = new();
 
   private string m_FullFilePath;
 
@@ -71,7 +72,7 @@ public class UiFileInfo : MonoBehaviour
       {
         FileSystem.Instance.GetDataFromFullPath(m_FullFilePath, out fileInfo);
       }
-      catch (System.Exception e)
+      catch (Exception e)
       {
         Debug.LogWarning($"Failed to get data from file path: {m_FullFilePath}. {e.Message}");
         StatusBar.Print($"Error: Could not load file history.");
@@ -104,7 +105,7 @@ public class UiFileInfo : MonoBehaviour
       // First time run will collapse all
       ToggleSaveExpansion();
     }
-    catch (System.Exception e)
+    catch (Exception e)
     {
       Debug.LogError($"Unexpected error loading file history: {e.Message} ({e.GetType()})");
       StatusBar.Print($"Error: Could not load file history due to an unexpected error.");
@@ -160,7 +161,7 @@ public class UiFileInfo : MonoBehaviour
 
   public void LoadSelectedVersion()
   {
-    UiHistoryItem item = m_Selected[0];
+    UiHistoryItem item = m_Selection[0];
 
     if (item)
       item.Load();
@@ -168,7 +169,7 @@ public class UiFileInfo : MonoBehaviour
 
   public void ExportSelectedVersion()
   {
-    UiHistoryItem item = m_Selected[0];
+    UiHistoryItem item = m_Selection[0];
 
     if (item)
       FileSystem.Instance.ExportVersion(item.GetFilePath(), item.GetVersion(), item.GetBranchVersion());
@@ -176,46 +177,43 @@ public class UiFileInfo : MonoBehaviour
 
   // TODO: If deleting last manual save ask if want to delete whole file.
   // Or remove delete button if there is only one version left
-  public void DeleteSelectedVersion()
+  public void DeleteSelectedVersions()
   {
-    foreach (var item in m_Selected)
+    // This shouldn't happen as the button wouldn't be visable if no version are selected
+    if (m_Selection.Count <= 0)
     {
-      // Remove all the autosave UiHistoryItems from the scene
-      if (item.IsManualSave())
+      throw new Exception("Deleting version with no versions selected");
+    }
+
+    FileSystem.Instance.GetDataFromFullPath(m_FullFilePath, out FileSystem.FileInfo fileInfo);
+    if (m_Selection.Count > 1)
+    {
+      List<Tuple<int, int>> versions = new();
+      foreach (var item in m_Selection)
       {
-        DeleteAutosavesInManual(item.GetVersion());
+        versions.Add(new(item.GetVersion(), item.GetBranchVersion()));
       }
 
-      // Delete the manaul version, which also deletes the autosaves from the data
-      item.DeleteVersion();
+      FileSystem.Instance.DeleteVersions(fileInfo, versions);
+    }
+    else
+    {
+      FileSystem.Instance.DeleteVersion(fileInfo, m_Selection[0].GetVersion(), m_Selection[0].GetBranchVersion());
     }
 
     // We changed up a lot if we deleted a manual and its autos
     // Or if we deleted multiple files,
     // So delete and recreate the item list
-    if (m_Selected.Count > 1 || m_Selected[0].IsManualSave())
+    if (m_Selection.Count > 1 || m_Selection[0].IsManualSave())
     {
       ClearHistoryItemList();
       LoadHistoryItemList();
-      Deselect();
     }
     else
     {
       UpdateVersionList();
-      Deselect();
     }
-  }
-
-  private void DeleteAutosavesInManual(int version)
-  {
-    List<UiHistoryItem> items = GetAllHistoryItems();
-    foreach (var item in items)
-    {
-      if (!item.IsManualSave() && item.GetBranchVersion() == version)
-      {
-        Destroy(item.gameObject);
-      }
-    }
+    Deselect();
   }
 
   private int GetNumberExpandedSaves()
@@ -317,28 +315,32 @@ public class UiFileInfo : MonoBehaviour
     // Clear text if null
     if (selectedItem == null)
     {
-      m_Selected.Clear();
+      m_Selection.Clear();
       UpdateVersionInfo();
       return;
     }
 
-    if (HotkeyMaster.IsPrimaryModifierHeld())
+    if (HotkeyMaster.IsMultiSelectHeld())
     {
-      if (!m_Selected.Contains(selectedItem))
-        m_Selected.Add(selectedItem);
+      if (!m_Selection.Contains(selectedItem))
+        m_Selection.Add(selectedItem);
     }
     else
     {
-      m_Selected.Clear();
-      m_Selected.Add(selectedItem);
+      m_Selection.Clear();
+      m_Selection.Add(selectedItem);
     }
+
+    m_Selection.Sort((a, b) => a.CompareTo(b));
+
+    DeselectTwiceSelectedAutosaves();
 
     UpdateVersionInfo();
   }
 
   private void UpdateVersionInfo()
   {
-    if (m_Selected.Count == 0)
+    if (m_Selection.Count == 0)
     {
       m_versionInfoText.text = "<b>No Version Selected</b>\r\n";
 
@@ -347,10 +349,10 @@ public class UiFileInfo : MonoBehaviour
       m_LoadButton.SetActive(false);
       m_DeleteButton.SetActive(false);
     }
-    else if (m_Selected.Count == 1)
+    else if (m_Selection.Count == 1)
     {
-      m_versionInfoText.text = "<b>" + m_Selected[0].GetVersionName() + "</b>\r\n";
-      m_versionInfoText.text += "<color=#C6C6C6>" + m_Selected[0].GetVersionTimeStamp() + "</color>";
+      m_versionInfoText.text = "<b>" + m_Selection[0].GetVersionName() + "</b>\r\n";
+      m_versionInfoText.text += "<color=#C6C6C6>" + m_Selection[0].GetVersionTimeStamp() + "</color>";
 
       // Reenable buttons if they were gone before
       m_ExportButton.SetActive(true);
@@ -361,8 +363,8 @@ public class UiFileInfo : MonoBehaviour
     {
       m_versionInfoText.text = "<b>Multiple Version Selected</b>\r\n";
 
-      m_versionInfoText.text += "<color=#C6C6C6>" + m_Selected[0].GetVersionName() + "</color>";
-      foreach (var item in m_Selected.GetRange(1, m_Selected.Count - 1))
+      m_versionInfoText.text += "<color=#C6C6C6>" + m_Selection[0].GetVersionName() + "</color>";
+      foreach (var item in m_Selection.GetRange(1, m_Selection.Count - 1))
       {
         m_versionInfoText.text += "<color=#C6C6C6>, " + item.GetVersionName() + "</color>";
       }
@@ -371,6 +373,28 @@ public class UiFileInfo : MonoBehaviour
       m_ExportButton.SetActive(false);
       m_LoadButton.SetActive(false);
       m_DeleteButton.SetActive(true);
+    }
+  }
+
+  // Removes any autosaves from the selection if their banched manual save is already selected
+  private void DeselectTwiceSelectedAutosaves()
+  {
+    // m_Selection is sorted before this so we can check like this
+
+    int lastManual = -1;
+    for (int i = 0; i < m_Selection.Count; ++i)
+    {
+      if (m_Selection[i].IsManualSave())
+      {
+        lastManual = m_Selection[i].GetVersion();
+      }
+      else if (lastManual == m_Selection[i].GetBranchVersion())
+      {
+        m_Selection[i].Deselect();
+        m_Selection[i].SetColorAsSelected();
+        m_Selection.RemoveAt(i);
+        --i;
+      }
     }
   }
 }
