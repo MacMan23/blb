@@ -1174,11 +1174,10 @@ public class FileSystem : MonoBehaviour
     foreach (var pos in addedData.m_RemovedTiles)
     {
       // Remove a tile if we have one
-      // Else add it to a remove list
       if (squashedLevelAdd.ContainsKey(pos))
         squashedLevelAdd.Remove(pos);
-      else
-        squashedLevelRemove.Add(pos);
+      // Keep the remove in the list even if we deleted a tile, because the tile could be replacing a previously placed tile and we need to delete that too
+      squashedLevelRemove.Add(pos);
     }
   }
 
