@@ -1070,9 +1070,7 @@ public class FileSystem : MonoBehaviour
   private void DeleteVersionEx(FileInfo fileInfo, int version, int branchVersion, bool shouldSaveFile = true)
   {
     if (!FileDataExists(fileInfo.m_FileData))
-    {
       throw new Exception("No file data exists to delete version");
-    }
 
     if (IsManualSave(branchVersion))
     {
@@ -1090,9 +1088,12 @@ public class FileSystem : MonoBehaviour
         }
         else
         {
+          // Combine deltas and overwrite the newer version with the flattened data
           fileInfo.m_FileData.m_ManualSaves[i + 1] = FlattenLevelData(fileInfo.m_FileData.m_ManualSaves[i + 1], fileInfo.m_FileData.m_ManualSaves[i]);
           fileInfo.m_FileData.m_ManualSaves.RemoveAt(i);
         }
+
+        DeleteBranchedAutoSaves(fileInfo, version);
 
         if (shouldSaveFile)
           SaveAfterDeletion(fileInfo, version, branchVersion);
@@ -1118,6 +1119,22 @@ public class FileSystem : MonoBehaviour
       }
 
       throw new Exception($"Couldn't find autosave ({branchVersion}:{version}) to delete");
+    }
+  }
+
+  // Deletes all autosave off a versions branch
+  private void DeleteBranchedAutoSaves(FileInfo fileInfo, int version)
+  {
+    if (!FileDataExists(fileInfo.m_FileData))
+      throw new Exception("No file data exists to delete version");
+
+    for (int i = 0; i < fileInfo.m_FileData.m_AutoSaves.Count; ++i)
+    {
+      if (fileInfo.m_FileData.m_AutoSaves[i].m_BranchVersion == version)
+      {
+        fileInfo.m_FileData.m_AutoSaves.RemoveAt(i);
+        --i;
+      }
     }
   }
 
