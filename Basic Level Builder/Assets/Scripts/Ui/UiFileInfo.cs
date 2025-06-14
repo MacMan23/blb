@@ -211,6 +211,7 @@ public class UiFileInfo : MonoBehaviour
     }
     else
     {
+      DestroyImmediate(m_Selection[0].gameObject);
       UpdateVersionList();
     }
     Deselect();
