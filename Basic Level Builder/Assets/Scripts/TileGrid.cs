@@ -101,9 +101,6 @@ public class TileGrid : MonoBehaviour
 
   Dictionary<Vector2Int, Element> m_Grid = new();
   List<KeyValuePair<Vector2Int, Element>> m_GridSaveBuffer;
-  // The old grid from on level load. This grid won't change with the editor.
-  // This is so we don't have to load the level again when save the changes.
-  Dictionary<Vector2Int, Element> m_OldGrid = new();
   public Transform m_BoundsRoot;
   public Transform m_MaskTransform;
   public Transform m_ColoredOutlineTransform;
@@ -241,6 +238,11 @@ public class TileGrid : MonoBehaviour
     m_GridSaveBuffer = m_Grid.ToList();
   }
 
+  public List<KeyValuePair<Vector2Int, Element>> GetGridBuffer()
+  {
+    return m_GridSaveBuffer;
+  }
+
   public string ToJsonString()
   {
     var gridStringBuilder = new StringBuilder();
@@ -259,68 +261,6 @@ public class TileGrid : MonoBehaviour
     };
   }
 
-  // This should only be called once per save, as we are destorying saved data and overwriting it.
-  // Returns true if we found diffrences
-  public bool GetDifferences(out FileSystem.LevelData levelData)
-  {
-    levelData = new();
-
-    bool hasDiffrences = GetDifferencesHelper(ref levelData, ref m_OldGrid);
-
-    // Updates old grid to be the "new" grid
-    UpdateOldGrid();
-
-    return hasDiffrences;
-  }
-
-  public void UpdateOldGrid()
-  {
-    m_OldGrid = m_GridSaveBuffer.ToDictionary(pair => pair.Key, pair => pair.Value);
-  }
-
-  // This is a modified version of GetDifferences that doesn't modify the m_OldGrid
-  public bool GetDifferencesForAutoSave(out FileSystem.LevelData levelData)
-  {
-    levelData = new();
-
-    var tempOldGrid = m_OldGrid.ToDictionary(pair => pair.Key, pair => pair.Value);
-
-    return GetDifferencesHelper(ref levelData, ref tempOldGrid);
-  }
-
-  public bool GetDifferencesHelper(ref FileSystem.LevelData levelData, ref Dictionary<Vector2Int, Element> oldGrid)
-  {
-    bool hasDiffrences = false;
-
-    foreach (var kvp in m_GridSaveBuffer)
-    {
-      Vector2Int position = kvp.Key;
-      Element currentElement = kvp.Value;
-
-      if (oldGrid.TryGetValue(position, out Element oldElement))
-      {
-        bool same = currentElement.Equals(oldElement);
-
-        // Removed element so we don't check it again in the next loop
-        oldGrid.Remove(position);
-
-        if (same)
-          continue;
-      }
-      levelData.m_AddedTiles.Add(currentElement);
-      hasDiffrences = true;
-    }
-
-    // Every tile left in the old grid will be removed
-    foreach (var kvp in oldGrid)
-    {
-      levelData.m_RemovedTiles.Add(kvp.Key);
-      hasDiffrences = true;
-    }
-
-    return hasDiffrences;
-  }
-
   public void LoadFromDictonary(Dictionary<Vector2Int, Element> grid)
   {
     var startTime = DateTime.Now;
@@ -329,15 +269,13 @@ public class TileGrid : MonoBehaviour
 
     // Create a shallow copy of the dictonary
     m_Grid = grid.ToDictionary(pair => pair.Key, pair => pair.Value);
-    m_OldGrid = grid.ToDictionary(pair => pair.Key, pair => pair.Value);
 
     var successes = 0;
     var failures = 0;
 
     foreach (var element in m_Grid)
     {
-      // Create this tile for both the old and new grid.
-      // The new grid will create an object, the old will just have the data.
+      // Create this tile for the new grid.
       try
       {
         var index = element.Value.m_GridIndex;
@@ -367,8 +305,6 @@ public class TileGrid : MonoBehaviour
     var startTime = DateTime.Now;
 
     ForceClearGrid();
-    // Clear old grid to use to store the current level data
-    //m_OldGrid.Clear();
 
     var successes = 0;
     var failures = 0;
@@ -393,9 +329,6 @@ public class TileGrid : MonoBehaviour
         ++failures;
       }
     }
-
-    // Create a shallow copy of the dictonary
-    m_OldGrid = m_Grid.ToDictionary(pair => pair.Key, pair => pair.Value);
 
     RecomputeBounds();
 

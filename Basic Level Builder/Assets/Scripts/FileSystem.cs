@@ -66,9 +66,7 @@ public class FileSystem : MonoBehaviour
   FileInfo m_MountedFileInfo;
 
   // The version of the manual or autosave that is loaded
-  int m_loadedVersion;
-  // The branched manual save version the autosave is. 0 = manual save
-  int m_loadedBranchVersion;
+  Version m_loadedVersion;
 
   // A thread to run when saving should be performed.
   // Only one save thread is run at once.
@@ -130,6 +128,52 @@ public class FileSystem : MonoBehaviour
   }
 
   [Serializable]
+  public struct Version
+  {
+    public Version(int manual, int Auto)
+    {
+      m_ManualVersion = manual;
+      m_AutoVersion = Auto;
+    }
+
+    public override string ToString()
+    {
+      return $"Save version: Manual {m_ManualVersion}, Auto {m_AutoVersion}"; // Using string interpolation for a readable output
+    }
+
+    public bool Equals(Version rhs)
+    {
+      return m_ManualVersion == rhs.m_ManualVersion && m_AutoVersion == rhs.m_AutoVersion;
+    }
+
+    public static bool operator ==(Version left, Version right)
+    {
+      return left.Equals(right); // Delegate to Equals method
+    }
+
+    public static bool operator !=(Version left, Version right)
+    {
+      return !(left == right);
+    }
+
+    public override bool Equals(object obj)
+    {
+      return obj is Version other && Equals(other);
+    }
+
+    // Override GetHashCode
+    public override int GetHashCode()
+    {
+      return m_ManualVersion.GetHashCode() + m_AutoVersion.GetHashCode();
+    }
+
+    // The version of the manaul save, or maunal the auto is branched off of
+    public int m_ManualVersion;
+    // The autosave version, 0 if not an autosave
+    public int m_AutoVersion;
+  }
+
+  [Serializable]
   public class LevelData
   {
     public LevelData()
@@ -138,10 +182,8 @@ public class FileSystem : MonoBehaviour
       m_RemovedTiles = new List<Vector2Int>();
     }
 
-    public int m_Version;
-    // The manual save version the auto save branched off from
+    public Version m_Version;
     public string m_Name;
-    public int m_BranchVersion;
     public JsonDateTime m_TimeStamp;
     public List<TileGrid.Element> m_AddedTiles;
     public List<Vector2Int> m_RemovedTiles;
@@ -245,9 +287,6 @@ public class FileSystem : MonoBehaviour
   {
     m_MountedFileInfo = fileInfo;
     m_MountedFileInfo.m_SaveFilePath = filePath;
-    m_loadedBranchVersion = 0;
-    if (FileDataExists(m_MountedFileInfo.m_FileData) && m_MountedFileInfo.m_FileData.m_ManualSaves.Count > 0)
-      m_loadedBranchVersion = m_MountedFileInfo.m_FileData.m_ManualSaves[^1].m_Version;
   }
 
   bool FileExists(string filePath)
@@ -260,16 +299,16 @@ public class FileSystem : MonoBehaviour
     return !String.IsNullOrEmpty(m_MountedFileInfo.m_SaveFilePath);
   }
 
-  public void ExportVersion(string sourcePath, int version, int branchVersion)
+  public void ExportVersion(string sourcePath, Version version)
   {
     // Gather the level data to export
     GetDataFromFullPath(sourcePath, out FileInfo sourceFileInfo);
     m_PendingExportLevelData = new()
     {
       m_TimeStamp = DateTime.Now,
-      m_Version = 1,
+      m_Version = new(1, 0),
       m_Name = s_ManualSaveName + "1",
-      m_AddedTiles = new List<TileGrid.Element>(GetGridDictionaryFromFileData(sourceFileInfo.m_FileData, version, branchVersion).Values)
+      m_AddedTiles = new List<TileGrid.Element>(GetGridDictionaryFromFileData(sourceFileInfo.m_FileData, version).Values)
     };
 
     // Call dialogue to get export file name
@@ -465,13 +504,10 @@ public class FileSystem : MonoBehaviour
     m_TileGrid.GetLevelData(out LevelData levelData);
 
     levelData.m_TimeStamp = DateTime.Now;
-    levelData.m_Version = 1;
+    levelData.m_Version = new(1, 0);
     levelData.m_Name = s_ManualSaveName + "1";
 
     m_MountedFileInfo.m_FileData.m_ManualSaves.Add(levelData);
-
-    // Updates old grid to be the "new" grid
-    m_TileGrid.UpdateOldGrid();
 
     try
     {
@@ -579,50 +615,51 @@ public class FileSystem : MonoBehaviour
       // We have data to add/overwite to any file
       levelData.m_TimeStamp = DateTime.Now;
 
-      // Set the version of the save based off the last save
-      List<LevelData> savesList = autosave ? m_MountedFileInfo.m_FileData.m_AutoSaves : m_MountedFileInfo.m_FileData.m_ManualSaves;
-      if (savesList.Count > 0)
+      // Manual
+      if (!autosave)
       {
-        levelData.m_Version = savesList[^1].m_Version + 1;
-      }
-      else
-      {
-        levelData.m_Version = 1;
-      }
+        if (m_MountedFileInfo.m_FileData.m_ManualSaves.Count > 0)
+        {
+          levelData.m_Version = new(m_MountedFileInfo.m_FileData.m_ManualSaves[^1].m_Version.m_ManualVersion + 1, 0);
+        }
+        else
+        {
+          levelData.m_Version = new(1, 0);
+        }
 
-      // Set the name of the version to just the version
-      levelData.m_Name = s_ManualSaveName + levelData.m_Version.ToString();
+        // Set the name of the version to just the version
+        levelData.m_Name = s_ManualSaveName + levelData.m_Version.ToString();
 
+        m_MountedFileInfo.m_FileData.m_ManualSaves.Add(levelData);
+      }
       // If this is an auto save, store what version of the manual save we branched from to get these diffrences to save
-      if (autosave)
+      else
       {
         // If we a auto saving to a temp file
         if (m_MountedFileInfo.m_IsTempFile)
         {
-          // We aren't diffing from a manual save, but we list as 1 anyway since a val of 0 is treated as a manual save
-          levelData.m_BranchVersion = 1;
-          levelData.m_Version = 1;
+          // We aren't diffing from a manual save, but we list auto as 1 anyway since a val of 0 is treated as a manual save
+          levelData.m_Version = new(1, 1);
         }
         else
         {
           // Set the manual save version we are branching off from
           // Get the manual version or the branched manual version if we loaded an auto save
-          int version = (m_loadedBranchVersion == 0) ? m_loadedVersion : m_loadedBranchVersion;
-          levelData.m_BranchVersion = version;
+          levelData.m_Version.m_ManualVersion = m_loadedVersion.m_ManualVersion;
 
           // Check if there are other autosaves branched from this manual
           // If so, our version will be 1 more than the newest one
-          int lastVersion = GetLastAutoSaveVersion(m_MountedFileInfo.m_FileData, version);
-          levelData.m_Version = lastVersion + 1;
+          int lastVersion = GetLastAutoSaveVersion(m_MountedFileInfo.m_FileData, m_loadedVersion.m_ManualVersion);
+          levelData.m_Version.m_AutoVersion = lastVersion + 1;
         }
 
         // Overwrite name for autosaves
         //levelData.m_Name = s_AutoSaveName;
         // TODO: Remove this debug line and re add previous
-        levelData.m_Name = s_AutoSaveName + " BV: " + levelData.m_BranchVersion + " V: " + levelData.m_Version;
-      }
+        levelData.m_Name = s_AutoSaveName + " Manual: " + levelData.m_Version.m_ManualVersion + " Auto: " + levelData.m_Version.m_AutoVersion;
 
-      savesList.Add(levelData);
+        m_MountedFileInfo.m_FileData.m_AutoSaves.Add(levelData);
+      }
     }
     else
     {
@@ -634,9 +671,9 @@ public class FileSystem : MonoBehaviour
     #endregion Add level changes to level data
 
     // If we have reach the max manual saves for the first time, give a warning that we will start to delete saves.
-    if (m_MountedFileInfo.m_FileData.m_ManualSaves.Count > 0 && s_MaxManualSaveCount == m_MountedFileInfo.m_FileData.m_ManualSaves[^1].m_Version)
+    if (m_MountedFileInfo.m_FileData.m_ManualSaves.Count > s_MaxManualSaveCount)
     {
-      Debug.Log("You have reached the maximum number of manual saves. " +
+      Debug.Log("You have reached the maximum number of saves. " +
         "Any more saves on this save file will delete your oldest save to make room for you new saves.");
       // TODO, give warning popup
     }
@@ -684,6 +721,52 @@ public class FileSystem : MonoBehaviour
       m_MainThreadDispatcher.Enqueue(() => StatusBar.Print(errorString));
       Debug.LogError(errorString);
     }
+  }
+
+  private bool GetDiffrencesFromLatest(out LevelData diffrences, FileInfo file)
+  {
+    return GetDiffrencesFromVersion(out diffrences, file, new(int.MaxValue, 0));
+  }
+
+  private bool GetDiffrencesFromVersion(out LevelData diffrences, FileInfo file, Version version)
+  {
+    // TODO, load the grid up to the version, then pass it in
+
+    return GetDifferences(out diffrences, );
+  }
+
+  // Make sure m_TileGrid.CopyGridBuffer is called before hand
+  private bool GetDifferences(ref LevelData diffrences, ref Dictionary<Vector2Int, TileGrid.Element> oldGrid)
+  {
+    bool hasDiffrences = false;
+
+    foreach (var kvp in m_TileGrid.GetGridBuffer())
+    {
+      Vector2Int position = kvp.Key;
+      TileGrid.Element currentElement = kvp.Value;
+
+      if (oldGrid.TryGetValue(position, out TileGrid.Element oldElement))
+      {
+        bool same = currentElement.Equals(oldElement);
+
+        // Removed element so we don't check it again in the next loop
+        oldGrid.Remove(position);
+
+        if (same)
+          continue;
+      }
+      diffrences.m_AddedTiles.Add(currentElement);
+      hasDiffrences = true;
+    }
+
+    // Every tile left in the old grid will be removed
+    foreach (var kvp in oldGrid)
+    {
+      diffrences.m_RemovedTiles.Add(kvp.Key);
+      hasDiffrences = true;
+    }
+
+    return hasDiffrences;
   }
 
   private void UpdateFileToItemList(string fullPath, bool overwriting)
@@ -850,7 +933,7 @@ public class FileSystem : MonoBehaviour
     GetDataFromJson(File.ReadAllBytes(fullPath), fileInfo);
   }
 
-  public void LoadFromFullPath(string fullPath, int version = int.MaxValue, int branchVersion = 0)
+  public void LoadFromFullPath(string fullPath, Version? version = null)
   {
     if (GlobalData.AreEffectsUnderway())
       return;
@@ -858,7 +941,7 @@ public class FileSystem : MonoBehaviour
     try
     {
       MountFile(fullPath, m_MountedFileInfo);
-      LoadFromJson(File.ReadAllBytes(fullPath), version, branchVersion);
+      LoadFromJson(File.ReadAllBytes(fullPath), version);
     }
     catch (Exception e)
     {
@@ -886,15 +969,18 @@ public class FileSystem : MonoBehaviour
   }
 
   // Intermidiatarty load function. Calls the rest of the load functions.
-  void LoadFromJson(byte[] json, int version = int.MaxValue, int branchVersion = 0)
+  void LoadFromJson(byte[] json, Version? version = null)
   {
+    // Sets the default value if no version is specified
+    version ??= new(int.MaxValue, 0);
+
     // Make sure we have file data for the load
     if (!FileDataExists(m_MountedFileInfo.m_FileData))
       CreateFileInfo(out m_MountedFileInfo);
 
     GetDataFromJson(json, m_MountedFileInfo);
 
-    m_TileGrid.LoadFromDictonary(GetGridDictionaryFromFileData(m_MountedFileInfo.m_FileData, version, branchVersion));
+    m_TileGrid.LoadFromDictonary(GetGridDictionaryFromFileData(m_MountedFileInfo.m_FileData, version));
   }
 
   /// <summary>
@@ -943,13 +1029,10 @@ public class FileSystem : MonoBehaviour
 
   // Will convert the level data to a Dictionary of elements up to the passed in version
   // If no version is passed in, we will flatten to the latest version
-  Dictionary<Vector2Int, TileGrid.Element> GetGridDictionaryFromFileData(FileData fileData, int version = int.MaxValue, int branchVersion = 0)
+  Dictionary<Vector2Int, TileGrid.Element> GetGridDictionaryFromFileData(FileData fileData, Version? tempVersion = null)
   {
-    int manualVersion = version;
-    bool isAutoSave = !IsManualSave(branchVersion);
-    // Check if we are loading an autosave
-    if (isAutoSave)
-      manualVersion = branchVersion;
+    // Sets the default value if no version is specified
+    Version version = tempVersion ?? new(int.MaxValue, 0);
 
     Dictionary<Vector2Int, TileGrid.Element> tiles = new();
 
@@ -957,7 +1040,7 @@ public class FileSystem : MonoBehaviour
     foreach (var levelData in fileData.m_ManualSaves)
     {
       // Stop flattening the level once we pass the version we want
-      if (levelData.m_Version > manualVersion)
+      if (levelData.m_Version.m_ManualVersion > version.m_ManualVersion)
         break;
 
       foreach (var tile in levelData.m_AddedTiles)
@@ -971,12 +1054,12 @@ public class FileSystem : MonoBehaviour
     }
 
     // If we are loading a autosave, load the branch now
-    if (isAutoSave)
+    if (!IsManualSave(version))
     {
       try
       {
         // Find the level data from the auto save version
-        GetAutoSaveVersionLevelData(fileData, branchVersion, version, out LevelData autoSaveData);
+        GetVersionLevelData(fileData, version, out LevelData autoSaveData);
 
         foreach (var tile in autoSaveData.m_AddedTiles)
         {
@@ -989,7 +1072,7 @@ public class FileSystem : MonoBehaviour
       }
       catch (InvalidOperationException)
       {
-        Debug.Log($"Couldn't find the branched autosave version {version}, from manual version {branchVersion} in file `{m_MountedFileInfo.m_SaveFilePath}");
+        Debug.Log($"Couldn't find {version} in file `{m_MountedFileInfo.m_SaveFilePath}");
         m_MainThreadDispatcher.Enqueue(() => StatusBar.Print("Error, couldn't find the proper autosave to load. Loaded branched manual instead."));
         // Just return the tiles we've loaded so far (the manual save)
       }
@@ -1031,13 +1114,13 @@ public class FileSystem : MonoBehaviour
   /// Removes a number od saved versions and saves the file
   /// </summary>
   /// <param name="fileInfo">The file info containing the save.</param>
-  /// <param name="versions">A list of versions to delete in pairs of <version, branch version>.</param>
+  /// <param name="versions">A list of versions to delete.</param>
   /// <exception cref="Exception">Thrown when an error occurs.</exception>
-  public void DeleteVersions(FileInfo fileInfo, List<Tuple<int, int>> versions)
+  public void DeleteVersions(FileInfo fileInfo, List<Version> versions)
   {
     foreach (var version in versions)
     {
-      DeleteVersionEx(fileInfo, version.Item1, version.Item2, false);
+      DeleteVersionEx(fileInfo, version, false);
     }
 
     try
@@ -1059,20 +1142,19 @@ public class FileSystem : MonoBehaviour
   /// </summary>
   /// <param name="fileInfo">The file info containing the save.</param>
   /// <param name="version">The version of the save to delete.</param>
-  /// <param name="branchVersion">The branch version of the save to delete.</param>
   /// <exception cref="Exception">Thrown when an error occurs.</exception>
   /// 
-  public void DeleteVersion(FileInfo fileInfo, int version, int branchVersion = 0)
+  public void DeleteVersion(FileInfo fileInfo, Version version)
   {
-    DeleteVersionEx(fileInfo, version, branchVersion, true);
+    DeleteVersionEx(fileInfo, version, true);
   }
 
-  private void DeleteVersionEx(FileInfo fileInfo, int version, int branchVersion, bool shouldSaveFile = true)
+  private void DeleteVersionEx(FileInfo fileInfo, Version version, bool shouldSaveFile = true)
   {
     if (!FileDataExists(fileInfo.m_FileData))
       throw new Exception("No file data exists to delete version");
 
-    if (IsManualSave(branchVersion))
+    if (IsManualSave(version))
     {
       // Loop to find our manual save
       for (int i = 0; i < fileInfo.m_FileData.m_ManualSaves.Count; ++i)
@@ -1093,33 +1175,30 @@ public class FileSystem : MonoBehaviour
           fileInfo.m_FileData.m_ManualSaves.RemoveAt(i);
         }
 
-        DeleteBranchedAutoSaves(fileInfo, version);
+        DeleteBranchedAutoSaves(fileInfo, version.m_ManualVersion);
 
         if (shouldSaveFile)
-          SaveAfterDeletion(fileInfo, version, branchVersion);
+          SaveAfterDeletion(fileInfo, version);
         return;
       }
-
-      throw new Exception($"Couldn't find maual save version {version} to delete");
     }
     else
     {
       // Find auto save version
       for (int i = 0; i < fileInfo.m_FileData.m_AutoSaves.Count; ++i)
       {
-        if (fileInfo.m_FileData.m_AutoSaves[i].m_BranchVersion == branchVersion &&
-          fileInfo.m_FileData.m_AutoSaves[i].m_Version == version)
+        if (fileInfo.m_FileData.m_AutoSaves[i].m_Version == version)
         {
           fileInfo.m_FileData.m_AutoSaves.RemoveAt(i);
 
           if (shouldSaveFile)
-            SaveAfterDeletion(fileInfo, version, branchVersion);
+            SaveAfterDeletion(fileInfo, version);
           return;
         }
       }
-
-      throw new Exception($"Couldn't find autosave ({branchVersion}:{version}) to delete");
     }
+
+    throw new Exception($"Couldn't find {version} to delete");
   }
 
   // Deletes all autosave off a versions branch
@@ -1130,7 +1209,7 @@ public class FileSystem : MonoBehaviour
 
     for (int i = 0; i < fileInfo.m_FileData.m_AutoSaves.Count; ++i)
     {
-      if (fileInfo.m_FileData.m_AutoSaves[i].m_BranchVersion == version)
+      if (fileInfo.m_FileData.m_AutoSaves[i].m_Version.m_ManualVersion == version)
       {
         fileInfo.m_FileData.m_AutoSaves.RemoveAt(i);
         --i;
@@ -1138,7 +1217,7 @@ public class FileSystem : MonoBehaviour
     }
   }
 
-  private void SaveAfterDeletion(FileInfo fileInfo, int version, int branchVersion)
+  private void SaveAfterDeletion(FileInfo fileInfo, Version version)
   {
     try
     {
@@ -1146,18 +1225,13 @@ public class FileSystem : MonoBehaviour
     }
     catch (Exception e)
     {
-      if (IsManualSave(branchVersion))
-        throw new Exception($"Failed to save file after deleting version {version}\nException {e.Message}, {e.GetType()}");
-      else
-        throw new Exception($"Failed to save file after deleting autosave ({branchVersion}:{version})\nException {e.Message}, {e.GetType()}");
+      throw new Exception($"Failed to save file after deleting {version}\nException {e.Message}, {e.GetType()}");
+
     }
 
     MoveFileItemToTop(m_SaveList, fileInfo.m_SaveFilePath);
 
-    if (IsManualSave(branchVersion))
-      StatusBar.Print($"Sucessfuly deleted save version : {version} from {fileInfo.m_SaveFilePath}");
-    else
-      StatusBar.Print($"Sucessfuly deleted autosave ({branchVersion}:{version}) from {fileInfo.m_SaveFilePath}");
+    StatusBar.Print($"Sucessfuly deleted {version} from {fileInfo.m_SaveFilePath}");
   }
 
   // Combines two versions level data
@@ -1198,64 +1272,15 @@ public class FileSystem : MonoBehaviour
     }
   }
 
-  public void GetVersionLevelData(FileData fileData, out LevelData levelData, int version, int branchVersion = 0)
+  public void GetVersionLevelData(FileData fileData, Version version, out LevelData levelData)
   {
-    if (IsManualSave(branchVersion))
-    {
-      GetManualSaveVersionLevelData(fileData, version, out levelData);
-    }
-    else
-    {
-      GetAutoSaveVersionLevelData(fileData, branchVersion, version, out levelData);
-    }
-  }
+    if (fileData == null)
+      throw new InvalidOperationException("File data is null");
 
-  /// <summary>
-  /// Gets an auto save version from the file data.
-  /// </summary>
-  /// <param name="fileData">The file data to search in.</param>
-  /// <param name="branchVersion">The branch version to find.</param>
-  /// <param name="version">The version to find.</param>
-  /// <param name="levelData">The level data output parameter.</param>
-  /// <exception cref="InvalidOperationException">Thrown when the version cannot be found.</exception>
-  public void GetAutoSaveVersionLevelData(FileData fileData, int branchVersion, int version, out LevelData levelData)
-  {
     levelData = new();
 
-    if (fileData == null)
-    {
-      throw new InvalidOperationException("File data is null");
-    }
-
-    foreach (var data in fileData.m_AutoSaves)
-    {
-      if (data.m_BranchVersion == branchVersion && data.m_Version == version)
-      {
-        levelData = data;
-        return;
-      }
-    }
-
-    throw new InvalidOperationException($"Auto save version {version} with branch version {branchVersion} not found");
-  }
-
-  /// <summary>
-  /// Gets a manual save version from the file data.
-  /// </summary>
-  /// <param name="fileData">The file data to search in.</param>
-  /// <param name="version">The version to find.</param>
-  /// <param name="levelData">The level data output parameter.</param>
-  /// <exception cref="InvalidOperationException">Thrown when the version cannot be found.</exception>
-  public void GetManualSaveVersionLevelData(FileData fileData, int version, out LevelData levelData)
-  {
-    levelData = new();
-
-    if (fileData == null)
-    {
-      throw new InvalidOperationException("File data is null");
-    }
-
-    foreach (var data in fileData.m_ManualSaves)
+    List<LevelData> levelList = IsManualSave(version) ? fileData.m_ManualSaves : fileData.m_AutoSaves;
+    foreach (var data in levelList)
     {
       if (data.m_Version == version)
       {
@@ -1264,18 +1289,18 @@ public class FileSystem : MonoBehaviour
       }
     }
 
-    throw new InvalidOperationException($"Manual save version {version} not found");
+    throw new InvalidOperationException($"{version} can not found");
   }
 
-  // Finds the newest autosave from a branched version
+  // Finds the newest autosave from a manual save version
   // Returns 0 if no versions were found
-  int GetLastAutoSaveVersion(FileData fileData, int branchVersion)
+  int GetLastAutoSaveVersion(FileData fileData, int manualVersion)
   {
     int lastVersion = 0;
     foreach (var data in fileData.m_AutoSaves)
     {
-      if (data.m_BranchVersion == branchVersion && data.m_Version > lastVersion)
-        lastVersion = data.m_Version;
+      if (data.m_Version.m_ManualVersion == manualVersion && data.m_Version.m_AutoVersion > lastVersion)
+        lastVersion = data.m_Version.m_AutoVersion;
     }
     return lastVersion;
   }
@@ -1445,13 +1470,18 @@ public class FileSystem : MonoBehaviour
   }
 
   /// <summary>
-  /// Checks if a save is a manual save based on its branch version.
+  /// Checks if a save is a manual save based on its auto version.
   /// </summary>
-  /// <param name="branchVersion">The branch version to check</param>
+  /// <param name="autoVersion">The auto version to check</param>
   /// <returns>True if it's a manual save, false if it's an auto save</returns>
-  bool IsManualSave(int branchVersion)
+  bool IsManualSave(int autoVersion)
   {
-    return branchVersion == 0; // Branch version 0 indicates a manual save
+    return autoVersion == 0; // Auto version 0 indicates a manual save
+  }
+
+  bool IsManualSave(Version version)
+  {
+    return version.m_AutoVersion == 0; // Auto version 0 indicates a manual save
   }
 
   /// <summary>
