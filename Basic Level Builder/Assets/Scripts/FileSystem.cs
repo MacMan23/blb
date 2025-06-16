@@ -1252,7 +1252,7 @@ public class FileSystem : MonoBehaviour
     // If deleting from our own loaded file
     if (m_MountedFileInfo.m_SaveFilePath == fileInfo.m_SaveFilePath)
     {
-      // If we deleted the verstion we had loaded add on to the first manaul save
+      // If we deleted the version we had loaded, add on to the newest manaul save
       if (m_loadedVersion.m_ManualVersion == version.m_ManualVersion && fileInfo.m_FileData.m_ManualSaves.Count > 0)
       {
         m_loadedVersion = fileInfo.m_FileData.m_ManualSaves[^1].m_Version;
