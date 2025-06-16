@@ -146,17 +146,17 @@ public class FileSystem : MonoBehaviour
       m_AutoVersion = Auto;
     }
 
-    public bool IsManual()
+    public readonly bool IsManual()
     {
       return m_AutoVersion == 0;
     }
 
-    public override string ToString()
+    public override readonly string ToString()
     {
       return $"Save version: Manual {m_ManualVersion}, Auto {m_AutoVersion}"; // Using string interpolation for a readable output
     }
 
-    public bool Equals(Version rhs)
+    public readonly bool Equals(Version rhs)
     {
       return m_ManualVersion == rhs.m_ManualVersion && m_AutoVersion == rhs.m_AutoVersion;
     }
@@ -182,7 +182,7 @@ public class FileSystem : MonoBehaviour
       return m_ManualVersion.GetHashCode() + m_AutoVersion.GetHashCode();
     }
 
-    public int CompareTo(Version other)
+    public readonly int CompareTo(Version other)
     {
       // Sorts Largest to Smallest/Top to Bottom
       // -# = This goes up
@@ -973,6 +973,9 @@ public class FileSystem : MonoBehaviour
 
     try
     {
+      if (!FileDataExists(m_MountedFileInfo.m_FileData))
+        CreateFileInfo(out m_MountedFileInfo);
+
       MountFile(fullPath, m_MountedFileInfo);
       LoadFromJson(File.ReadAllBytes(fullPath), version);
 
@@ -1157,6 +1160,13 @@ public class FileSystem : MonoBehaviour
 
     try
     {
+      // If deleting from our own loaded file
+      // Update the mounted data to the new data
+      if (m_MountedFileInfo.m_SaveFilePath == fileInfo.m_SaveFilePath)
+      {
+        m_MountedFileInfo = fileInfo;
+      }
+
       WriteDataToFile(fileInfo.m_SaveFilePath, fileInfo);
     }
     catch (Exception e)
@@ -1211,6 +1221,8 @@ public class FileSystem : MonoBehaviour
 
         if (shouldSaveFile)
           SaveAfterDeletion(fileInfo, version);
+
+        UpdatedLoadedVersionIfDeleted(fileInfo, version);
         return;
       }
     }
@@ -1225,12 +1237,27 @@ public class FileSystem : MonoBehaviour
 
           if (shouldSaveFile)
             SaveAfterDeletion(fileInfo, version);
+
+          UpdatedLoadedVersionIfDeleted(fileInfo, version);
           return;
         }
       }
     }
 
     throw new Exception($"Couldn't find {version} to delete");
+  }
+
+  private void UpdatedLoadedVersionIfDeleted(FileInfo fileInfo, Version version)
+  {
+    // If deleting from our own loaded file
+    if (m_MountedFileInfo.m_SaveFilePath == fileInfo.m_SaveFilePath)
+    {
+      // If we deleted the verstion we had loaded add on to the first manaul save
+      if (m_loadedVersion.m_ManualVersion == version.m_ManualVersion && fileInfo.m_FileData.m_ManualSaves.Count > 0)
+      {
+        m_loadedVersion = fileInfo.m_FileData.m_ManualSaves[^1].m_Version;
+      }
+    }
   }
 
   // Deletes all autosave off a versions branch
@@ -1253,6 +1280,13 @@ public class FileSystem : MonoBehaviour
   {
     try
     {
+      // If deleting from our own loaded file
+      // Update the mounted data to the new data
+      if (m_MountedFileInfo.m_SaveFilePath == fileInfo.m_SaveFilePath)
+      {
+        m_MountedFileInfo = fileInfo;
+      }
+
       WriteDataToFile(fileInfo.m_SaveFilePath, fileInfo);
     }
     catch (Exception e)
