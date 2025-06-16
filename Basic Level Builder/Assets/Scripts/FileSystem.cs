@@ -19,7 +19,17 @@ public class FileSystem : MonoBehaviour
 {
   #region singleton
   private static FileSystem _instance;
-  public static FileSystem Instance { get { return _instance; } }
+  public static FileSystem Instance
+  {
+    get
+    {
+      if (_instance == null)
+      {
+        _instance = FindObjectOfType<FileSystem>();
+      }
+      return _instance;
+    }
+  }
 
   private void Awake()
   {
@@ -136,6 +146,11 @@ public class FileSystem : MonoBehaviour
       m_AutoVersion = Auto;
     }
 
+    public bool IsManual()
+    {
+      return m_AutoVersion == 0;
+    }
+
     public override string ToString()
     {
       return $"Save version: Manual {m_ManualVersion}, Auto {m_AutoVersion}"; // Using string interpolation for a readable output
@@ -165,6 +180,31 @@ public class FileSystem : MonoBehaviour
     public override int GetHashCode()
     {
       return m_ManualVersion.GetHashCode() + m_AutoVersion.GetHashCode();
+    }
+
+    public int CompareTo(Version other)
+    {
+      // Sorts Largest to Smallest/Top to Bottom
+      // -# = This goes up
+      // +# = This goes down
+      // == This stays
+
+      int diff = other.m_ManualVersion - m_ManualVersion;
+
+      // If they are the same maunal save, one (or both) of them is an autosave.
+      if (diff == 0)
+      {
+        // Sort the auto saves to have the newest on top
+        diff = other.m_AutoVersion - m_AutoVersion;
+
+        // If either werer a manaul save, we need to put that on top
+        if (other.m_AutoVersion == 0)
+          diff = 1;
+        if (m_AutoVersion == 0)
+          diff = -1;
+      }
+
+      return diff;
     }
 
     // The version of the manaul save, or maunal the auto is branched off of
@@ -555,12 +595,7 @@ public class FileSystem : MonoBehaviour
 
     // If we will be copying the mounted file over to a diffrent file
     bool copyFile = false;
-    LevelData levelData;
-    bool hasDifferences;
-    if (autosave)
-      hasDifferences = m_TileGrid.GetDifferencesForAutoSave(out levelData);
-    else
-      hasDifferences = m_TileGrid.GetDifferences(out levelData);
+    bool hasDifferences = GetDifferences(out LevelData levelData, m_MountedFileInfo);
 
     // If we are writting to our own file yet we have no changes, skip the save
     // Or we are writting to a temp file with no changes, ignore write
@@ -628,7 +663,7 @@ public class FileSystem : MonoBehaviour
         }
 
         // Set the name of the version to just the version
-        levelData.m_Name = s_ManualSaveName + levelData.m_Version.ToString();
+        levelData.m_Name = s_ManualSaveName + levelData.m_Version.m_ManualVersion;
 
         m_MountedFileInfo.m_FileData.m_ManualSaves.Add(levelData);
       }
@@ -656,7 +691,7 @@ public class FileSystem : MonoBehaviour
         // Overwrite name for autosaves
         //levelData.m_Name = s_AutoSaveName;
         // TODO: Remove this debug line and re add previous
-        levelData.m_Name = s_AutoSaveName + " Manual: " + levelData.m_Version.m_ManualVersion + " Auto: " + levelData.m_Version.m_AutoVersion;
+        levelData.m_Name = s_AutoSaveName + " " + levelData.m_Version;
 
         m_MountedFileInfo.m_FileData.m_AutoSaves.Add(levelData);
       }
@@ -682,6 +717,12 @@ public class FileSystem : MonoBehaviour
       bool shouldMountSave = true;
       WriteDataToFile(destFilePath, m_MountedFileInfo, shouldMountSave,
       overwriting, startTime, autosave, copyFile, shouldPrintElapsedTime);
+
+      // If we are saving to the file we have mounted, set our loaded version to that new save
+      if (m_MountedFileInfo.m_SaveFilePath == destFilePath || shouldMountSave)
+      {
+        m_loadedVersion = levelData.m_Version;
+      }
     }
     catch (Exception e)
     {
@@ -723,21 +764,13 @@ public class FileSystem : MonoBehaviour
     }
   }
 
-  private bool GetDiffrencesFromLatest(out LevelData diffrences, FileInfo file)
-  {
-    return GetDiffrencesFromVersion(out diffrences, file, new(int.MaxValue, 0));
-  }
-
-  private bool GetDiffrencesFromVersion(out LevelData diffrences, FileInfo file, Version version)
-  {
-    // TODO, load the grid up to the version, then pass it in
-
-    return GetDifferences(out diffrences, );
-  }
-
   // Make sure m_TileGrid.CopyGridBuffer is called before hand
-  private bool GetDifferences(ref LevelData diffrences, ref Dictionary<Vector2Int, TileGrid.Element> oldGrid)
+  private bool GetDifferences(out LevelData diffrences, FileInfo file, Version? version = null)
   {
+    diffrences = new();
+
+    Dictionary<Vector2Int, TileGrid.Element> oldGrid = GetGridDictionaryFromFileData(file.m_FileData, version);
+
     bool hasDiffrences = false;
 
     foreach (var kvp in m_TileGrid.GetGridBuffer())
@@ -942,6 +975,8 @@ public class FileSystem : MonoBehaviour
     {
       MountFile(fullPath, m_MountedFileInfo);
       LoadFromJson(File.ReadAllBytes(fullPath), version);
+
+      m_loadedVersion = version ?? new(GetLastManualSaveVersion(m_MountedFileInfo.m_FileData), 0);
     }
     catch (Exception e)
     {
@@ -971,9 +1006,6 @@ public class FileSystem : MonoBehaviour
   // Intermidiatarty load function. Calls the rest of the load functions.
   void LoadFromJson(byte[] json, Version? version = null)
   {
-    // Sets the default value if no version is specified
-    version ??= new(int.MaxValue, 0);
-
     // Make sure we have file data for the load
     if (!FileDataExists(m_MountedFileInfo.m_FileData))
       CreateFileInfo(out m_MountedFileInfo);
@@ -1054,7 +1086,7 @@ public class FileSystem : MonoBehaviour
     }
 
     // If we are loading a autosave, load the branch now
-    if (!IsManualSave(version))
+    if (!version.IsManual())
     {
       try
       {
@@ -1154,7 +1186,7 @@ public class FileSystem : MonoBehaviour
     if (!FileDataExists(fileInfo.m_FileData))
       throw new Exception("No file data exists to delete version");
 
-    if (IsManualSave(version))
+    if (version.IsManual())
     {
       // Loop to find our manual save
       for (int i = 0; i < fileInfo.m_FileData.m_ManualSaves.Count; ++i)
@@ -1279,7 +1311,7 @@ public class FileSystem : MonoBehaviour
 
     levelData = new();
 
-    List<LevelData> levelList = IsManualSave(version) ? fileData.m_ManualSaves : fileData.m_AutoSaves;
+    List<LevelData> levelList = version.IsManual() ? fileData.m_ManualSaves : fileData.m_AutoSaves;
     foreach (var data in levelList)
     {
       if (data.m_Version == version)
@@ -1301,6 +1333,19 @@ public class FileSystem : MonoBehaviour
     {
       if (data.m_Version.m_ManualVersion == manualVersion && data.m_Version.m_AutoVersion > lastVersion)
         lastVersion = data.m_Version.m_AutoVersion;
+    }
+    return lastVersion;
+  }
+
+  // Finds the newest autosave from a manual save version
+  // Returns 0 if no versions were found
+  int GetLastManualSaveVersion(FileData fileData)
+  {
+    int lastVersion = 0;
+    foreach (var data in fileData.m_ManualSaves)
+    {
+      if (data.m_Version.m_ManualVersion > lastVersion)
+        lastVersion = data.m_Version.m_ManualVersion;
     }
     return lastVersion;
   }
@@ -1467,21 +1512,6 @@ public class FileSystem : MonoBehaviour
   string CreateTempFileName()
   {
     return Path.Combine(m_CurrentDirectoryPath, Guid.NewGuid().ToString() + s_FilenameExtension);
-  }
-
-  /// <summary>
-  /// Checks if a save is a manual save based on its auto version.
-  /// </summary>
-  /// <param name="autoVersion">The auto version to check</param>
-  /// <returns>True if it's a manual save, false if it's an auto save</returns>
-  bool IsManualSave(int autoVersion)
-  {
-    return autoVersion == 0; // Auto version 0 indicates a manual save
-  }
-
-  bool IsManualSave(Version version)
-  {
-    return version.m_AutoVersion == 0; // Auto version 0 indicates a manual save
   }
 
   /// <summary>

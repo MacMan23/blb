@@ -72,17 +72,12 @@ public class UiHistoryItem : MonoBehaviour
 
   public bool IsManualSave()
   {
-    return m_LevelData.m_BranchVersion == 0;
+    return m_LevelData.m_Version.IsManual();
   }
 
-  public int GetVersion()
+  public FileSystem.Version GetVersion()
   {
     return m_LevelData.m_Version;
-  }
-
-  public int GetBranchVersion()
-  {
-    return m_LevelData.m_BranchVersion;
   }
 
   public string GetFilePath()
@@ -119,7 +114,7 @@ public class UiHistoryItem : MonoBehaviour
 
   public void Load()
   {
-    FileSystem.Instance.LoadFromFullPath(m_FullFilePath, m_LevelData.m_Version, m_LevelData.m_BranchVersion);
+    FileSystem.Instance.LoadFromFullPath(m_FullFilePath, m_LevelData.m_Version);
     OnCloseInfoWindow?.Invoke();
   }
 
@@ -243,35 +238,7 @@ public class UiHistoryItem : MonoBehaviour
 
   public int CompareTo(UiHistoryItem other)
   {
-    // Sorts Largest to Smallest/Top to Bottom
-    // -# = This goes up
-    // +# = This goes down
-    // == This stays
-
-    bool thisIsManual = IsManualSave();
-    bool otherIsManual = other.IsManualSave();
-
-    if (thisIsManual && otherIsManual)
-      return other.m_LevelData.m_Version - m_LevelData.m_Version;
-
-    if (thisIsManual)
-    {
-      int val = other.m_LevelData.m_BranchVersion - m_LevelData.m_Version;
-      // If we return 0 they might stay on top of their branched version, so return -1 to move us up
-      return val == 0 ? -1 : val;
-    }
-
-    if (otherIsManual)
-    {
-      int val = other.m_LevelData.m_Version - m_LevelData.m_BranchVersion;
-      // If we return 0 we might stay on top of our branched version, so return 1 to move down
-      return val == 0 ? 1 : val;
-    }
-
-    // Both are auto saves
-    return (other.m_LevelData.m_BranchVersion != m_LevelData.m_BranchVersion)
-        ? other.m_LevelData.m_BranchVersion - m_LevelData.m_BranchVersion
-        : other.m_LevelData.m_Version - m_LevelData.m_Version;
+    return GetVersion().CompareTo(other.GetVersion());
   }
 }
 

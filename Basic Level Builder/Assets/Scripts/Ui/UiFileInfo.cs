@@ -172,7 +172,7 @@ public class UiFileInfo : MonoBehaviour
     UiHistoryItem item = m_Selection[0];
 
     if (item)
-      FileSystem.Instance.ExportVersion(item.GetFilePath(), item.GetVersion(), item.GetBranchVersion());
+      FileSystem.Instance.ExportVersion(item.GetFilePath(), item.GetVersion());
   }
 
   // TODO: If deleting last manual save ask if want to delete whole file.
@@ -188,17 +188,17 @@ public class UiFileInfo : MonoBehaviour
     FileSystem.Instance.GetDataFromFullPath(m_FullFilePath, out FileSystem.FileInfo fileInfo);
     if (m_Selection.Count > 1)
     {
-      List<Tuple<int, int>> versions = new();
+      List<FileSystem.Version> versions = new();
       foreach (var item in m_Selection)
       {
-        versions.Add(new(item.GetVersion(), item.GetBranchVersion()));
+        versions.Add(item.GetVersion());
       }
 
       FileSystem.Instance.DeleteVersions(fileInfo, versions);
     }
     else
     {
-      FileSystem.Instance.DeleteVersion(fileInfo, m_Selection[0].GetVersion(), m_Selection[0].GetBranchVersion());
+      FileSystem.Instance.DeleteVersion(fileInfo, m_Selection[0].GetVersion());
     }
 
     // We changed up a lot if we deleted a manual and its autos
@@ -387,9 +387,9 @@ public class UiFileInfo : MonoBehaviour
     {
       if (m_Selection[i].IsManualSave())
       {
-        lastManual = m_Selection[i].GetVersion();
+        lastManual = m_Selection[i].GetVersion().m_ManualVersion;
       }
-      else if (lastManual == m_Selection[i].GetBranchVersion())
+      else if (lastManual == m_Selection[i].GetVersion().m_ManualVersion)
       {
         m_Selection[i].Deselect();
         m_Selection[i].SetColorAsSelected();
