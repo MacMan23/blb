@@ -363,11 +363,20 @@ public class UiFileInfo : MonoBehaviour
     else
     {
       m_versionInfoText.text = "<b>Multiple Version Selected</b>\r\n";
+      m_versionInfoText.text += "<color=#C6C6C6>" + m_Selection[0].GetVersionName();
 
-      m_versionInfoText.text += "<color=#C6C6C6>" + m_Selection[0].GetVersionName() + "</color>";
-      foreach (var item in m_Selection.GetRange(1, m_Selection.Count - 1))
+      // Add all selected items up to 4 total
+      if (m_Selection.Count < 5)
       {
-        m_versionInfoText.text += "<color=#C6C6C6>, " + item.GetVersionName() + "</color>";
+        foreach (var item in m_Selection.GetRange(1, m_Selection.Count - 1))
+        {
+          m_versionInfoText.text += ", " + item.GetVersionName();
+        }
+      }
+      else
+      {
+        // Only add an ellipsis and the last item if we have too many selected
+        m_versionInfoText.text += " .... " + m_Selection[^1].GetVersionName();
       }
 
       // Remove the export and load buttons as we can't do that when multiple versions are selected
