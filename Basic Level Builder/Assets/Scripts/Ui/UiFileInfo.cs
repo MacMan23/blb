@@ -31,6 +31,10 @@ public class UiFileInfo : MonoBehaviour
   private GameObject m_DeleteButton;
 
   private List<UiHistoryItem> m_Selection = new();
+  // The first selected item to use when selecting in a range
+  // This will update for as long as the range selection modifier is not held
+  // If the modifier is held, it will select all items between this index and the next selected item
+  private int m_RangeSelectionFirstIndex = 0;
 
   private string m_FullFilePath;
 
@@ -210,11 +214,9 @@ public class UiFileInfo : MonoBehaviour
       LoadHistoryItemList();
     }
     else
-    {
       DestroyImmediate(m_Selection[0].gameObject);
-      UpdateVersionList();
-    }
-    Deselect();
+    ClearSelection();
+    UpdateVersionInfo();
   }
 
   private int GetNumberExpandedSaves()
@@ -301,14 +303,13 @@ public class UiFileInfo : MonoBehaviour
     return items;
   }
 
-  private void Deselect()
+  private void ClearSelection()
   {
-    OnHistoryItemSelected(null);
-
     foreach (var item in GetAllHistoryItems())
     {
       item.Deselect();
     }
+    m_Selection.Clear();
   }
 
   private void OnHistoryItemSelected(UiHistoryItem selectedItem)
@@ -316,27 +317,62 @@ public class UiFileInfo : MonoBehaviour
     // Clear text if null
     if (selectedItem == null)
     {
-      m_Selection.Clear();
-      UpdateVersionInfo();
+      ClearSelection();
       return;
     }
 
-    if (HotkeyMaster.IsMultiSelectHeld())
+    List<UiHistoryItem> items = GetAllHistoryItems();
+
+    if (!HotkeyMaster.IsRangeSelectHeld())
+      m_RangeSelectionFirstIndex = items.IndexOf(selectedItem);
+
+    if (HotkeyMaster.IsRangeSelectHeld())
+    {
+      int endIndex = items.IndexOf(selectedItem);
+      int startIndex = m_RangeSelectionFirstIndex;
+
+      // Swap indexes if we are selecing the other side of the list
+      if (startIndex > endIndex)
+      {
+        (startIndex, endIndex) = (endIndex, startIndex);
+      }
+
+      ClearSelection();
+      for (int i = startIndex; i <= endIndex; i++)
+      {
+        AddToSelection(items[i]);
+      }
+    }
+    else if (HotkeyMaster.IsMultiSelectHeld())
     {
       if (!m_Selection.Contains(selectedItem))
-        m_Selection.Add(selectedItem);
+        AddToSelection(selectedItem);
+      else
+        RemoveFromSelection(selectedItem);
     }
     else
     {
-      m_Selection.Clear();
-      m_Selection.Add(selectedItem);
+      ClearSelection();
+      AddToSelection(selectedItem);
     }
 
     m_Selection.Sort((a, b) => a.CompareTo(b));
 
     DeselectTwiceSelectedAutosaves();
-
     UpdateVersionInfo();
+  }
+
+  private void AddToSelection(UiHistoryItem item)
+  {
+    m_Selection.Add(item);
+    item.SetColorAndAutosAsSelected();
+  }
+
+  // TODO, unselect attached autosaves too
+  private void RemoveFromSelection(UiHistoryItem item)
+  {
+    m_Selection.Remove(item);
+    item.SetColorAsUnselected();
   }
 
   private void UpdateVersionInfo()

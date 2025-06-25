@@ -129,43 +129,6 @@ public class UiHistoryItem : MonoBehaviour
 
     m_LastPressedTime = Time.time;
 
-    bool selecting = false;
-    for (int i = 0; i < transform.parent.childCount; i++)
-    {
-      var child = transform.parent.GetChild(i);
-      if (child == null || !child.TryGetComponent(out UiHistoryItem item))
-        continue;
-
-      if (i == transform.GetSiblingIndex())
-      {
-        // If we are selecting an auto save, we only need to select this one
-        // And select the whole bg too, not just the branch pannel
-        if (!IsManualSave())
-        {
-          SetColorAsSelected();
-          m_AutoSaveInfo.m_BoxBG.color = s_SelectedAutoSaveColor;
-          continue;
-        }
-        else
-          selecting = true;
-      }
-
-      // If we reach the next manual save after selecting our last item, stop selecting
-      if (selecting && i > transform.GetSiblingIndex() && item.IsManualSave())
-        selecting = false;
-
-      if (selecting)
-      {
-        item.SetColorAsSelected();
-      }
-      else
-      {
-        // Only deselect last item if we aren't multiselecting
-        if (!HotkeyMaster.IsMultiSelectHeld())
-          item.SetColorAsUnselected();
-      }
-    }
-
     // Notify listeners that this item was selected
     OnSelected?.Invoke(this);
   }
@@ -173,6 +136,35 @@ public class UiHistoryItem : MonoBehaviour
   public void Deselect()
   {
     SetColorAsUnselected();
+  }
+
+  public void SetColorAndAutosAsSelected()
+  {
+    for (int i = 0; i < transform.parent.childCount; i++)
+    {
+      var child = transform.parent.GetChild(i);
+      if (child == null || !child.TryGetComponent(out UiHistoryItem item))
+        continue;
+
+      if (i < transform.GetSiblingIndex())
+        continue;
+
+      // If we are selecting an auto save, we only need to select this one
+      // And select the whole bg too, not just the branch pannel
+      if (i == transform.GetSiblingIndex() && !IsManualSave())
+      {
+        SetColorAsSelected();
+        m_AutoSaveInfo.m_BoxBG.color = s_SelectedAutoSaveColor;
+        return;
+      }
+
+      // If we reach the next manual save after selecting our last item, stop selecting
+      if (i > transform.GetSiblingIndex() && item.IsManualSave())
+        return;
+
+      // Select all autosave attached to this manual
+      item.SetColorAsSelected();
+    }
   }
 
   public void SetColorAsSelected()
@@ -186,7 +178,7 @@ public class UiHistoryItem : MonoBehaviour
     }
   }
 
-  private void SetColorAsUnselected()
+  public void SetColorAsUnselected()
   {
     if (IsManualSave())
       m_SelectBG.color = s_UnselectedManualSaveColor;
