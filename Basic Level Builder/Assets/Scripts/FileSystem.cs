@@ -348,6 +348,7 @@ public class FileSystem : MonoBehaviour
     GetVersionLevelData(sourceFileInfo.m_FileData, version, out m_PendingExportLevelData);
     // Set the data to be the first version of this file.
     m_PendingExportLevelData.m_Version = new(1, 0);
+    m_PendingExportLevelData.m_AddedTiles = new List<TileGrid.Element>(GetGridDictionaryFromFileData(sourceFileInfo.m_FileData, version).Values);
     // If the name was an auto generated name, update it to be the first version name
     if (Regex.IsMatch(m_PendingExportLevelData.m_Name, $"^{Regex.Escape(s_ManualSaveName)}([0-9]{{1,3}})$"))
     {
