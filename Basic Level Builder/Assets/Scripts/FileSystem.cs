@@ -14,6 +14,7 @@ using UnityEngine;
 using System.Runtime.InteropServices;
 using B83.Win32;
 using System.Threading;
+using System.Text.RegularExpressions;
 
 public class FileSystem : MonoBehaviour
 {
@@ -343,13 +344,15 @@ public class FileSystem : MonoBehaviour
   {
     // Gather the level data to export
     GetDataFromFullPath(sourcePath, out FileInfo sourceFileInfo);
-    m_PendingExportLevelData = new()
+
+    GetVersionLevelData(sourceFileInfo.m_FileData, version, out m_PendingExportLevelData);
+    // Set the data to be the first version of this file.
+    m_PendingExportLevelData.m_Version = new(1, 0);
+    // If the name was an auto generated name, update it to be the first version name
+    if (Regex.IsMatch(m_PendingExportLevelData.m_Name, $"^{Regex.Escape(s_ManualSaveName)}([0-9]{{1,3}})$"))
     {
-      m_TimeStamp = DateTime.Now,
-      m_Version = new(1, 0),
-      m_Name = s_ManualSaveName + "1",
-      m_AddedTiles = new List<TileGrid.Element>(GetGridDictionaryFromFileData(sourceFileInfo.m_FileData, version).Values)
-    };
+      m_PendingExportLevelData.m_Name = s_ManualSaveName + "1";
+    }
 
     // Call dialogue to get export file name
     m_ExportAsDialogAdder.RequestDialogsAtCenterWithStrings();
