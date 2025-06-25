@@ -15,16 +15,6 @@ public class UiTooltip : MonoBehaviour
   public Image m_Outline;
   public TextMeshProUGUI m_Text;
 
-  private GameObject m_instantiator = null;
-
-  private void Update()
-  {
-    // Checks if the object the instantiated this tooltip ceased to exist
-    // If so, we need to clean ourself up
-    if (m_instantiator == null)
-      Destroy(gameObject);
-  }
-
   public void SetBackgroundColor(Color color)
   {
     m_Background.color = color;
@@ -46,10 +36,5 @@ public class UiTooltip : MonoBehaviour
   public void SetText(string text)
   {
     m_Text.text = text;
-  }
-
-  public void SetInstantiator(GameObject instantiator)
-  {
-    m_instantiator = instantiator;
   }
 }

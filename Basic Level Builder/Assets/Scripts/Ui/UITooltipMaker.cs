@@ -12,7 +12,6 @@ Copyright 2018-2019, DigiPen Institute of Technology
 ***************************************************/
 
 using UnityEngine;
-using TMPro;  //Text mesh pro.
 using UnityEngine.EventSystems; //Pointer over and exit.
 
 public class UITooltipMaker : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
@@ -42,7 +41,7 @@ public class UITooltipMaker : MonoBehaviour, IPointerEnterHandler, IPointerExitH
 
   //Set for how long the user must be hovering over the UI element before a tooltip appears.
   static readonly float s_DelayTime = 0.5f;
-  static readonly Vector2 s_OffsetVector = new Vector2(0, -30); // in pixels
+  static readonly Vector2 s_OffsetVector = new(0, -30); // in pixels
 
   /************************************************************************************/
 
@@ -79,10 +78,24 @@ public class UITooltipMaker : MonoBehaviour, IPointerEnterHandler, IPointerExitH
 
     var uiTooltip = m_Tooltip.GetComponent<UiTooltip>();
     uiTooltip.SetText(m_Text);
-    uiTooltip.SetInstantiator(gameObject);
+  }
+
+  public void OnDestroy()
+  {
+    RemoveTooltip();
+  }
+
+  public void OnDisable()
+  {
+    RemoveTooltip();
   }
 
   public void OnPointerExit(PointerEventData eventData)
+  {
+    RemoveTooltip();
+  }
+
+  private void RemoveTooltip()
   {
     if (m_Tooltip)
       Destroy(m_Tooltip);
@@ -91,16 +104,13 @@ public class UITooltipMaker : MonoBehaviour, IPointerEnterHandler, IPointerExitH
     m_HoverDuration = 0.0f;
   }
 
-
   public void UpdateText(string newText)
   {
     m_Text = newText;
 
     if (m_Tooltip != null)
     {
-      var uiTooltip = m_Tooltip.GetComponent<UiTooltip>();
-
-      if (uiTooltip != null)
+      if (m_Tooltip.TryGetComponent<UiTooltip>(out var uiTooltip))
       {
         uiTooltip.SetText(newText);
       }
