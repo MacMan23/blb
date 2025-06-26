@@ -18,6 +18,9 @@ public class UiHistoryItem : MonoBehaviour
   private readonly static Color s_UnselectedAutoSaveColor = new Color32(64, 64, 64, 255);
   private readonly static Color s_UnselectedAutoSaveBranchColor = new Color32(34, 34, 34, 255);
 
+  readonly static private string s_AutoSaveName = "Auto ";
+  readonly static private string s_ManualSaveName = "Version ";
+
   public delegate void SelectAction(UiHistoryItem item);
   public static event SelectAction OnSelected;
   public delegate void CloseInfoWindowAction();
@@ -63,10 +66,19 @@ public class UiHistoryItem : MonoBehaviour
   {
     m_LevelData = levelData;
     m_FullFilePath = fullFilePath;
-    if (IsManualSave())
-      m_VersionName.text = levelData.m_Name;
+
+    if (string.IsNullOrEmpty(levelData.m_Name))
+    {
+      if (IsManualSave())
+        m_VersionName.text = s_ManualSaveName + levelData.m_Version.m_ManualVersion;
+      else
+        m_VersionName.text = "<i>" + s_AutoSaveName + levelData.m_Version.m_AutoVersion;
+    }
     else
-      m_VersionName.text = "<i>" + levelData.m_Name;
+    {
+      m_VersionName.text = levelData.m_Name;
+    }
+
     m_VersionData.text = GetVersionTimeStamp();
   }
 
@@ -87,7 +99,16 @@ public class UiHistoryItem : MonoBehaviour
 
   public string GetVersionName()
   {
-    return m_LevelData.m_Name;
+    string name = m_LevelData.m_Name;
+    if (string.IsNullOrEmpty(name))
+    {
+      if (IsManualSave())
+        name = s_ManualSaveName + m_LevelData.m_Version.m_ManualVersion;
+      else
+        name = s_AutoSaveName + m_LevelData.m_Version.m_AutoVersion;
+    }
+
+    return name;
   }
 
   public string GetVersionTimeStamp()

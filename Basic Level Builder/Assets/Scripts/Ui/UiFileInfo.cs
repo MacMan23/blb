@@ -184,7 +184,10 @@ public class UiFileInfo : MonoBehaviour
       versions.Add(item.GetVersion());
     }
 
-    FileSystem.Instance.ExportVersions(m_Selection[0].GetFilePath(), versions);
+    if (m_Selection.Count == 1)
+      FileSystem.Instance.ExportVersion(m_Selection[0].GetFilePath(), m_Selection[0].GetVersion());
+    else
+      FileSystem.Instance.ExportVersions(m_Selection[0].GetFilePath(), versions);
   }
 
   // TODO: If deleting last manual save ask if want to delete whole file.
@@ -387,7 +390,7 @@ public class UiFileInfo : MonoBehaviour
   {
     if (m_Selection.Count == 0)
     {
-      m_versionInfoText.text = "<b>No Version Selected</b>\r\n";
+      m_versionInfoText.text = "<b>No version selected</b>\r\n";
 
       // Reenable buttons if they were gone before
       m_ExportButton.SetActive(false);
@@ -406,7 +409,7 @@ public class UiFileInfo : MonoBehaviour
     }
     else
     {
-      m_versionInfoText.text = "<b>Multiple Version Selected</b>\r\n";
+      m_versionInfoText.text = "<b>Multiple versions selected</b>\r\n";
       m_versionInfoText.text += "<color=#C6C6C6>" + m_Selection[0].GetVersionName();
 
       // Add all selected items up to 4 total
@@ -423,8 +426,8 @@ public class UiFileInfo : MonoBehaviour
         m_versionInfoText.text += " .... " + m_Selection[^1].GetVersionName();
       }
 
-      // Remove the export and load buttons as we can't do that when multiple versions are selected
-      m_ExportButton.SetActive(false);
+      // Remove the load buttons as we can't do that when multiple versions are selected
+      m_ExportButton.SetActive(true);
       m_LoadButton.SetActive(false);
       m_DeleteButton.SetActive(true);
     }

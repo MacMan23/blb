@@ -48,8 +48,6 @@ public class FileSystem : MonoBehaviour
   readonly static public string s_FilenameExtension = ".blb";
   readonly static public string s_RootDirectoryName = "Basic Level Builder";
   readonly static public string s_DateTimeFormat = "h-mm-ss.ff tt, ddd d MMM yyyy";
-  readonly static private string s_AutoSaveName = "Auto";
-  readonly static private string s_ManualSaveName = "Version ";
   readonly static public int s_MaxAutoSaveCount = 20;
   readonly static public int s_MaxManualSaveCount = 100;
   readonly static bool s_ShouldCompress = false;
@@ -209,6 +207,26 @@ public class FileSystem : MonoBehaviour
       return diff;
     }
 
+    public readonly int CompareToIncreasingManualToAuto(Version other)
+    {
+      int diff = m_ManualVersion - other.m_ManualVersion;
+
+      // If they are the same maunal save, one (or both) of them is an autosave.
+      if (diff == 0)
+      {
+        // Sort the auto saves to have the newest on top
+        diff = m_AutoVersion - other.m_AutoVersion;
+
+        // If either werer a manaul save, we need to put that on top
+        if (other.m_AutoVersion == 0)
+          diff = 1;
+        if (m_AutoVersion == 0)
+          diff = -1;
+      }
+
+      return diff;
+    }
+
     // The version of the manaul save, or maunal the auto is branched off of
     public int m_ManualVersion;
     // The autosave version, 0 if not an autosave
@@ -222,6 +240,16 @@ public class FileSystem : MonoBehaviour
     {
       m_AddedTiles = new List<TileGrid.Element>();
       m_RemovedTiles = new List<Vector2Int>();
+    }
+
+    public int CompareTo(LevelData other)
+    {
+      return m_Version.CompareTo(other.m_Version);
+    }
+
+    public int CompareToIncreasingManualToAuto(LevelData other)
+    {
+      return m_Version.CompareToIncreasingManualToAuto(other.m_Version);
     }
 
     public Version m_Version;
@@ -362,11 +390,6 @@ public class FileSystem : MonoBehaviour
     // Set the data to be the first version of this file.
     levelData.m_Version = new(1, 0);
     levelData.m_AddedTiles = new List<TileGrid.Element>(GetGridDictionaryFromFileData(sourceFileInfo.m_FileData, version).Values);
-    // If the name was an auto generated name, update it to be the first version name
-    if (Regex.IsMatch(levelData.m_Name, $"^{Regex.Escape(s_ManualSaveName)}([0-9]{{1,3}})$"))
-    {
-      levelData.m_Name = s_ManualSaveName + "1";
-    }
 
     m_PendingExportFileData = new();
     m_PendingExportFileData.m_ManualSaves.Add(levelData);
@@ -564,7 +587,6 @@ public class FileSystem : MonoBehaviour
 
     levelData.m_TimeStamp = DateTime.Now;
     levelData.m_Version = new(1, 0);
-    levelData.m_Name = s_ManualSaveName + "1";
 
     m_MountedFileInfo.m_FileData.m_ManualSaves.Add(levelData);
 
@@ -614,7 +636,7 @@ public class FileSystem : MonoBehaviour
 
     // If we will be copying the mounted file over to a diffrent file
     bool copyFile = false;
-    bool hasDifferences = GetDifferences(out LevelData levelData, m_MountedFileInfo);
+    bool hasDifferences = GetDifferences(out LevelData levelData, m_MountedFileInfo.m_FileData);
 
     // If we are writting to our own file yet we have no changes, skip the save
     // Or we are writting to a temp file with no changes, ignore write
@@ -681,9 +703,6 @@ public class FileSystem : MonoBehaviour
           levelData.m_Version = new(1, 0);
         }
 
-        // Set the name of the version to just the version
-        levelData.m_Name = s_ManualSaveName + levelData.m_Version.m_ManualVersion;
-
         m_MountedFileInfo.m_FileData.m_ManualSaves.Add(levelData);
       }
       // If this is an auto save, store what version of the manual save we branched from to get these diffrences to save
@@ -706,11 +725,6 @@ public class FileSystem : MonoBehaviour
           int lastVersion = GetLastAutoSaveVersion(m_MountedFileInfo.m_FileData, m_loadedVersion.m_ManualVersion);
           levelData.m_Version.m_AutoVersion = lastVersion + 1;
         }
-
-        // Overwrite name for autosaves
-        //levelData.m_Name = s_AutoSaveName;
-        // TODO: Remove this debug line and re add previous
-        levelData.m_Name = s_AutoSaveName + " " + levelData.m_Version;
 
         m_MountedFileInfo.m_FileData.m_AutoSaves.Add(levelData);
       }
@@ -789,15 +803,28 @@ public class FileSystem : MonoBehaviour
   }
 
   // Make sure m_TileGrid.CopyGridBuffer is called before hand
-  private bool GetDifferences(out LevelData diffrences, FileInfo file, Version? version = null)
+  private bool GetDifferences(out LevelData diffrences, FileData fileData, Version? version = null)
+  {
+    Dictionary<Vector2Int, TileGrid.Element> oldGrid = GetGridDictionaryFromFileData(fileData, version);
+
+    return GetDifferencesEx(out diffrences, oldGrid, m_TileGrid.GetGridBuffer());
+  }
+
+  private bool GetVersionDifferences(out LevelData diffrences, FileData fileData, Version from, Version to)
+  {
+    Dictionary<Vector2Int, TileGrid.Element> oldGrid = GetGridDictionaryFromFileData(fileData, from);
+    Dictionary<Vector2Int, TileGrid.Element> newGrid = GetGridDictionaryFromFileData(fileData, to);
+
+    return GetDifferencesEx(out diffrences, oldGrid, newGrid.ToList());
+  }
+
+  private bool GetDifferencesEx(out LevelData diffrences, Dictionary<Vector2Int, TileGrid.Element> oldGrid, List<KeyValuePair<Vector2Int, TileGrid.Element>> newGrid)
   {
     diffrences = new();
 
-    Dictionary<Vector2Int, TileGrid.Element> oldGrid = GetGridDictionaryFromFileData(file.m_FileData, version);
-
     bool hasDiffrences = false;
 
-    foreach (var kvp in m_TileGrid.GetGridBuffer())
+    foreach (var kvp in newGrid)
     {
       Vector2Int position = kvp.Key;
       TileGrid.Element currentElement = kvp.Value;
@@ -1102,14 +1129,7 @@ public class FileSystem : MonoBehaviour
       if (levelData.m_Version.m_ManualVersion > version.m_ManualVersion)
         break;
 
-      foreach (var tile in levelData.m_AddedTiles)
-      {
-        tiles[tile.m_GridIndex] = tile;
-      }
-      foreach (var pos in levelData.m_RemovedTiles)
-      {
-        tiles.Remove(pos);
-      }
+      AddLevelDeltasToGrid(ref tiles, levelData);
     }
 
     // If we are loading a autosave, load the branch now
@@ -1120,14 +1140,7 @@ public class FileSystem : MonoBehaviour
         // Find the level data from the auto save version
         GetVersionLevelData(fileData, version, out LevelData autoSaveData);
 
-        foreach (var tile in autoSaveData.m_AddedTiles)
-        {
-          tiles[tile.m_GridIndex] = tile;
-        }
-        foreach (var pos in autoSaveData.m_RemovedTiles)
-        {
-          tiles.Remove(pos);
-        }
+        AddLevelDeltasToGrid(ref tiles, autoSaveData);
       }
       catch (InvalidOperationException)
       {
@@ -1138,6 +1151,18 @@ public class FileSystem : MonoBehaviour
     }
 
     return tiles;
+  }
+
+  private void AddLevelDeltasToGrid(ref Dictionary<Vector2Int, TileGrid.Element> tiles, LevelData level)
+  {
+    foreach (var tile in level.m_AddedTiles)
+    {
+      tiles[tile.m_GridIndex] = tile;
+    }
+    foreach (var pos in level.m_RemovedTiles)
+    {
+      tiles.Remove(pos);
+    }
   }
 
   /// <summary>
@@ -1344,6 +1369,15 @@ public class FileSystem : MonoBehaviour
 
   private void ExtractSelectedVersions(ref FileData fileData, List<Version> versions)
   {
+    // Promote all selected autos to manuals
+    // This function will ignore passed in manual versions so we don't need to remove them from the list
+    PromoteAutoSavesEx(ref fileData, versions);
+    fileData.m_AutoSaves.Clear();
+
+    // TODO (Check) should already be sorted
+    // Sort so versions increase and all autos are right after the manuals
+    //fileData.m_ManualSaves.Sort((a, b) => a.CompareToIncreasingManualToAuto(b));
+
     Dictionary<Vector2Int, TileGrid.Element> FlattenedLevelAdd = new();
     HashSet<Vector2Int> FlattenedLevelRemove = new();
 
@@ -1362,12 +1396,78 @@ public class FileSystem : MonoBehaviour
         // Update tiles just in case the detas got flattened
         fileData.m_ManualSaves[i].m_AddedTiles = FlattenedLevelAdd.Values.ToList();
         fileData.m_ManualSaves[i].m_RemovedTiles = FlattenedLevelRemove.ToList();
+
+        FlattenedLevelAdd.Clear();
+        FlattenedLevelRemove.Clear();
       }
     }
+  }
 
-    // TODO: Add case for extracting auto saves
-    // TODO: Add single export case to UIFileInfo
-    // TODO: Update version name if not renamed
+  // Promotes multiple autosaves to be a manual save, leaf to branch.
+  // NOTE: Does not save file
+  private void PromoteAutoSavesEx(ref FileData fileData, List<Version> versions)
+  {
+    foreach (LevelData level in fileData.m_AutoSaves)
+    {
+      if (!versions.Contains(level.m_Version))
+        return;
+
+      PromoteAutoSaveEx(ref fileData, level);
+    }
+  }
+
+  // Promotes an autosave to be a manual save, leaf to branch.
+  // NOTE: Does not save file
+  private void PromoteAutoSaveEx(ref FileData fileData, LevelData level)
+  {
+    for (int i = 0; i < fileData.m_ManualSaves.Count; ++i)
+    {
+      LevelData currentManual = fileData.m_ManualSaves[i];
+
+      if (currentManual.m_Version.m_ManualVersion < level.m_Version.m_ManualVersion)
+        continue;
+
+      // We added the auto save, push forward the version numbers for all the future versions
+      if (currentManual.m_Version.m_ManualVersion > level.m_Version.m_ManualVersion)
+      {
+        ++currentManual.m_Version.m_ManualVersion;
+        continue;
+      }
+
+      // We are on our autos manual version
+      // If we have more manuals after this
+      if (fileData.m_ManualSaves.Count > (i + 1))
+      {
+        // Add the new delta to the next manual so it effectivly removes the promoted autosaves deltas
+        GetVersionDifferences(out LevelData diff, fileData, level.m_Version, fileData.m_ManualSaves[i + 1].m_Version);
+        fileData.m_ManualSaves[i + 1].m_AddedTiles = diff.m_AddedTiles;
+        fileData.m_ManualSaves[i + 1].m_RemovedTiles = diff.m_RemovedTiles;
+
+        // Promote auto save
+        level.m_Version = currentManual.m_Version;
+        level.m_Version.m_ManualVersion += 1;
+        fileData.m_ManualSaves.Add(level);
+
+        // Add one to i so we skip the added auto when continueing the loop
+        ++i;
+
+        // Push forward the manual version for all the autosaves after this
+        foreach (LevelData auto in fileData.m_AutoSaves)
+        {
+          if (auto.m_Version.m_ManualVersion > currentManual.m_Version.m_ManualVersion)
+            ++auto.m_Version.m_ManualVersion;
+        }
+      }
+      else
+      {
+        // Promote auto and we don't need to worry about anything else
+        level.m_Version = currentManual.m_Version;
+        level.m_Version.m_ManualVersion += 1;
+        fileData.m_ManualSaves.Add(level);
+        // We added one more manual so the loop will continue, but we are done, so break
+        break;
+      }
+    }
   }
 
   // Adds the level datas deltas to an add/removed tiles arrays
