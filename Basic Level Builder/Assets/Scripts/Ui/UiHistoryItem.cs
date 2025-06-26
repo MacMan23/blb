@@ -233,6 +233,3 @@ public class UiHistoryItem : MonoBehaviour
     return GetVersion().CompareTo(other.GetVersion());
   }
 }
-
-// TODO: Button highlight doesn't work on non selected auto saves. Maybe the button color is too dark to be tinted?
-// TODO: Version Renaming

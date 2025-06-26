@@ -72,7 +72,8 @@ public class FileSystem : MonoBehaviour
 
   string m_CurrentDirectoryPath;
   string m_PendingSaveFullPath = "";
-  LevelData m_PendingExportLevelData = null;
+  FileData m_PendingExportFileData = null;
+  List<Version> m_PendingExportVersions = null;
 
   FileInfo m_MountedFileInfo;
 
@@ -340,24 +341,38 @@ public class FileSystem : MonoBehaviour
     return !String.IsNullOrEmpty(m_MountedFileInfo.m_SaveFilePath);
   }
 
+  public void ExportVersions(string sourcePath, List<Version> versions)
+  {
+    // Gather the level data to export
+    GetDataFromFullPath(sourcePath, out FileInfo sourceFileInfo);
+
+    m_PendingExportVersions = versions;
+    m_PendingExportFileData = sourceFileInfo.m_FileData;
+
+    // Call dialogue to get export file name
+    m_ExportAsDialogAdder.RequestDialogsAtCenterWithStrings();
+  }
+
   public void ExportVersion(string sourcePath, Version version)
   {
     // Gather the level data to export
     GetDataFromFullPath(sourcePath, out FileInfo sourceFileInfo);
 
-    GetVersionLevelData(sourceFileInfo.m_FileData, version, out m_PendingExportLevelData);
+    GetVersionLevelData(sourceFileInfo.m_FileData, version, out LevelData levelData);
     // Set the data to be the first version of this file.
-    m_PendingExportLevelData.m_Version = new(1, 0);
-    m_PendingExportLevelData.m_AddedTiles = new List<TileGrid.Element>(GetGridDictionaryFromFileData(sourceFileInfo.m_FileData, version).Values);
+    levelData.m_Version = new(1, 0);
+    levelData.m_AddedTiles = new List<TileGrid.Element>(GetGridDictionaryFromFileData(sourceFileInfo.m_FileData, version).Values);
     // If the name was an auto generated name, update it to be the first version name
-    if (Regex.IsMatch(m_PendingExportLevelData.m_Name, $"^{Regex.Escape(s_ManualSaveName)}([0-9]{{1,3}})$"))
+    if (Regex.IsMatch(levelData.m_Name, $"^{Regex.Escape(s_ManualSaveName)}([0-9]{{1,3}})$"))
     {
-      m_PendingExportLevelData.m_Name = s_ManualSaveName + "1";
+      levelData.m_Name = s_ManualSaveName + "1";
     }
+
+    m_PendingExportFileData = new();
+    m_PendingExportFileData.m_ManualSaves.Add(levelData);
 
     // Call dialogue to get export file name
     m_ExportAsDialogAdder.RequestDialogsAtCenterWithStrings();
-
   }
 
   void OnDroppedFiles(List<string> paths, POINT dropPoint)
@@ -480,7 +495,7 @@ public class FileSystem : MonoBehaviour
   {
     // Check if we were doing a SaveAs or an Export
     // If the Export data is empty, then we are doing a SaveAs
-    if (m_PendingExportLevelData == null)
+    if (m_PendingExportFileData == null)
     {
       StartSavingThread(m_PendingSaveFullPath, false);
     }
@@ -747,10 +762,15 @@ public class FileSystem : MonoBehaviour
 
     CreateFileInfo(out FileInfo sourceInfo, destFilePath);
 
-    sourceInfo.m_FileData.m_ManualSaves.Add(m_PendingExportLevelData);
+    // If we are exporting out multiple versions, this variable should exist
+    if (m_PendingExportVersions != null)
+      ExtractSelectedVersions(ref m_PendingExportFileData, m_PendingExportVersions);
+
+    sourceInfo.m_FileData = m_PendingExportFileData;
 
     // Null out data so we know if we finished our export
-    m_PendingExportLevelData = null;
+    m_PendingExportFileData = null;
+    m_PendingExportVersions = null;
 
     try
     {
@@ -1307,38 +1327,65 @@ public class FileSystem : MonoBehaviour
   // Combines two versions level data
   // Add the level data from "from" to "to"
   // Returns the combine data
+  // Note: The passed in versions should be right after eachother or else the deltas might not be correct
   private LevelData FlattenLevelData(LevelData to, LevelData from)
   {
-    Dictionary<Vector2Int, TileGrid.Element> squashedLevelAdd = new();
-    HashSet<Vector2Int> squashedLevelRemove = new();
+    Dictionary<Vector2Int, TileGrid.Element> FlattenedLevelAdd = new();
+    HashSet<Vector2Int> FlattenedLevelRemove = new();
 
-    SquashLevelDataAdder(ref squashedLevelAdd, ref squashedLevelRemove, from);
-    SquashLevelDataAdder(ref squashedLevelAdd, ref squashedLevelRemove, to);
+    FlattenLevelDataAdder(ref FlattenedLevelAdd, ref FlattenedLevelRemove, from);
+    FlattenLevelDataAdder(ref FlattenedLevelAdd, ref FlattenedLevelRemove, to);
 
-    to.m_AddedTiles = squashedLevelAdd.Values.ToList();
-    to.m_RemovedTiles = squashedLevelRemove.ToList();
+    to.m_AddedTiles = FlattenedLevelAdd.Values.ToList();
+    to.m_RemovedTiles = FlattenedLevelRemove.ToList();
 
     return to;
   }
 
+  private void ExtractSelectedVersions(ref FileData fileData, List<Version> versions)
+  {
+    Dictionary<Vector2Int, TileGrid.Element> FlattenedLevelAdd = new();
+    HashSet<Vector2Int> FlattenedLevelRemove = new();
+
+    for (int i = 0; i < fileData.m_ManualSaves.Count; ++i)
+    {
+      FlattenLevelDataAdder(ref FlattenedLevelAdd, ref FlattenedLevelRemove, fileData.m_ManualSaves[i]);
+
+      // Remove if we are not extracting this version
+      if (!versions.Contains(fileData.m_ManualSaves[i].m_Version))
+      {
+        fileData.m_ManualSaves.RemoveAt(i);
+        --i;
+      }
+      else
+      {
+        // Update tiles just in case the detas got flattened
+        fileData.m_ManualSaves[i].m_AddedTiles = FlattenedLevelAdd.Values.ToList();
+        fileData.m_ManualSaves[i].m_RemovedTiles = FlattenedLevelRemove.ToList();
+      }
+    }
+
+    // TODO: Add case for extracting auto saves
+  }
+
   // Adds the level datas deltas to an add/removed tiles arrays
-  private void SquashLevelDataAdder(ref Dictionary<Vector2Int, TileGrid.Element> squashedLevelAdd, ref HashSet<Vector2Int> squashedLevelRemove, LevelData addedData)
+  private void FlattenLevelDataAdder(ref Dictionary<Vector2Int, TileGrid.Element> FlattenedLevelAdd, ref HashSet<Vector2Int> FlattenedLevelRemove, LevelData addedData)
   {
     foreach (var tile in addedData.m_AddedTiles)
     {
       // Add the tile to the list
       // If we had record to remove it earlier, remove the record
-      if (squashedLevelRemove.Contains(tile.m_GridIndex))
-        squashedLevelRemove.Remove(tile.m_GridIndex);
-      squashedLevelAdd[tile.m_GridIndex] = tile;
+      if (FlattenedLevelRemove.Contains(tile.m_GridIndex))
+        FlattenedLevelRemove.Remove(tile.m_GridIndex);
+      FlattenedLevelAdd[tile.m_GridIndex] = tile;
     }
     foreach (var pos in addedData.m_RemovedTiles)
     {
       // Remove a tile if we have one
-      if (squashedLevelAdd.ContainsKey(pos))
-        squashedLevelAdd.Remove(pos);
+      if (FlattenedLevelAdd.ContainsKey(pos))
+        FlattenedLevelAdd.Remove(pos);
       // Keep the remove in the list even if we deleted a tile, because the tile could be replacing a previously placed tile and we need to delete that too
-      squashedLevelRemove.Add(pos);
+      FlattenedLevelRemove.Add(pos);
     }
   }
 
@@ -1669,7 +1716,7 @@ public class FileSystem : MonoBehaviour
 
 
 // __Needs UI__
-// TONOTDO, add feature to select a range of versions and squash them together
+// TONOTDO, add feature to select a range of versions and Flatten them together
 //   No, just have them delete the old ones instead. It would do the same thing
 // TODO, right click version to delete auto or manual save
 // Unsaved changes prompt

@@ -171,12 +171,20 @@ public class UiFileInfo : MonoBehaviour
       item.Load();
   }
 
-  public void ExportSelectedVersion()
+  public void ExportSelectedVersions()
   {
-    UiHistoryItem item = m_Selection[0];
+    if (m_Selection.Count <= 0)
+    {
+      throw new Exception("Exporting version(s) with no version(s) selected");
+    }
 
-    if (item)
-      FileSystem.Instance.ExportVersion(item.GetFilePath(), item.GetVersion());
+    List<FileSystem.Version> versions = new();
+    foreach (var item in m_Selection)
+    {
+      versions.Add(item.GetVersion());
+    }
+
+    FileSystem.Instance.ExportVersion(m_Selection[0].GetFilePath(), versions);
   }
 
   // TODO: If deleting last manual save ask if want to delete whole file.
@@ -186,7 +194,7 @@ public class UiFileInfo : MonoBehaviour
     // This shouldn't happen as the button wouldn't be visable if no version are selected
     if (m_Selection.Count <= 0)
     {
-      throw new Exception("Deleting version with no versions selected");
+      throw new Exception("Deleting version(s) with no version(s) selected");
     }
 
     FileSystem.Instance.GetDataFromFullPath(m_FullFilePath, out FileSystem.FileInfo fileInfo);
@@ -444,6 +452,3 @@ public class UiFileInfo : MonoBehaviour
     }
   }
 }
-
-
-// TODO: Filtering
