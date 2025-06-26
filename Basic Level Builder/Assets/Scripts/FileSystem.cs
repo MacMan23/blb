@@ -1366,6 +1366,8 @@ public class FileSystem : MonoBehaviour
     }
 
     // TODO: Add case for extracting auto saves
+    // TODO: Add single export case to UIFileInfo
+    // TODO: Update version name if not renamed
   }
 
   // Adds the level datas deltas to an add/removed tiles arrays
