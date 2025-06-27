@@ -387,9 +387,9 @@ public class FileSystem : MonoBehaviour
     GetDataFromFullPath(sourcePath, out FileInfo sourceFileInfo);
 
     GetVersionLevelData(sourceFileInfo.m_FileData, version, out LevelData levelData);
+    levelData.m_AddedTiles = GetGridDictionaryFromFileData(sourceFileInfo.m_FileData, version).Values.ToList();
     // Set the data to be the first version of this file.
     levelData.m_Version = new(1, 0);
-    levelData.m_AddedTiles = GetGridDictionaryFromFileData(sourceFileInfo.m_FileData, version).Values.ToList();
 
     m_PendingExportFileData = new();
     m_PendingExportFileData.m_ManualSaves.Add(levelData);
