@@ -68,7 +68,7 @@ public class FileSystem : MonoBehaviour
   ModalDialogAdder m_ExportAsDialogAdder;
 
   string m_CurrentDirectoryPath;
-  string m_PendingSaveFullPath = "";
+  string m_PendingSaveFullFilePath = "";
   FileData m_PendingExportFileData = null;
   List<Version> m_PendingExportVersions = null;
 
@@ -372,7 +372,7 @@ public class FileSystem : MonoBehaviour
   public void ExportVersions(string sourcePath, List<Version> versions)
   {
     // Gather the level data to export
-    GetDataFromFullPath(sourcePath, out FileInfo sourceFileInfo);
+    GetFileInfoFromFullFilePath(sourcePath, out FileInfo sourceFileInfo);
 
     m_PendingExportVersions = versions;
     m_PendingExportFileData = sourceFileInfo.m_FileData;
@@ -384,7 +384,7 @@ public class FileSystem : MonoBehaviour
   public void ExportVersion(string sourcePath, Version version)
   {
     // Gather the level data to export
-    GetDataFromFullPath(sourcePath, out FileInfo sourceFileInfo);
+    GetFileInfoFromFullFilePath(sourcePath, out FileInfo sourceFileInfo);
 
     GetVersionLevelData(sourceFileInfo.m_FileData, version, out LevelData levelData);
     levelData.m_AddedTiles = GetGridDictionaryFromFileData(sourceFileInfo.m_FileData, version).Values.ToList();
@@ -408,7 +408,7 @@ public class FileSystem : MonoBehaviour
     if (validPaths.Count == 0)
       StatusBar.Print("Drag and drop only supports <b>.blb</b> files.");
     else
-      LoadFromFullPath(validPaths[0]);
+      LoadFromFullFilePath(validPaths[0]);
   }
 
   /// <summary>
@@ -455,7 +455,7 @@ public class FileSystem : MonoBehaviour
       // Give prompt if we are going to write to and existing file
       if (File.Exists(destFilePath))
       {
-        m_PendingSaveFullPath = destFilePath;
+        m_PendingSaveFullFilePath = destFilePath;
 
         m_OverrideDialogAdder.RequestDialogsAtCenterWithStrings(Path.GetFileName(destFilePath));
         return;
@@ -520,13 +520,13 @@ public class FileSystem : MonoBehaviour
     // If the Export data is empty, then we are doing a SaveAs
     if (m_PendingExportFileData == null)
     {
-      StartSavingThread(m_PendingSaveFullPath, false);
+      StartSavingThread(m_PendingSaveFullFilePath, false);
     }
     else
     {
-      StartExportSavingThread(m_PendingSaveFullPath);
+      StartExportSavingThread(m_PendingSaveFullFilePath);
     }
-    m_PendingSaveFullPath = "";
+    m_PendingSaveFullFilePath = "";
   }
 
   void StartSavingThread(string destFilePath, bool autosave, bool isSaveAs = false, bool shouldPrintElapsedTime = true)
@@ -553,7 +553,7 @@ public class FileSystem : MonoBehaviour
     // Give prompt if we are going to write to and existing file
     if (File.Exists(destFilePath))
     {
-      m_PendingSaveFullPath = destFilePath;
+      m_PendingSaveFullFilePath = destFilePath;
 
       m_OverrideDialogAdder.RequestDialogsAtCenterWithStrings(Path.GetFileName(destFilePath));
       return;
@@ -854,12 +854,12 @@ public class FileSystem : MonoBehaviour
     return hasDiffrences;
   }
 
-  private void UpdateFileToItemList(string fullPath, bool overwriting)
+  private void UpdateFileToItemList(string fullFilePath, bool overwriting)
   {
     if (overwriting)
-      m_MainThreadDispatcher.Enqueue(() => MoveFileItemToTop(m_SaveList, fullPath));
+      m_MainThreadDispatcher.Enqueue(() => MoveFileItemToTop(m_SaveList, fullFilePath));
     else
-      m_MainThreadDispatcher.Enqueue(() => AddFileItemForFile(m_SaveList, fullPath));
+      m_MainThreadDispatcher.Enqueue(() => AddFileItemForFile(m_SaveList, fullFilePath));
   }
 
   /// <summary>
@@ -956,7 +956,7 @@ public class FileSystem : MonoBehaviour
 
   public void CancelOverwrite()
   {
-    m_PendingSaveFullPath = "";
+    m_PendingSaveFullFilePath = "";
   }
 
   // Deprecated for now untill real use is found.
@@ -1002,23 +1002,23 @@ public class FileSystem : MonoBehaviour
   }
 
   /// <summary>
-  /// Gets data from a file at the specified path.
+  /// Gets the file info from a file at the specified path.
   /// </summary>
-  /// <param name="fullPath">The full path to the file.</param>
+  /// <param name="fullFilePath">The full path to the file.</param>
   /// <param name="fileInfo">The file info to populate.</param>
   /// <exception cref="Exception">Thrown when the file cannot be found.</exception>
-  public void GetDataFromFullPath(string fullPath, out FileInfo fileInfo)
+  public void GetFileInfoFromFullFilePath(string fullFilePath, out FileInfo fileInfo)
   {
-    CreateFileInfo(out fileInfo, fullPath);
-    if (!File.Exists(fullPath))
+    CreateFileInfo(out fileInfo, fullFilePath);
+    if (!File.Exists(fullFilePath))
     {
-      throw new Exception($"File not found: {fullPath}");
+      throw new Exception($"File not found: {fullFilePath}");
     }
 
-    GetDataFromJson(File.ReadAllBytes(fullPath), fileInfo);
+    GetDataFromJson(File.ReadAllBytes(fullFilePath), fileInfo);
   }
 
-  public void LoadFromFullPath(string fullPath, Version? version = null)
+  public void LoadFromFullFilePath(string fullFilePath, Version? version = null)
   {
     if (GlobalData.AreEffectsUnderway())
       return;
@@ -1028,8 +1028,8 @@ public class FileSystem : MonoBehaviour
       if (!FileDataExists(m_MountedFileInfo.m_FileData))
         CreateFileInfo(out m_MountedFileInfo);
 
-      MountFile(fullPath, m_MountedFileInfo);
-      LoadFromJson(File.ReadAllBytes(fullPath), version);
+      MountFile(fullFilePath, m_MountedFileInfo);
+      LoadFromJson(File.ReadAllBytes(fullFilePath), version);
 
       m_loadedVersion = version ?? new(GetLastManualSaveVersion(m_MountedFileInfo.m_FileData), 0);
     }
@@ -1403,6 +1403,14 @@ public class FileSystem : MonoBehaviour
     }
   }
 
+  public void PromoteAutoSave(string fullFilePath, Version version)
+  {
+    GetFileInfoFromFullFilePath(fullFilePath, out FileInfo fileInfo);
+    GetVersionLevelData(fileInfo.m_FileData, version, out LevelData level);
+    PromoteAutoSaveEx(ref fileInfo.m_FileData, level);
+    WriteDataToFile(fileInfo.m_SaveFilePath, fileInfo);
+  }
+
   // Promotes multiple autosaves to be a manual save, leaf to branch.
   // NOTE: Does not save file
   private void PromoteAutoSavesEx(ref FileData fileData, List<Version> versions, bool updateVersions = true)
@@ -1422,17 +1430,19 @@ public class FileSystem : MonoBehaviour
   {
     Dictionary<Vector2Int, TileGrid.Element> autosGrid = new();
 
+    Version AutoSaveVersion = level.m_Version;
+
     for (int i = 0; i < fileData.m_ManualSaves.Count; ++i)
     {
       LevelData currentManual = fileData.m_ManualSaves[i];
 
       AddLevelDeltasToGrid(ref autosGrid, currentManual);
 
-      if (currentManual.m_Version.m_ManualVersion < level.m_Version.m_ManualVersion)
+      if (currentManual.m_Version.m_ManualVersion < AutoSaveVersion.m_ManualVersion)
         continue;
 
       // We added the auto save, push forward the version numbers for all the future versions
-      if (currentManual.m_Version.m_ManualVersion > level.m_Version.m_ManualVersion)
+      if (currentManual.m_Version.m_ManualVersion > AutoSaveVersion.m_ManualVersion)
       {
         ++currentManual.m_Version.m_ManualVersion;
         continue;
@@ -1452,6 +1462,9 @@ public class FileSystem : MonoBehaviour
 
         fileData.m_ManualSaves[i + 1].m_AddedTiles = diffrences.m_AddedTiles;
         fileData.m_ManualSaves[i + 1].m_RemovedTiles = diffrences.m_RemovedTiles;
+
+        // Remove the autosave we are promoting before modifieing it and adding it to the manual list
+        fileData.m_AutoSaves.Remove(level);
 
         // Promote auto save
         if (updateVersions)
@@ -1621,51 +1634,51 @@ public class FileSystem : MonoBehaviour
     Application.OpenURL($"file://{m_CurrentDirectoryPath}");
   }
 
-  void MoveFileItemToTop(UiListView fileList, string fullPath)
+  void MoveFileItemToTop(UiListView fileList, string fullFilePath)
   {
-    var item = fileList.GetItemByFullPath(fullPath);
+    var item = fileList.GetItemByFullFilePath(fullFilePath);
     fileList.MoveToTop(item.transform);
   }
 
-  void RemoveFileItem(UiListView fileList, string fullPath)
+  void RemoveFileItem(UiListView fileList, string fullFilePath)
   {
-    var element = fileList.GetItemByFullPath(fullPath);
+    var element = fileList.GetItemByFullFilePath(fullFilePath);
     fileList.Remove(element.GetComponent<RectTransform>());
   }
 
-  void AddFileItemForFile(UiListView fileList, string fullPath)
+  void AddFileItemForFile(UiListView fileList, string fullFilePath)
   {
-    var fileName = Path.GetFileNameWithoutExtension(fullPath);
-    var rt = AddHelper(fullPath, fileName);
+    var fileName = Path.GetFileNameWithoutExtension(fullFilePath);
+    var rt = AddHelper(fullFilePath, fileName);
     fileList.Add(rt);
   }
 
-  void AddFileItemsForFiles(string[] fullPaths)
+  void AddFileItemsForFiles(string[] fullFilePaths)
   {
     if (GlobalData.AreEffectsUnderway())
       return;
 
     var listItems = new List<RectTransform>();
 
-    foreach (var fullPath in fullPaths)
+    foreach (var fullFilePath in fullFilePaths)
     {
       // Path.GetFileNameWithoutExtension can only throw ArgumentException
       // for the path having invalid characters, and AddHelper will only be
       // called after ValidateDirectoryName has cleared the path
-      var fileName = Path.GetFileNameWithoutExtension(fullPath);
+      var fileName = Path.GetFileNameWithoutExtension(fullFilePath);
 
-      var rt = AddHelper(fullPath, fileName);
+      var rt = AddHelper(fullFilePath, fileName);
       listItems.Add(rt);
     }
 
     m_SaveList.Add(listItems);
   }
 
-  RectTransform AddHelper(string fullPath, string fileName)
+  RectTransform AddHelper(string fullFilePath, string fileName)
   {
     var listItem = Instantiate(m_FileItemPrefab);
 
-    listItem.Setup(fullPath, fileName, File.GetLastWriteTime(fullPath).ToString("g"));
+    listItem.Setup(fullFilePath, fileName, File.GetLastWriteTime(fullFilePath).ToString("g"));
     var rt = listItem.GetComponent<RectTransform>();
 
     return rt;

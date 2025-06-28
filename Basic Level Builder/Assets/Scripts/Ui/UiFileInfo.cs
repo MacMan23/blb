@@ -26,6 +26,8 @@ public class UiFileInfo : MonoBehaviour
   [SerializeField]
   private GameObject m_ExportButton;
   [SerializeField]
+  private GameObject m_PromoteButton;
+  [SerializeField]
   private GameObject m_LoadButton;
   [SerializeField]
   private GameObject m_DeleteButton;
@@ -74,7 +76,7 @@ public class UiFileInfo : MonoBehaviour
 
       try
       {
-        FileSystem.Instance.GetDataFromFullPath(m_FullFilePath, out fileInfo);
+        FileSystem.Instance.GetFileInfoFromFullFilePath(m_FullFilePath, out fileInfo);
       }
       catch (Exception e)
       {
@@ -171,6 +173,22 @@ public class UiFileInfo : MonoBehaviour
       item.Load();
   }
 
+  public void PromoteAutoSave()
+  {
+    if (m_Selection.Count <= 0)
+    {
+      throw new Exception("Promoting with no version selected");
+    }
+
+    // These should never be the case, but just to make sure...
+    if (m_Selection.Count > 1 || m_Selection[0].GetVersion().IsManual())
+      return;
+
+    FileSystem.Instance.PromoteAutoSave(m_FullFilePath, m_Selection[0].GetVersion());
+    ClearHistoryItemList();
+    LoadHistoryItemList();
+  }
+
   public void ExportSelectedVersions()
   {
     if (m_Selection.Count <= 0)
@@ -200,7 +218,7 @@ public class UiFileInfo : MonoBehaviour
       throw new Exception("Deleting version(s) with no version(s) selected");
     }
 
-    FileSystem.Instance.GetDataFromFullPath(m_FullFilePath, out FileSystem.FileInfo fileInfo);
+    FileSystem.Instance.GetFileInfoFromFullFilePath(m_FullFilePath, out FileSystem.FileInfo fileInfo);
     if (m_Selection.Count > 1)
     {
       List<FileSystem.Version> versions = new();
@@ -403,6 +421,7 @@ public class UiFileInfo : MonoBehaviour
       m_ExportButton.SetActive(false);
       m_LoadButton.SetActive(false);
       m_DeleteButton.SetActive(false);
+      m_PromoteButton.SetActive(false);
     }
     else if (m_Selection.Count == 1)
     {
@@ -413,6 +432,7 @@ public class UiFileInfo : MonoBehaviour
       m_ExportButton.SetActive(true);
       m_LoadButton.SetActive(true);
       m_DeleteButton.SetActive(true);
+      m_PromoteButton.SetActive(!m_Selection[0].GetVersion().IsManual());
     }
     else
     {
@@ -437,6 +457,7 @@ public class UiFileInfo : MonoBehaviour
       m_ExportButton.SetActive(true);
       m_LoadButton.SetActive(false);
       m_DeleteButton.SetActive(true);
+      m_PromoteButton.SetActive(false);
     }
   }
 }

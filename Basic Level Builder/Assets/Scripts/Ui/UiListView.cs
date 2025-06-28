@@ -115,7 +115,7 @@ public class UiListView : MonoBehaviour
   }
 
 
-  public UiSaveFileItem GetItemByFullPath(string fullPath)
+  public UiSaveFileItem GetItemByFullFilePath(string fullPath)
   {
     var items = m_RectTransform.GetComponentsInChildren<UiSaveFileItem>();
 
