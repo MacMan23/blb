@@ -6,6 +6,7 @@ Copyright 2018-2025, DigiPen Institute of Technology
 ***************************************************/
 
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -154,58 +155,82 @@ public class UiHistoryItem : MonoBehaviour
     OnSelected?.Invoke(this);
   }
 
-  public void Deselect()
-  {
-    SetColorAsUnselected();
-  }
-
   public void SetColorAndAutosAsSelected()
   {
+    // Sets this elements color
+    SetColorAsSelected();
+
+    // We don't need to do any more if we are just selecting an autosave
+    if (!IsManualSave())
+      return;
+
+
     for (int i = 0; i < transform.parent.childCount; i++)
     {
       var child = transform.parent.GetChild(i);
       if (child == null || !child.TryGetComponent(out UiHistoryItem item))
         continue;
 
-      if (i < transform.GetSiblingIndex())
+      if (i <= transform.GetSiblingIndex())
         continue;
-
-      // If we are selecting an auto save, we only need to select this one
-      // And select the whole bg too, not just the branch pannel
-      if (i == transform.GetSiblingIndex() && !IsManualSave())
-      {
-        SetColorAsSelected();
-        m_AutoSaveInfo.m_BoxBG.color = s_SelectedAutoSaveColor;
-        return;
-      }
 
       // If we reach the next manual save after selecting our last item, stop selecting
       if (i > transform.GetSiblingIndex() && item.IsManualSave())
         return;
 
-      // Select all autosave attached to this manual
-      item.SetColorAsSelected();
+      // Select all autosaves attached to this manual
+      item.m_SelectBG.color = s_SelectedAutoSaveBranchColor;
     }
   }
 
-  public void SetColorAsSelected()
+  private void SetColorAsSelected()
   {
     if (IsManualSave())
       m_SelectBG.color = s_SelectedManualSaveColor;
     else
     {
       m_SelectBG.color = s_SelectedAutoSaveBranchColor;
-      m_AutoSaveInfo.m_BoxBG.color = s_UnselectedAutoSaveColor;
+      m_AutoSaveInfo.m_BoxBG.color = s_SelectedAutoSaveColor;
     }
   }
 
-  public void SetColorAsUnselected()
+  public void SetColorAndAutosAsUnselected(bool isManualSelected = false)
+  {
+    // Sets this elements color
+    SetColorAsUnselected(isManualSelected);
+
+    // We don't need to do any more if we are just selecting an autosave
+    if (!IsManualSave())
+      return;
+
+
+    for (int i = 0; i < transform.parent.childCount; i++)
+    {
+      var child = transform.parent.GetChild(i);
+      if (child == null || !child.TryGetComponent(out UiHistoryItem item))
+        continue;
+
+      if (i <= transform.GetSiblingIndex())
+        continue;
+
+      // If we reach the next manual save after selecting our last item, stop selecting
+      if (i > transform.GetSiblingIndex() && item.IsManualSave())
+        return;
+
+      // Unselects the branch color of all autosaves attached to this manual
+      if (item.m_AutoSaveInfo.m_BoxBG.color == s_UnselectedAutoSaveColor)
+        item.m_SelectBG.color = s_UnselectedAutoSaveBranchColor;
+    }
+  }
+
+  public void SetColorAsUnselected(bool isManualSelected = false)
   {
     if (IsManualSave())
       m_SelectBG.color = s_UnselectedManualSaveColor;
     else
     {
-      m_SelectBG.color = s_UnselectedAutoSaveBranchColor;
+      if (!isManualSelected)
+        m_SelectBG.color = s_UnselectedAutoSaveBranchColor;
       m_AutoSaveInfo.m_BoxBG.color = s_UnselectedAutoSaveColor;
     }
   }

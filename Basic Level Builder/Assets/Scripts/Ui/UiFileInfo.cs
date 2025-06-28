@@ -318,7 +318,7 @@ public class UiFileInfo : MonoBehaviour
   {
     foreach (var item in GetAllHistoryItems())
     {
-      item.Deselect();
+      item.SetColorAsUnselected();
     }
     m_Selection.Clear();
   }
@@ -369,7 +369,6 @@ public class UiFileInfo : MonoBehaviour
 
     m_Selection.Sort((a, b) => a.CompareTo(b));
 
-    DeselectTwiceSelectedAutosaves();
     UpdateVersionInfo();
   }
 
@@ -379,11 +378,19 @@ public class UiFileInfo : MonoBehaviour
     item.SetColorAndAutosAsSelected();
   }
 
-  // TODO, unselect attached autosaves too
   private void RemoveFromSelection(UiHistoryItem item)
   {
     m_Selection.Remove(item);
-    item.SetColorAsUnselected();
+    bool manualSelected = false;
+    if (!item.GetVersion().IsManual())
+    {
+      foreach (UiHistoryItem item2 in m_Selection)
+      {
+        if (item2.GetVersion().m_ManualVersion == item.GetVersion().m_ManualVersion && item2.GetVersion().IsManual())
+          manualSelected = true;
+      }
+    }
+    item.SetColorAndAutosAsUnselected(manualSelected);
   }
 
   private void UpdateVersionInfo()
@@ -430,28 +437,6 @@ public class UiFileInfo : MonoBehaviour
       m_ExportButton.SetActive(true);
       m_LoadButton.SetActive(false);
       m_DeleteButton.SetActive(true);
-    }
-  }
-
-  // Removes any autosaves from the selection if their banched manual save is already selected
-  private void DeselectTwiceSelectedAutosaves()
-  {
-    // m_Selection is sorted before this so we can check like this
-
-    int lastManual = -1;
-    for (int i = 0; i < m_Selection.Count; ++i)
-    {
-      if (m_Selection[i].IsManualSave())
-      {
-        lastManual = m_Selection[i].GetVersion().m_ManualVersion;
-      }
-      else if (lastManual == m_Selection[i].GetVersion().m_ManualVersion)
-      {
-        m_Selection[i].Deselect();
-        m_Selection[i].SetColorAsSelected();
-        m_Selection.RemoveAt(i);
-        --i;
-      }
     }
   }
 }
