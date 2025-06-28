@@ -14,7 +14,6 @@ using UnityEngine;
 using System.Runtime.InteropServices;
 using B83.Win32;
 using System.Threading;
-using System.Text.RegularExpressions;
 
 public class FileSystem : MonoBehaviour
 {
@@ -306,7 +305,8 @@ public class FileSystem : MonoBehaviour
         StatusBar.Print(errorString);
       }
 
-      m_SaveList.ValidateAllItems();
+      // Update file list incase files were added or removed
+      SetDirectoryName(m_DefaultDirectoryName);
     }
   }
 
