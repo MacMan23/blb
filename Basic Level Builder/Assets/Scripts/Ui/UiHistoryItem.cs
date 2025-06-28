@@ -106,7 +106,7 @@ public class UiHistoryItem : MonoBehaviour
       if (IsManualSave())
         name = s_ManualSaveName + m_LevelData.m_Version.m_ManualVersion;
       else
-        name = s_AutoSaveName + m_LevelData.m_Version.m_AutoVersion;
+        name = "Br : " + m_LevelData.m_Version.m_ManualVersion + " " + s_AutoSaveName + m_LevelData.m_Version.m_AutoVersion;
     }
 
     return name;
