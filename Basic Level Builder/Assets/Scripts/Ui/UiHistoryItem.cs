@@ -7,6 +7,7 @@ Copyright 2018-2025, DigiPen Institute of Technology
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -33,8 +34,6 @@ public class UiHistoryItem : MonoBehaviour
   [SerializeField]
   private Image m_ThumbnailImage;
   [SerializeField]
-  private TMPro.TextMeshProUGUI m_VersionName;
-  [SerializeField]
   private TMPro.TextMeshProUGUI m_VersionData;
   [SerializeField]
   private RawImage m_SelectBG;
@@ -52,6 +51,7 @@ public class UiHistoryItem : MonoBehaviour
   [Serializable]
   private class AutoSaveInfo
   {
+    public TMPro.TextMeshProUGUI m_VersionName;
     public GameObject m_BranchCap;
     public GameObject m_BranchExtend;
     public RawImage m_BoxBG;
@@ -60,6 +60,7 @@ public class UiHistoryItem : MonoBehaviour
   [Serializable]
   private class ManualSaveInfo
   {
+    public TMPro.TMP_InputField m_VersionInputName;
     public RectTransform m_Arrow;
   }
 
@@ -71,16 +72,29 @@ public class UiHistoryItem : MonoBehaviour
     if (string.IsNullOrEmpty(levelData.m_Name))
     {
       if (IsManualSave())
-        m_VersionName.text = s_ManualSaveName + levelData.m_Version.m_ManualVersion;
+        m_ManualSaveInfo.m_VersionInputName.text = s_ManualSaveName + levelData.m_Version.m_ManualVersion;
       else
-        m_VersionName.text = "<i>" + s_AutoSaveName + levelData.m_Version.m_AutoVersion;
+        m_AutoSaveInfo.m_VersionName.text = "<i>" + s_AutoSaveName + levelData.m_Version.m_AutoVersion;
     }
     else
     {
-      m_VersionName.text = levelData.m_Name;
+      if (IsManualSave())
+        m_ManualSaveInfo.m_VersionInputName.text = levelData.m_Name;
+      else
+        m_AutoSaveInfo.m_VersionName.text = levelData.m_Name;
     }
 
     m_VersionData.text = GetVersionTimeStamp();
+  }
+
+  public void EditName()
+  {
+    m_ManualSaveInfo.m_VersionInputName.ActivateInputField();
+  }
+
+  public void SetName()
+  {
+    FileSystem.Instance.SetVersionName(m_FullFilePath, m_LevelData.m_Version, m_ManualSaveInfo.m_VersionInputName.text);
   }
 
   public bool IsManualSave()

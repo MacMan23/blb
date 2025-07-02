@@ -862,6 +862,22 @@ public class FileSystem : MonoBehaviour
       m_MainThreadDispatcher.Enqueue(() => AddFileItemForFile(m_SaveList, fullFilePath));
   }
 
+  public void SetVersionName(string fullFilePath, Version version, string name)
+  {
+    GetFileInfoFromFullFilePath(fullFilePath, out FileInfo fileInfo);
+    List<LevelData> levelList = version.IsManual() ? fileInfo.m_FileData.m_ManualSaves : fileInfo.m_FileData.m_AutoSaves;
+    foreach (var data in levelList)
+    {
+      if (data.m_Version == version)
+      {
+        data.m_Name = name;
+        return;
+      }
+    }
+
+    throw new InvalidOperationException($"{version} can not found");
+  }
+
   /// <summary>
   /// Copies a file from the source file info to the destination path.
   /// </summary>

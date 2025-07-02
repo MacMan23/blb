@@ -919,14 +919,15 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_ThumbnailImage: {fileID: 1340669564639252377}
-  m_VersionName: {fileID: 4890702748076532438}
   m_VersionData: {fileID: 4425450047746678213}
   m_SelectBG: {fileID: 2987540389764663906}
   m_AutoSaveInfo:
+    m_VersionName: {fileID: 4890702748076532438}
     m_BranchCap: {fileID: 7440247647373422826}
     m_BranchExtend: {fileID: 114424733775247461}
     m_BoxBG: {fileID: 6868823389265807899}
   m_ManualSaveInfo:
+    m_VersionInputName: {fileID: 0}
     m_Arrow: {fileID: 0}
 --- !u!114 &5031011036986405413
 MonoBehaviour:
