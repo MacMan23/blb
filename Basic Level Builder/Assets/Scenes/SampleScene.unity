@@ -1595,6 +1595,7 @@ GameObject:
   - component: {fileID: 128438538}
   - component: {fileID: 128438537}
   - component: {fileID: 128438547}
+  - component: {fileID: 128438548}
   - component: {fileID: 128438542}
   - component: {fileID: 128438543}
   - component: {fileID: 128438546}
@@ -1783,13 +1784,26 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_DefaultDirectoryName: Default Project
-  m_FileItemPrefab: {fileID: 1736586192198972156, guid: 304cd9fb1f0cec44b854d01b637e2ad1,
-    type: 3}
-  m_SaveList: {fileID: 253817712}
   m_TileGrid: {fileID: 2031376952}
+  m_FileDirUtilities: {fileID: 128438548}
   m_OverrideDialogAdder: {fileID: 128438542}
   m_SaveAsDialogAdder: {fileID: 128438543}
   m_ExportAsDialogAdder: {fileID: 128438546}
+--- !u!114 &128438548
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 128438535}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1e4dd5f2446b5a241a34a2f70cf68e86, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_FileItemPrefab: {fileID: 1736586192198972156, guid: 304cd9fb1f0cec44b854d01b637e2ad1,
+    type: 3}
+  m_SaveList: {fileID: 253817712}
 --- !u!1 &146315540
 GameObject:
   m_ObjectHideFlags: 0

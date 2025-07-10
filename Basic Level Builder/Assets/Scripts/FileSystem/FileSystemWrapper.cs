@@ -161,7 +161,7 @@ public class FileSystemWrapper : FileSystem
     if (Application.platform == RuntimePlatform.WebGLPlayer)
       return;
 
-    Application.OpenURL($"file://{m_CurrentDirectoryPath}");
+    Application.OpenURL($"file://{m_FileDirUtilities.GetCurrentDirectoryPath()}");
   }
 
   public void MainThreadDispatcherQueue(System.Action action)
@@ -193,7 +193,7 @@ public class FileSystemWrapper : FileSystem
 
   public void TryStartExportSavingThread(string fileName)
   {
-    string destFilePath = Path.Combine(m_CurrentDirectoryPath, fileName + s_FilenameExtension);
+    string destFilePath = m_FileDirUtilities.CreateFilePath(fileName);
 
     // Give prompt if we are going to write to and existing file
     if (File.Exists(destFilePath))

@@ -7,7 +7,6 @@ Copyright 2018-2025, DigiPen Institute of Technology
 
 using System;
 using System.IO;
-using System.IO.Compression;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -15,11 +14,10 @@ using System.Runtime.InteropServices;
 using B83.Win32;
 using System.Threading;
 using static FileVersioning;
+using static FileDirUtilities;
 
 public class FileSystem : MonoBehaviour
 {
-  readonly static public string s_FilenameExtension = ".blb";
-  readonly static public string s_RootDirectoryName = "Basic Level Builder";
   readonly static public string s_DateTimeFormat = "h-mm-ss.ff tt, ddd d MMM yyyy";
   readonly static public int s_MaxAutoSaveCount = 20;
   readonly static public int s_MaxManualSaveCount = 100;
@@ -27,9 +25,8 @@ public class FileSystem : MonoBehaviour
   static string s_EditorVersion;
 
   public string m_DefaultDirectoryName = "Default Project";
-  public UiSaveFileItem m_FileItemPrefab;
-  public UiListView m_SaveList;
   public TileGrid m_TileGrid;
+  public FileDirUtilities m_FileDirUtilities;
 
   UnityDragAndDropHook m_DragAndDropHook;
 
@@ -41,7 +38,6 @@ public class FileSystem : MonoBehaviour
   [SerializeField]
   protected ModalDialogAdder m_ExportAsDialogAdder;
 
-  protected string m_CurrentDirectoryPath;
   protected string m_PendingSaveFullFilePath = "";
   protected FileData m_PendingExportFileData = null;
   protected List<FileVersion> m_PendingExportVersions = null;
@@ -133,7 +129,7 @@ public class FileSystem : MonoBehaviour
     s_EditorVersion = Application.version;
     m_ModalDialogMaster = FindObjectOfType<ModalDialogMaster>();
 
-    SetDirectoryName(m_DefaultDirectoryName);
+    m_FileDirUtilities.SetDirectoryName(m_DefaultDirectoryName);
   }
 
   void Update()
@@ -174,7 +170,7 @@ public class FileSystem : MonoBehaviour
       }
 
       // Update file list incase files were added or removed
-      SetDirectoryName(m_DefaultDirectoryName);
+      m_FileDirUtilities.SetDirectoryName(m_DefaultDirectoryName);
     }
   }
 
@@ -268,7 +264,7 @@ public class FileSystem : MonoBehaviour
     // If we are doing a SAVE AS
     if (saveAsFileName != null)
     {
-      destFilePath = Path.Combine(m_CurrentDirectoryPath, saveAsFileName + s_FilenameExtension);
+      destFilePath = m_FileDirUtilities.CreateFilePath(saveAsFileName);
 
       // Give prompt if we are going to write to and existing file
       if (File.Exists(destFilePath))
@@ -303,7 +299,7 @@ public class FileSystem : MonoBehaviour
               "A new file has been made for this save.";
             StatusBar.Print(errorString);
             Debug.LogWarning(errorString);
-            RemoveFileItem(m_SaveList, m_MountedFileInfo.m_SaveFilePath);
+            m_FileDirUtilities.RemoveFileItem(m_MountedFileInfo.m_SaveFilePath);
             UnmountFile();
           }
         }
@@ -314,7 +310,7 @@ public class FileSystem : MonoBehaviour
         // If an auto save, create a temp file and write to that
         if (autosave)
         {
-          destFilePath = CreateTempFileName();
+          destFilePath = m_FileDirUtilities.CreateTempFileName();
           m_MountedFileInfo.m_IsTempFile = true;
           // Mount temp file so we can check when the full file path isn't the temp file
           MountFile(destFilePath, m_MountedFileInfo);
@@ -593,9 +589,9 @@ public class FileSystem : MonoBehaviour
   private void UpdateFileToItemList(string fullFilePath, bool overwriting)
   {
     if (overwriting)
-      m_MainThreadDispatcher.Enqueue(() => MoveFileItemToTop(m_SaveList, fullFilePath));
+      m_MainThreadDispatcher.Enqueue(() => m_FileDirUtilities.MoveFileItemToTop(fullFilePath));
     else
-      m_MainThreadDispatcher.Enqueue(() => AddFileItemForFile(m_SaveList, fullFilePath));
+      m_MainThreadDispatcher.Enqueue(() => m_FileDirUtilities.AddFileItemForFile(fullFilePath));
   }
 
   /// <summary>
@@ -906,224 +902,9 @@ public class FileSystem : MonoBehaviour
 
     }
 
-    MoveFileItemToTop(m_SaveList, fileInfo.m_SaveFilePath);
+    m_FileDirUtilities.MoveFileItemToTop(fileInfo.m_SaveFilePath);
 
     StatusBar.Print($"Sucessfuly deleted {versionDescription} from {fileInfo.m_SaveFilePath}");
-  }
-
-  private void SetDirectoryName(string name)
-  {
-    if (GlobalData.AreEffectsUnderway())
-      return;
-
-    if (!ValidateDirectoryName(name))
-    {
-      // modal: something's wrong with the file name
-      return;
-    }
-
-    var documentsPath = GetDocumentsPath();
-    // this will never throw as long as s_RootDirectoryName is valid
-    var newDirectoryPath = Path.Combine(documentsPath, s_RootDirectoryName, name);
-
-    if (Directory.Exists(newDirectoryPath))
-    {
-      try
-      {
-        var filePaths = Directory.GetFiles(newDirectoryPath);
-        var validFilePaths = filePaths.Where(path => Path.HasExtension(path)).ToArray();
-
-        if (filePaths.Length == 0)
-        {
-          // modal: pointing to an existing empty folder
-        }
-        else if (validFilePaths.Length == 0)
-        {
-          // modal: this folder doesn't have any BLB level files in it
-        }
-        else
-        {
-          // modal: pointing to an existing folder with stuff in it
-          m_SaveList.Clear();
-          SortByDateModified(validFilePaths);
-
-          // at this point, filePaths is already sorted chronologically
-          AddFileItemsForFiles(validFilePaths);
-        }
-      }
-      catch (Exception e)
-      {
-        // this probably can't happen, but....
-        StatusBar.Print($"Error getting files in directory. {e.Message} ({e.GetType()})");
-      }
-    }
-    else
-    {
-      // get down with your bad self
-      Directory.CreateDirectory(newDirectoryPath);
-    }
-
-    m_CurrentDirectoryPath = newDirectoryPath;
-  }
-
-  private void MoveFileItemToTop(UiListView fileList, string fullFilePath)
-  {
-    var item = fileList.GetItemByFullFilePath(fullFilePath);
-    fileList.MoveToTop(item.transform);
-  }
-
-  private void RemoveFileItem(UiListView fileList, string fullFilePath)
-  {
-    var element = fileList.GetItemByFullFilePath(fullFilePath);
-    fileList.Remove(element.GetComponent<RectTransform>());
-  }
-
-  private void AddFileItemForFile(UiListView fileList, string fullFilePath)
-  {
-    var fileName = Path.GetFileNameWithoutExtension(fullFilePath);
-    var rt = AddHelper(fullFilePath, fileName);
-    fileList.Add(rt);
-  }
-
-  private void AddFileItemsForFiles(string[] fullFilePaths)
-  {
-    if (GlobalData.AreEffectsUnderway())
-      return;
-
-    var listItems = new List<RectTransform>();
-
-    foreach (var fullFilePath in fullFilePaths)
-    {
-      // Path.GetFileNameWithoutExtension can only throw ArgumentException
-      // for the path having invalid characters, and AddHelper will only be
-      // called after ValidateDirectoryName has cleared the path
-      var fileName = Path.GetFileNameWithoutExtension(fullFilePath);
-
-      var rt = AddHelper(fullFilePath, fileName);
-      listItems.Add(rt);
-    }
-
-    m_SaveList.Add(listItems);
-  }
-
-  private RectTransform AddHelper(string fullFilePath, string fileName)
-  {
-    var listItem = Instantiate(m_FileItemPrefab);
-
-    listItem.Setup(fullFilePath, fileName, File.GetLastWriteTime(fullFilePath).ToString("g"));
-    var rt = listItem.GetComponent<RectTransform>();
-
-    return rt;
-  }
-
-  private bool ValidateDirectoryName(string directoryName)
-  {
-    if (string.IsNullOrEmpty(directoryName) || string.IsNullOrWhiteSpace(directoryName))
-      return false;
-
-    var invalidChars = Path.GetInvalidPathChars();
-
-    if (invalidChars.Length > 0)
-      return directoryName.IndexOfAny(invalidChars) < 0;
-    else
-      return true;
-  }
-
-  private string GetDocumentsPath()
-  {
-    try
-    {
-      switch (Application.platform)
-      {
-        case RuntimePlatform.OSXEditor:
-        case RuntimePlatform.OSXPlayer:
-        case RuntimePlatform.WindowsPlayer:
-        case RuntimePlatform.WindowsEditor:
-        case RuntimePlatform.LinuxPlayer:
-        case RuntimePlatform.LinuxEditor:
-        case RuntimePlatform.WSAPlayerX86:
-        case RuntimePlatform.WSAPlayerX64:
-        case RuntimePlatform.WSAPlayerARM:
-          return Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-
-        default:
-          return Application.persistentDataPath;
-      }
-    }
-    catch (Exception e)
-    {
-      Debug.LogError($"Error getting document path. Defaulting to persistent data path. {e.Message} ({e.GetType()})");
-
-      return Application.persistentDataPath;
-    }
-  }
-
-  /// <summary>
-  /// Creates a temporary file name with a random GUID.
-  /// </summary>
-  /// <returns>The full path to the temporary file</returns>
-  private string CreateTempFileName()
-  {
-    return Path.Combine(m_CurrentDirectoryPath, Guid.NewGuid().ToString() + s_FilenameExtension);
-  }
-
-  /// <summary>
-  /// Sorts an array of file paths by their last modified date.
-  /// </summary>
-  /// <param name="files">The array of file paths to sort</param>
-  private void SortByDateModified(string[] files)
-  {
-    Array.Sort(files, DateModifiedComparison);
-  }
-
-  /// <summary>
-  /// Compares two file paths by their last modified date.
-  /// </summary>
-  /// <param name="a">The first file path</param>
-  /// <param name="b">The second file path</param>
-  /// <returns>A comparison value indicating the relative order of the files</returns>
-  private static int DateModifiedComparison(string a, string b)
-  {
-    var dateTimeA = File.GetLastWriteTime(a);
-    var dateTimeB = File.GetLastWriteTime(b);
-
-    return DateTime.Compare(dateTimeA, dateTimeB);
-  }
-
-  /// <summary>
-  /// Utility class for compressing and decompressing string data using GZip.
-  /// </summary>
-  protected class StringCompression
-  {
-    /// <summary>
-    /// Compresses the input string data using GZip.
-    /// </summary>
-    /// <param name="input">The string to compress</param>
-    /// <returns>The compressed data as a byte array</returns>
-    public static byte[] Compress(string input)
-    {
-      byte[] byteArray = System.Text.Encoding.Default.GetBytes(input);
-
-      using MemoryStream ms = new();
-      using (GZipStream sw = new(ms, CompressionMode.Compress))
-      {
-        sw.Write(byteArray, 0, byteArray.Length);
-      }
-      return ms.ToArray();
-    }
-
-    /// <summary>
-    /// Decompresses the input data using GZip.
-    /// </summary>
-    /// <param name="compressedData">The compressed data as a byte array</param>
-    /// <returns>The decompressed string</returns>
-    public static string Decompress(byte[] compressedData)
-    {
-      using MemoryStream ms = new(compressedData);
-      using GZipStream sr = new(ms, CompressionMode.Decompress);
-      using StreamReader reader = new(sr);
-      return reader.ReadToEnd();
-    }
   }
 
   /// <summary>
