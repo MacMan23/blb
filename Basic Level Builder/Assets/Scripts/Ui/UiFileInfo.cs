@@ -205,7 +205,7 @@ public class UiFileInfo : MonoBehaviour
     if (m_Selection.Count == 1)
       FileSystem.Instance.ExportVersion(m_Selection[0].GetFilePath(), m_Selection[0].GetVersion());
     else
-      FileSystem.Instance.ExportVersions(m_Selection[0].GetFilePath(), versions);
+      FileSystem.Instance.ExportMultipleVersions(m_Selection[0].GetFilePath(), versions);
   }
 
   // TODO: If deleting last manual save ask if want to delete whole file.
@@ -227,7 +227,7 @@ public class UiFileInfo : MonoBehaviour
         versions.Add(item.GetVersion());
       }
 
-      FileSystem.Instance.DeleteVersions(fileInfo, versions);
+      FileSystem.Instance.DeleteMultipleVersions(fileInfo, versions);
     }
     else
     {

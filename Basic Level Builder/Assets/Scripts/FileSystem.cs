@@ -206,26 +206,6 @@ public class FileSystem : MonoBehaviour
       return diff;
     }
 
-    public readonly int CompareToIncreasingManualToAuto(Version other)
-    {
-      int diff = m_ManualVersion - other.m_ManualVersion;
-
-      // If they are the same maunal save, one (or both) of them is an autosave.
-      if (diff == 0)
-      {
-        // Sort the auto saves to have the newest on top
-        diff = m_AutoVersion - other.m_AutoVersion;
-
-        // If either werer a manaul save, we need to put that on top
-        if (other.m_AutoVersion == 0)
-          diff = 1;
-        if (m_AutoVersion == 0)
-          diff = -1;
-      }
-
-      return diff;
-    }
-
     // The version of the manaul save, or maunal the auto is branched off of
     public int m_ManualVersion;
     // The autosave version, 0 if not an autosave
@@ -239,16 +219,6 @@ public class FileSystem : MonoBehaviour
     {
       m_AddedTiles = new List<TileGrid.Element>();
       m_RemovedTiles = new List<Vector2Int>();
-    }
-
-    public int CompareTo(LevelData other)
-    {
-      return m_Version.CompareTo(other.m_Version);
-    }
-
-    public int CompareToIncreasingManualToAuto(LevelData other)
-    {
-      return m_Version.CompareToIncreasingManualToAuto(other.m_Version);
     }
 
     public Version m_Version;
@@ -369,7 +339,7 @@ public class FileSystem : MonoBehaviour
     return !String.IsNullOrEmpty(m_MountedFileInfo.m_SaveFilePath);
   }
 
-  public void ExportVersions(string sourcePath, List<Version> versions)
+  public void ExportMultipleVersions(string sourcePath, List<Version> versions)
   {
     // Gather the level data to export
     GetFileInfoFromFullFilePath(sourcePath, out FileInfo sourceFileInfo);
@@ -622,16 +592,16 @@ public class FileSystem : MonoBehaviour
     // TODO, Don't auto save if the diffences from the last auto save are the same. Ie no unsaved changes.
     #region Add level changes to level data
     // Edge cases
-    // #: Overwriting, MountedFile, Diffrences, Saving to mounted file
+    // #: Overwriting, MountedFile, Differences, Saving to mounted file
     // 1: 1, 0, 0, 0 (Save as; we are writing to an existing file, yet we have no mounted file. Thus we just save our editor level) [TileGrid]
     // 2: 1, 1, 0, 0 (Overwrite save to our mounted file or another file. No changes, so just copy our file over) [File copy]
     // 3: 1, 1, 1, 0 (Overwrite save to our mounted file or another file. Add changes to mounted file string) [oldSave + diff]
     // 4: 0, 1, 0, 0 (Save as; Copy our mounted file to a new file) [File copy]
-    // 5: 0, 1, 1, 0 (Save as; Copy our level with the diffrences added to a new file) [oldSave + diff]
+    // 5: 0, 1, 1, 0 (Save as; Copy our level with the differences added to a new file) [oldSave + diff]
     // 6: 0, 0, 0, 0 (Save as; Write editor level to file) [TileGrid]
-    // 7: 1, 1, 0, 1 (Skip, We are saving to our own file, yet we have no diffrences) [return]
-    // 8: 1, 1, 1, 1 (Save to our file with the diffrences) [oldSave + diff]
-    // We can't have diffrences if we don't have a mounted file
+    // 7: 1, 1, 0, 1 (Skip, We are saving to our own file, yet we have no differences) [return]
+    // 8: 1, 1, 1, 1 (Save to our file with the differences) [oldSave + diff]
+    // We can't have differences if we don't have a mounted file
     // We can only save to the mounted file if the file exist, meaning overwriting is true.
     // We can't save to the mounted file if we have no mounted file
 
@@ -683,9 +653,9 @@ public class FileSystem : MonoBehaviour
       }
     }
 
-    // TODO, check if the auto save has diffrences from the last auto save, if not, discard save,
+    // TODO, check if the auto save has differences from the last auto save, if not, discard save,
     // TODO, check if manual save is the same as the last auto save, if so just move auto to manual
-    // Only write if we have diffrences, or we have no user created file yet
+    // Only write if we have differences, or we have no user created file yet
     if (hasDifferences || m_MountedFileInfo.m_IsTempFile)
     {
       // #6, 1, 3, 5, 8
@@ -706,7 +676,7 @@ public class FileSystem : MonoBehaviour
 
         m_MountedFileInfo.m_FileData.m_ManualSaves.Add(levelData);
       }
-      // If this is an auto save, store what version of the manual save we branched from to get these diffrences to save
+      // If this is an auto save, store what version of the manual save we branched from to get these differences to save
       else
       {
         // If we a auto saving to a temp file
@@ -804,26 +774,26 @@ public class FileSystem : MonoBehaviour
   }
 
   // Make sure m_TileGrid.CopyGridBuffer is called before hand
-  private bool GetDifferences(out LevelData diffrences, FileData fileData, Version? version = null)
+  private bool GetDifferences(out LevelData differences, FileData fileData, Version? version = null)
   {
     Dictionary<Vector2Int, TileGrid.Element> oldGrid = GetGridDictionaryFromFileData(fileData, version);
 
-    return GetDifferencesEx(out diffrences, oldGrid, m_TileGrid.GetGridBuffer());
+    return GetDifferencesEx(out differences, oldGrid, m_TileGrid.GetGridBuffer());
   }
 
-  private bool GetVersionDifferences(out LevelData diffrences, FileData fileData, Version from, Version to)
+  private bool GetVersionDifferences(out LevelData differences, FileData fileData, Version from, Version to)
   {
     Dictionary<Vector2Int, TileGrid.Element> oldGrid = GetGridDictionaryFromFileData(fileData, from);
     Dictionary<Vector2Int, TileGrid.Element> newGrid = GetGridDictionaryFromFileData(fileData, to);
 
-    return GetDifferencesEx(out diffrences, oldGrid, newGrid.ToList());
+    return GetDifferencesEx(out differences, oldGrid, newGrid.ToList());
   }
 
-  private bool GetDifferencesEx(out LevelData diffrences, Dictionary<Vector2Int, TileGrid.Element> oldGrid, List<KeyValuePair<Vector2Int, TileGrid.Element>> newGrid)
+  private bool GetDifferencesEx(out LevelData differences, Dictionary<Vector2Int, TileGrid.Element> oldGrid, List<KeyValuePair<Vector2Int, TileGrid.Element>> newGrid)
   {
-    diffrences = new();
+    differences = new();
 
-    bool hasDiffrences = false;
+    bool hasDifferences = false;
 
     foreach (var kvp in newGrid)
     {
@@ -840,18 +810,18 @@ public class FileSystem : MonoBehaviour
         if (same)
           continue;
       }
-      diffrences.m_AddedTiles.Add(currentElement);
-      hasDiffrences = true;
+      differences.m_AddedTiles.Add(currentElement);
+      hasDifferences = true;
     }
 
     // Every tile left in the old grid will be removed
     foreach (var kvp in oldGrid)
     {
-      diffrences.m_RemovedTiles.Add(kvp.Key);
-      hasDiffrences = true;
+      differences.m_RemovedTiles.Add(kvp.Key);
+      hasDifferences = true;
     }
 
-    return hasDiffrences;
+    return hasDifferences;
   }
 
   private void UpdateFileToItemList(string fullFilePath, bool overwriting)
@@ -1217,7 +1187,7 @@ public class FileSystem : MonoBehaviour
   /// <param name="fileInfo">The file info containing the save.</param>
   /// <param name="versions">A list of versions to delete.</param>
   /// <exception cref="Exception">Thrown when an error occurs.</exception>
-  public void DeleteVersions(FileInfo fileInfo, List<Version> versions)
+  public void DeleteMultipleVersions(FileInfo fileInfo, List<Version> versions)
   {
     foreach (var version in versions)
     {
@@ -1288,7 +1258,7 @@ public class FileSystem : MonoBehaviour
         if (shouldSaveFile)
           SaveAfterDeletion(fileInfo, version);
 
-        UpdatedLoadedVersionIfDeleted(fileInfo, version);
+        UpdateLoadedVersionIfDeleted(fileInfo, version);
         return;
       }
     }
@@ -1304,7 +1274,7 @@ public class FileSystem : MonoBehaviour
           if (shouldSaveFile)
             SaveAfterDeletion(fileInfo, version);
 
-          UpdatedLoadedVersionIfDeleted(fileInfo, version);
+          UpdateLoadedVersionIfDeleted(fileInfo, version);
           return;
         }
       }
@@ -1313,12 +1283,12 @@ public class FileSystem : MonoBehaviour
     throw new Exception($"Couldn't find {version} to delete");
   }
 
-  private void UpdatedLoadedVersionIfDeleted(FileInfo fileInfo, Version version)
+  private void UpdateLoadedVersionIfDeleted(FileInfo fileInfo, Version version)
   {
     // If deleting from our own loaded file
     if (m_MountedFileInfo.m_SaveFilePath == fileInfo.m_SaveFilePath)
     {
-      // If we deleted the version we had loaded, add on to the newest manaul save
+      // Mark the version we have loaded from to be the newest one
       if (m_loadedVersion.m_ManualVersion == version.m_ManualVersion && fileInfo.m_FileData.m_ManualSaves.Count > 0)
       {
         m_loadedVersion = fileInfo.m_FileData.m_ManualSaves[^1].m_Version;
@@ -1474,10 +1444,10 @@ public class FileSystem : MonoBehaviour
         AddLevelDeltasToGrid(ref nextGrid, fileData.m_ManualSaves[i + 1]);
         AddLevelDeltasToGrid(ref autosGrid, level);
 
-        GetDifferencesEx(out LevelData diffrences, autosGrid, nextGrid.ToList());
+        GetDifferencesEx(out LevelData differences, autosGrid, nextGrid.ToList());
 
-        fileData.m_ManualSaves[i + 1].m_AddedTiles = diffrences.m_AddedTiles;
-        fileData.m_ManualSaves[i + 1].m_RemovedTiles = diffrences.m_RemovedTiles;
+        fileData.m_ManualSaves[i + 1].m_AddedTiles = differences.m_AddedTiles;
+        fileData.m_ManualSaves[i + 1].m_RemovedTiles = differences.m_RemovedTiles;
 
         // Remove the autosave we are promoting before modifieing it and adding it to the manual list
         fileData.m_AutoSaves.Remove(level);
