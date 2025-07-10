@@ -1,9 +1,9 @@
-using System.IO;
 using System;
-using UnityEngine;
-using System.Linq;
 using System.Collections.Generic;
+using System.IO;
 using System.IO.Compression;
+using System.Linq;
+using UnityEngine;
 
 public class FileDirUtilities : MonoBehaviour
 {
@@ -174,7 +174,6 @@ public class FileDirUtilities : MonoBehaviour
   public string CreateTempFileName()
   {
     return CreateFilePath(Guid.NewGuid().ToString());
-    
   }
 
   public string CreateFilePath(string fileName)

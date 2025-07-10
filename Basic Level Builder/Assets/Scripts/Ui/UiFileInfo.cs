@@ -5,10 +5,10 @@ Last Updated:   3/24/2025
 Copyright 2018-2025, DigiPen Institute of Technology
 ***************************************************/
 
-using UnityEngine;
-using System.Collections.Generic;
-using UnityEngine.UI;
 using System;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.UI;
 using static FileVersioning;
 
 public class UiFileInfo : MonoBehaviour

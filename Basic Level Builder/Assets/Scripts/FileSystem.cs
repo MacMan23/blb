@@ -5,16 +5,16 @@ Last Updated:   3/24/2025
 Copyright 2018-2025, DigiPen Institute of Technology
 ***************************************************/
 
-using System;
-using System.IO;
-using System.Collections.Generic;
-using System.Linq;
-using UnityEngine;
-using System.Runtime.InteropServices;
 using B83.Win32;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading;
-using static FileVersioning;
+using UnityEngine;
 using static FileDirUtilities;
+using static FileVersioning;
 
 public class FileSystem : MonoBehaviour
 {

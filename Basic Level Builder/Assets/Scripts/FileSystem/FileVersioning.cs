@@ -186,36 +186,36 @@ public static class FileVersioning
   // Note: The passed in versions should be right after eachother or else the deltas might not be correct
   public static LevelData FlattenLevelData(LevelData to, LevelData from)
   {
-    Dictionary<Vector2Int, TileGrid.Element> FlattenedLevelAdd = new();
-    HashSet<Vector2Int> FlattenedLevelRemove = new();
+    Dictionary<Vector2Int, TileGrid.Element> flattenedLevelAdd = new();
+    HashSet<Vector2Int> flattenedLevelRemove = new();
 
-    FlattenLevelDataAdder(ref FlattenedLevelAdd, ref FlattenedLevelRemove, from);
-    FlattenLevelDataAdder(ref FlattenedLevelAdd, ref FlattenedLevelRemove, to);
+    FlattenLevelDataAdder(ref flattenedLevelAdd, ref flattenedLevelRemove, from);
+    FlattenLevelDataAdder(ref flattenedLevelAdd, ref flattenedLevelRemove, to);
 
-    to.m_AddedTiles = FlattenedLevelAdd.Values.ToList();
-    to.m_RemovedTiles = FlattenedLevelRemove.ToList();
+    to.m_AddedTiles = flattenedLevelAdd.Values.ToList();
+    to.m_RemovedTiles = flattenedLevelRemove.ToList();
 
     return to;
   }
 
   // Adds the level datas deltas to an add/removed tiles arrays
-  private static void FlattenLevelDataAdder(ref Dictionary<Vector2Int, TileGrid.Element> FlattenedLevelAdd, ref HashSet<Vector2Int> FlattenedLevelRemove, LevelData addedData)
+  private static void FlattenLevelDataAdder(ref Dictionary<Vector2Int, TileGrid.Element> flattenedLevelAdd, ref HashSet<Vector2Int> flattenedLevelRemove, LevelData addedData)
   {
     foreach (var tile in addedData.m_AddedTiles)
     {
       // Add the tile to the list
       // If we had record to remove it earlier, remove the record
-      if (FlattenedLevelRemove.Contains(tile.m_GridIndex))
-        FlattenedLevelRemove.Remove(tile.m_GridIndex);
-      FlattenedLevelAdd[tile.m_GridIndex] = tile;
+      if (flattenedLevelRemove.Contains(tile.m_GridIndex))
+        flattenedLevelRemove.Remove(tile.m_GridIndex);
+      flattenedLevelAdd[tile.m_GridIndex] = tile;
     }
     foreach (var pos in addedData.m_RemovedTiles)
     {
       // Remove a tile if we have one
-      if (FlattenedLevelAdd.ContainsKey(pos))
-        FlattenedLevelAdd.Remove(pos);
+      if (flattenedLevelAdd.ContainsKey(pos))
+        flattenedLevelAdd.Remove(pos);
       // Keep the remove in the list even if we deleted a tile, because the tile could be replacing a previously placed tile and we need to delete that too
-      FlattenedLevelRemove.Add(pos);
+      flattenedLevelRemove.Add(pos);
     }
   }
 
@@ -226,14 +226,14 @@ public static class FileVersioning
     PromoteMultipleAutoSavesEx(ref fileData, versions, false);
     fileData.m_AutoSaves.Clear();
 
-    Dictionary<Vector2Int, TileGrid.Element> FlattenedLevelAdd = new();
-    HashSet<Vector2Int> FlattenedLevelRemove = new();
+    Dictionary<Vector2Int, TileGrid.Element> flattenedLevelAdd = new();
+    HashSet<Vector2Int> flattenedLevelRemove = new();
 
     int version = 1;
 
     for (int i = 0; i < fileData.m_ManualSaves.Count; ++i)
     {
-      FlattenLevelDataAdder(ref FlattenedLevelAdd, ref FlattenedLevelRemove, fileData.m_ManualSaves[i]);
+      FlattenLevelDataAdder(ref flattenedLevelAdd, ref flattenedLevelRemove, fileData.m_ManualSaves[i]);
 
       // Remove if we are not extracting this version
       if (!versions.Contains(fileData.m_ManualSaves[i].m_Version))
@@ -244,12 +244,12 @@ public static class FileVersioning
       else
       {
         // Update tiles just in case the detas got flattened
-        fileData.m_ManualSaves[i].m_AddedTiles = FlattenedLevelAdd.Values.ToList();
-        fileData.m_ManualSaves[i].m_RemovedTiles = FlattenedLevelRemove.ToList();
+        fileData.m_ManualSaves[i].m_AddedTiles = flattenedLevelAdd.Values.ToList();
+        fileData.m_ManualSaves[i].m_RemovedTiles = flattenedLevelRemove.ToList();
         fileData.m_ManualSaves[i].m_Version = new FileVersion(version++, 0);
 
-        FlattenedLevelAdd.Clear();
-        FlattenedLevelRemove.Clear();
+        flattenedLevelAdd.Clear();
+        flattenedLevelRemove.Clear();
       }
     }
   }
@@ -260,6 +260,7 @@ public static class FileVersioning
   {
     foreach (LevelData level in fileData.m_AutoSaves.AsEnumerable().Reverse())
     {
+      // If this levels version doesn't match any versions we want to export, then skip it
       if (!versions.Any(item => item == level.m_Version))
         continue;
 
@@ -273,7 +274,7 @@ public static class FileVersioning
   {
     Dictionary<Vector2Int, TileGrid.Element> autosGrid = new();
 
-    FileVersion AutoSaveVersion = level.m_Version;
+    FileVersion autoSaveVersion = level.m_Version;
 
     for (int i = 0; i < fileData.m_ManualSaves.Count; ++i)
     {
@@ -281,15 +282,18 @@ public static class FileVersioning
 
       AddLevelDeltasToGrid(ref autosGrid, currentManual);
 
-      if (currentManual.m_Version.m_ManualVersion < AutoSaveVersion.m_ManualVersion)
+      if (currentManual.m_Version.m_ManualVersion < autoSaveVersion.m_ManualVersion)
         continue;
 
       // We added the auto save, push forward the version numbers for all the future versions
-      if (currentManual.m_Version.m_ManualVersion > AutoSaveVersion.m_ManualVersion)
+      if (currentManual.m_Version.m_ManualVersion > autoSaveVersion.m_ManualVersion)
       {
         ++currentManual.m_Version.m_ManualVersion;
         continue;
       }
+
+      // Remove the autosave we are promoting before modifieing it and adding it to the manual list
+      fileData.m_AutoSaves.Remove(level);
 
       // We are on our autos manual version
       // If we have more manuals after this
@@ -305,9 +309,6 @@ public static class FileVersioning
 
         fileData.m_ManualSaves[i + 1].m_AddedTiles = differences.m_AddedTiles;
         fileData.m_ManualSaves[i + 1].m_RemovedTiles = differences.m_RemovedTiles;
-
-        // Remove the autosave we are promoting before modifieing it and adding it to the manual list
-        fileData.m_AutoSaves.Remove(level);
 
         // Promote auto save
         if (updateVersions)
@@ -472,7 +473,7 @@ public static class FileVersioning
 
   // Finds the newest autosave from a manual save version
   // Returns 0 if no versions were found
-  public static int GetLastManualSaveVersion(FileData fileData) 
+  public static int GetLastManualSaveVersion(FileData fileData)
   {
     int lastVersion = 0;
     foreach (var data in fileData.m_ManualSaves)
