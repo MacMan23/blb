@@ -219,6 +219,7 @@ public static class FileVersioning
     }
   }
 
+  // Promotes selected auto versions and removes all non selected manual/auto version from the data
   public static void ExtractSelectedVersions(ref FileData fileData, List<FileVersion> versions)
   {
     // Promote all selected autos to manuals
@@ -240,17 +241,16 @@ public static class FileVersioning
       {
         fileData.m_ManualSaves.RemoveAt(i);
         --i;
+        continue;
       }
-      else
-      {
-        // Update tiles just in case the detas got flattened
-        fileData.m_ManualSaves[i].m_AddedTiles = flattenedLevelAdd.Values.ToList();
-        fileData.m_ManualSaves[i].m_RemovedTiles = flattenedLevelRemove.ToList();
-        fileData.m_ManualSaves[i].m_Version = new FileVersion(version++, 0);
 
-        flattenedLevelAdd.Clear();
-        flattenedLevelRemove.Clear();
-      }
+      // Update tiles just in case the detas got flattened
+      fileData.m_ManualSaves[i].m_AddedTiles = flattenedLevelAdd.Values.ToList();
+      fileData.m_ManualSaves[i].m_RemovedTiles = flattenedLevelRemove.ToList();
+      fileData.m_ManualSaves[i].m_Version = new FileVersion(version++, 0);
+
+      flattenedLevelAdd.Clear();
+      flattenedLevelRemove.Clear();
     }
   }
 
@@ -426,17 +426,17 @@ public static class FileVersioning
   {
     FileSystemWrapper.Instance.GetFileInfoFromFullFilePath(fullFilePath, out FileInfo fileInfo);
     List<LevelData> levelList = version.IsManual() ? fileInfo.m_FileData.m_ManualSaves : fileInfo.m_FileData.m_AutoSaves;
-    foreach (var data in levelList)
+
+    var data = levelList.Find(d => d.m_Version == version);
+    if (data != null)
     {
-      if (data.m_Version == version)
-      {
-        data.m_Name = name;
-        return;
-      }
+      data.m_Name = name;
+      return;
     }
 
-    throw new InvalidOperationException($"{version} can not found");
+    throw new InvalidOperationException($"{version} not found");
   }
+
 
   public static void GetVersionLevelData(FileData fileData, FileVersion version, out LevelData levelData)
   {

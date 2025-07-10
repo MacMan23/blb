@@ -1,3 +1,10 @@
+/***************************************************
+Authors:        Brenden Epp
+Last Updated:   7/09/2025
+
+Copyright 2018-2025, DigiPen Institute of Technology
+***************************************************/
+
 using System;
 using System.Collections.Generic;
 using System.IO;
