@@ -9,6 +9,7 @@ using UnityEngine;
 using System.Collections.Generic;
 using UnityEngine.UI;
 using System;
+using static FileVersioning;
 
 public class UiFileInfo : MonoBehaviour
 {
@@ -196,7 +197,7 @@ public class UiFileInfo : MonoBehaviour
       throw new Exception("Exporting version(s) with no version(s) selected");
     }
 
-    List<FileSystem.Version> versions = new();
+    List<FileVersion> versions = new();
     foreach (var item in m_Selection)
     {
       versions.Add(item.GetVersion());
@@ -221,7 +222,7 @@ public class UiFileInfo : MonoBehaviour
     FileSystem.Instance.GetFileInfoFromFullFilePath(m_FullFilePath, out FileSystem.FileInfo fileInfo);
     if (m_Selection.Count > 1)
     {
-      List<FileSystem.Version> versions = new();
+      List<FileVersion> versions = new();
       foreach (var item in m_Selection)
       {
         versions.Add(item.GetVersion());

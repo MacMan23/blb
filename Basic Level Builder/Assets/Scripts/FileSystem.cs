@@ -14,6 +14,7 @@ using UnityEngine;
 using System.Runtime.InteropServices;
 using B83.Win32;
 using System.Threading;
+using static FileVersioning;
 
 public class FileSystem : MonoBehaviour
 {
@@ -70,12 +71,12 @@ public class FileSystem : MonoBehaviour
   string m_CurrentDirectoryPath;
   string m_PendingSaveFullFilePath = "";
   FileData m_PendingExportFileData = null;
-  List<Version> m_PendingExportVersions = null;
+  List<FileVersion> m_PendingExportVersions = null;
 
   FileInfo m_MountedFileInfo;
 
   // The version of the manual or autosave that is loaded
-  Version m_loadedVersion;
+  FileVersion m_loadedVersion;
 
   // A thread to run when saving should be performed.
   // Only one save thread is run at once.
@@ -87,14 +88,6 @@ public class FileSystem : MonoBehaviour
   private static extern void SyncFiles();
 
   #region FileStructure classes
-
-  public struct FileInfo
-  {
-    public bool m_IsTempFile;
-    public string m_SaveFilePath;
-    public FileData m_FileData;
-    public Header m_FileHeader;
-  }
 
   [Serializable]
   public struct JsonDateTime
@@ -112,6 +105,26 @@ public class FileSystem : MonoBehaviour
     }
   }
 
+  public struct FileInfo
+  {
+    public bool m_IsTempFile;
+    public string m_SaveFilePath;
+    public FileData m_FileData;
+    public FileHeader m_FileHeader;
+  }
+
+  [Serializable]
+  public class FileHeader
+  {
+    public FileHeader(string ver = "", bool shouldCompress = false)
+    {
+      m_BlbVersion = ver;
+      m_IsDataCompressed = shouldCompress;
+    }
+    public string m_BlbVersion;
+    public bool m_IsDataCompressed = false;
+  }
+
   [Serializable]
   public class FileData
   {
@@ -125,94 +138,6 @@ public class FileSystem : MonoBehaviour
   }
 
   [Serializable]
-  public class Header
-  {
-    public Header(string ver = "", bool shouldCompress = false)
-    {
-      m_BlbVersion = ver;
-      m_IsDataCompressed = shouldCompress;
-    }
-    public string m_BlbVersion;
-    public bool m_IsDataCompressed = false;
-  }
-
-  [Serializable]
-  public struct Version
-  {
-    public Version(int manual, int Auto)
-    {
-      m_ManualVersion = manual;
-      m_AutoVersion = Auto;
-    }
-
-    public readonly bool IsManual()
-    {
-      return m_AutoVersion == 0;
-    }
-
-    public override readonly string ToString()
-    {
-      return $"Save version: Manual {m_ManualVersion}, Auto {m_AutoVersion}"; // Using string interpolation for a readable output
-    }
-
-    public readonly bool Equals(Version rhs)
-    {
-      return m_ManualVersion == rhs.m_ManualVersion && m_AutoVersion == rhs.m_AutoVersion;
-    }
-
-    public static bool operator ==(Version left, Version right)
-    {
-      return left.Equals(right); // Delegate to Equals method
-    }
-
-    public static bool operator !=(Version left, Version right)
-    {
-      return !(left == right);
-    }
-
-    public override bool Equals(object obj)
-    {
-      return obj is Version other && Equals(other);
-    }
-
-    // Override GetHashCode
-    public override int GetHashCode()
-    {
-      return m_ManualVersion.GetHashCode() + m_AutoVersion.GetHashCode();
-    }
-
-    public readonly int CompareTo(Version other)
-    {
-      // Sorts Largest to Smallest/Top to Bottom
-      // -# = This goes up
-      // +# = This goes down
-      // == This stays
-
-      int diff = other.m_ManualVersion - m_ManualVersion;
-
-      // If they are the same maunal save, one (or both) of them is an autosave.
-      if (diff == 0)
-      {
-        // Sort the auto saves to have the newest on top
-        diff = other.m_AutoVersion - m_AutoVersion;
-
-        // If either werer a manaul save, we need to put that on top
-        if (other.m_AutoVersion == 0)
-          diff = 1;
-        if (m_AutoVersion == 0)
-          diff = -1;
-      }
-
-      return diff;
-    }
-
-    // The version of the manaul save, or maunal the auto is branched off of
-    public int m_ManualVersion;
-    // The autosave version, 0 if not an autosave
-    public int m_AutoVersion;
-  }
-
-  [Serializable]
   public class LevelData
   {
     public LevelData()
@@ -221,7 +146,7 @@ public class FileSystem : MonoBehaviour
       m_RemovedTiles = new List<Vector2Int>();
     }
 
-    public Version m_Version;
+    public FileVersion m_Version;
     public string m_Name;
     public JsonDateTime m_TimeStamp;
     public List<TileGrid.Element> m_AddedTiles;
@@ -306,7 +231,7 @@ public class FileSystem : MonoBehaviour
   /// Checks if file data exists.
   /// </summary>
   /// <returns>True if file data exists, false otherwise</returns>
-  bool FileDataExists(FileData fileData)
+  public static bool FileDataExists(FileData fileData)
   {
     return fileData != null;
   }
@@ -339,7 +264,7 @@ public class FileSystem : MonoBehaviour
     return !String.IsNullOrEmpty(m_MountedFileInfo.m_SaveFilePath);
   }
 
-  public void ExportMultipleVersions(string sourcePath, List<Version> versions)
+  public void ExportMultipleVersions(string sourcePath, List<FileVersion> versions)
   {
     // Gather the level data to export
     GetFileInfoFromFullFilePath(sourcePath, out FileInfo sourceFileInfo);
@@ -351,13 +276,13 @@ public class FileSystem : MonoBehaviour
     m_ExportAsDialogAdder.RequestDialogsAtCenterWithStrings();
   }
 
-  public void ExportVersion(string sourcePath, Version version)
+  public void ExportVersion(string sourcePath, FileVersion version)
   {
     // Gather the level data to export
     GetFileInfoFromFullFilePath(sourcePath, out FileInfo sourceFileInfo);
 
     GetVersionLevelData(sourceFileInfo.m_FileData, version, out LevelData levelData);
-    levelData.m_AddedTiles = GetGridDictionaryFromFileData(sourceFileInfo.m_FileData, version).Values.ToList();
+    levelData.m_AddedTiles = GetGridDictionaryFromFileData(sourceFileInfo, version).Values.ToList();
     // Set the data to be the first version of this file.
     levelData.m_Version = new(1, 0);
 
@@ -607,7 +532,7 @@ public class FileSystem : MonoBehaviour
 
     // If we will be copying the mounted file over to a diffrent file
     bool copyFile = false;
-    bool hasDifferences = GetDifferences(out LevelData levelData, m_MountedFileInfo.m_FileData);
+    bool hasDifferences = GetDifferences(out LevelData levelData, m_MountedFileInfo, m_TileGrid);
 
     // If we are writting to our own file yet we have no changes, skip the save
     // Or we are writting to a temp file with no changes, ignore write
@@ -773,57 +698,6 @@ public class FileSystem : MonoBehaviour
     }
   }
 
-  // Make sure m_TileGrid.CopyGridBuffer is called before hand
-  private bool GetDifferences(out LevelData differences, FileData fileData, Version? version = null)
-  {
-    Dictionary<Vector2Int, TileGrid.Element> oldGrid = GetGridDictionaryFromFileData(fileData, version);
-
-    return GetDifferencesEx(out differences, oldGrid, m_TileGrid.GetGridBuffer());
-  }
-
-  private bool GetVersionDifferences(out LevelData differences, FileData fileData, Version from, Version to)
-  {
-    Dictionary<Vector2Int, TileGrid.Element> oldGrid = GetGridDictionaryFromFileData(fileData, from);
-    Dictionary<Vector2Int, TileGrid.Element> newGrid = GetGridDictionaryFromFileData(fileData, to);
-
-    return GetDifferencesEx(out differences, oldGrid, newGrid.ToList());
-  }
-
-  private bool GetDifferencesEx(out LevelData differences, Dictionary<Vector2Int, TileGrid.Element> oldGrid, List<KeyValuePair<Vector2Int, TileGrid.Element>> newGrid)
-  {
-    differences = new();
-
-    bool hasDifferences = false;
-
-    foreach (var kvp in newGrid)
-    {
-      Vector2Int position = kvp.Key;
-      TileGrid.Element currentElement = kvp.Value;
-
-      if (oldGrid.TryGetValue(position, out TileGrid.Element oldElement))
-      {
-        bool same = currentElement.Equals(oldElement);
-
-        // Removed element so we don't check it again in the next loop
-        oldGrid.Remove(position);
-
-        if (same)
-          continue;
-      }
-      differences.m_AddedTiles.Add(currentElement);
-      hasDifferences = true;
-    }
-
-    // Every tile left in the old grid will be removed
-    foreach (var kvp in oldGrid)
-    {
-      differences.m_RemovedTiles.Add(kvp.Key);
-      hasDifferences = true;
-    }
-
-    return hasDifferences;
-  }
-
   private void UpdateFileToItemList(string fullFilePath, bool overwriting)
   {
     if (overwriting)
@@ -832,20 +706,9 @@ public class FileSystem : MonoBehaviour
       m_MainThreadDispatcher.Enqueue(() => AddFileItemForFile(m_SaveList, fullFilePath));
   }
 
-  public void SetVersionName(string fullFilePath, Version version, string name)
+  public void SetVersionName(string fullFilePath, FileVersion version, string name)
   {
-    GetFileInfoFromFullFilePath(fullFilePath, out FileInfo fileInfo);
-    List<LevelData> levelList = version.IsManual() ? fileInfo.m_FileData.m_ManualSaves : fileInfo.m_FileData.m_AutoSaves;
-    foreach (var data in levelList)
-    {
-      if (data.m_Version == version)
-      {
-        data.m_Name = name;
-        return;
-      }
-    }
-
-    throw new InvalidOperationException($"{version} can not found");
+    SetVersionNameEx(fullFilePath, version, name);
   }
 
   /// <summary>
@@ -1004,7 +867,7 @@ public class FileSystem : MonoBehaviour
     GetDataFromJson(File.ReadAllBytes(fullFilePath), fileInfo);
   }
 
-  public void LoadFromFullFilePath(string fullFilePath, Version? version = null)
+  public void LoadFromFullFilePath(string fullFilePath, FileVersion? version = null)
   {
     if (GlobalData.AreEffectsUnderway())
       return;
@@ -1045,7 +908,7 @@ public class FileSystem : MonoBehaviour
   }
 
   // Intermidiatarty load function. Calls the rest of the load functions.
-  void LoadFromJson(byte[] json, Version? version = null)
+  void LoadFromJson(byte[] json, FileVersion? version = null)
   {
     // Make sure we have file data for the load
     if (!FileDataExists(m_MountedFileInfo.m_FileData))
@@ -1053,7 +916,7 @@ public class FileSystem : MonoBehaviour
 
     GetDataFromJson(json, m_MountedFileInfo);
 
-    m_TileGrid.LoadFromDictonary(GetGridDictionaryFromFileData(m_MountedFileInfo.m_FileData, version));
+    m_TileGrid.LoadFromDictonary(GetGridDictionaryFromFileData(m_MountedFileInfo, version));
   }
 
   /// <summary>
@@ -1100,58 +963,6 @@ public class FileSystem : MonoBehaviour
     JsonUtility.FromJsonOverwrite(data, fileInfo.m_FileData);
   }
 
-  // Will convert the level data to a Dictionary of elements up to the passed in version
-  // If no version is passed in, we will flatten to the latest version
-  Dictionary<Vector2Int, TileGrid.Element> GetGridDictionaryFromFileData(FileData fileData, Version? tempVersion = null)
-  {
-    // Sets the default value if no version is specified
-    Version version = tempVersion ?? new(int.MaxValue, 0);
-
-    Dictionary<Vector2Int, TileGrid.Element> tiles = new();
-
-    // Load the version up the the specified manual save
-    foreach (var levelData in fileData.m_ManualSaves)
-    {
-      // Stop flattening the level once we pass the version we want
-      if (levelData.m_Version.m_ManualVersion > version.m_ManualVersion)
-        break;
-
-      AddLevelDeltasToGrid(ref tiles, levelData);
-    }
-
-    // If we are loading a autosave, load the branch now
-    if (!version.IsManual())
-    {
-      try
-      {
-        // Find the level data from the auto save version
-        GetVersionLevelData(fileData, version, out LevelData autoSaveData);
-
-        AddLevelDeltasToGrid(ref tiles, autoSaveData);
-      }
-      catch (InvalidOperationException)
-      {
-        Debug.Log($"Couldn't find {version} in file `{m_MountedFileInfo.m_SaveFilePath}");
-        m_MainThreadDispatcher.Enqueue(() => StatusBar.Print("Error, couldn't find the proper save to load. Loaded branched manual instead."));
-        // Just return the tiles we've loaded so far (the manual save)
-      }
-    }
-
-    return tiles;
-  }
-
-  private void AddLevelDeltasToGrid(ref Dictionary<Vector2Int, TileGrid.Element> tiles, LevelData level)
-  {
-    foreach (var tile in level.m_AddedTiles)
-    {
-      tiles[tile.m_GridIndex] = tile;
-    }
-    foreach (var pos in level.m_RemovedTiles)
-    {
-      tiles.Remove(pos);
-    }
-  }
-
   /// <summary>
   /// Splits a byte array at the first newline character.
   /// </summary>
@@ -1187,32 +998,15 @@ public class FileSystem : MonoBehaviour
   /// <param name="fileInfo">The file info containing the save.</param>
   /// <param name="versions">A list of versions to delete.</param>
   /// <exception cref="Exception">Thrown when an error occurs.</exception>
-  public void DeleteMultipleVersions(FileInfo fileInfo, List<Version> versions)
+  public void DeleteMultipleVersions(FileInfo fileInfo, List<FileVersion> versions)
   {
     foreach (var version in versions)
     {
-      DeleteVersionEx(fileInfo, version, false);
+      DeleteVersionEx(fileInfo, version);
+      UpdateLoadedVersionIfDeleted(fileInfo, version);
     }
 
-    try
-    {
-      // If deleting from our own loaded file
-      // Update the mounted data to the new data
-      if (m_MountedFileInfo.m_SaveFilePath == fileInfo.m_SaveFilePath)
-      {
-        m_MountedFileInfo = fileInfo;
-      }
-
-      WriteDataToFile(fileInfo.m_SaveFilePath, fileInfo);
-    }
-    catch (Exception e)
-    {
-      throw new Exception($"Failed to save file after deleting multiple versions\nException {e.Message}, {e.GetType()}");
-    }
-
-    MoveFileItemToTop(m_SaveList, fileInfo.m_SaveFilePath);
-
-    StatusBar.Print($"Sucessfuly deleted multiple versions from {fileInfo.m_SaveFilePath}");
+    SaveAfterDeletion(fileInfo, "multiple versions");
   }
 
   /// <summary>
@@ -1222,68 +1016,14 @@ public class FileSystem : MonoBehaviour
   /// <param name="version">The version of the save to delete.</param>
   /// <exception cref="Exception">Thrown when an error occurs.</exception>
   /// 
-  public void DeleteVersion(FileInfo fileInfo, Version version)
+  public void DeleteVersion(FileInfo fileInfo, FileVersion version)
   {
-    DeleteVersionEx(fileInfo, version, true);
+    DeleteVersionEx(fileInfo, version);
+    SaveAfterDeletion(fileInfo, version.ToString());
+    UpdateLoadedVersionIfDeleted(fileInfo, version);
   }
 
-  private void DeleteVersionEx(FileInfo fileInfo, Version version, bool shouldSaveFile = true)
-  {
-    if (!FileDataExists(fileInfo.m_FileData))
-      throw new Exception("No file data exists to delete version");
-
-    if (version.IsManual())
-    {
-      // Loop to find our manual save
-      for (int i = 0; i < fileInfo.m_FileData.m_ManualSaves.Count; ++i)
-      {
-        if (fileInfo.m_FileData.m_ManualSaves[i].m_Version != version)
-          continue;
-
-        // If this is the first manaul on the list, ie: no newer manual exists
-        // We don't need to combine versions and can just delete this version
-        if (i == fileInfo.m_FileData.m_ManualSaves.Count - 1)
-        {
-          fileInfo.m_FileData.m_ManualSaves.RemoveAt(i);
-        }
-        else
-        {
-          // Combine deltas and overwrite the newer version with the flattened data
-          fileInfo.m_FileData.m_ManualSaves[i + 1] = FlattenLevelData(fileInfo.m_FileData.m_ManualSaves[i + 1], fileInfo.m_FileData.m_ManualSaves[i]);
-          fileInfo.m_FileData.m_ManualSaves.RemoveAt(i);
-        }
-
-        DeleteBranchedAutoSaves(fileInfo, version.m_ManualVersion);
-
-        if (shouldSaveFile)
-          SaveAfterDeletion(fileInfo, version);
-
-        UpdateLoadedVersionIfDeleted(fileInfo, version);
-        return;
-      }
-    }
-    else
-    {
-      // Find auto save version
-      for (int i = 0; i < fileInfo.m_FileData.m_AutoSaves.Count; ++i)
-      {
-        if (fileInfo.m_FileData.m_AutoSaves[i].m_Version == version)
-        {
-          fileInfo.m_FileData.m_AutoSaves.RemoveAt(i);
-
-          if (shouldSaveFile)
-            SaveAfterDeletion(fileInfo, version);
-
-          UpdateLoadedVersionIfDeleted(fileInfo, version);
-          return;
-        }
-      }
-    }
-
-    throw new Exception($"Couldn't find {version} to delete");
-  }
-
-  private void UpdateLoadedVersionIfDeleted(FileInfo fileInfo, Version version)
+  private void UpdateLoadedVersionIfDeleted(FileInfo fileInfo, FileVersion version)
   {
     // If deleting from our own loaded file
     if (m_MountedFileInfo.m_SaveFilePath == fileInfo.m_SaveFilePath)
@@ -1296,23 +1036,7 @@ public class FileSystem : MonoBehaviour
     }
   }
 
-  // Deletes all autosave off a versions branch
-  private void DeleteBranchedAutoSaves(FileInfo fileInfo, int version)
-  {
-    if (!FileDataExists(fileInfo.m_FileData))
-      throw new Exception("No file data exists to delete version");
-
-    for (int i = 0; i < fileInfo.m_FileData.m_AutoSaves.Count; ++i)
-    {
-      if (fileInfo.m_FileData.m_AutoSaves[i].m_Version.m_ManualVersion == version)
-      {
-        fileInfo.m_FileData.m_AutoSaves.RemoveAt(i);
-        --i;
-      }
-    }
-  }
-
-  private void SaveAfterDeletion(FileInfo fileInfo, Version version)
+  private void SaveAfterDeletion(FileInfo fileInfo, string versionDescription)
   {
     try
     {
@@ -1327,234 +1051,21 @@ public class FileSystem : MonoBehaviour
     }
     catch (Exception e)
     {
-      throw new Exception($"Failed to save file after deleting {version}\nException {e.Message}, {e.GetType()}");
+      throw new Exception($"Failed to save file after deleting {versionDescription}\nException {e.Message}, {e.GetType()}");
 
     }
 
     MoveFileItemToTop(m_SaveList, fileInfo.m_SaveFilePath);
 
-    StatusBar.Print($"Sucessfuly deleted {version} from {fileInfo.m_SaveFilePath}");
+    StatusBar.Print($"Sucessfuly deleted {versionDescription} from {fileInfo.m_SaveFilePath}");
   }
 
-  // Combines two versions level data
-  // Add the level data from "from" to "to"
-  // Returns the combine data
-  // Note: The passed in versions should be right after eachother or else the deltas might not be correct
-  private LevelData FlattenLevelData(LevelData to, LevelData from)
-  {
-    Dictionary<Vector2Int, TileGrid.Element> FlattenedLevelAdd = new();
-    HashSet<Vector2Int> FlattenedLevelRemove = new();
-
-    FlattenLevelDataAdder(ref FlattenedLevelAdd, ref FlattenedLevelRemove, from);
-    FlattenLevelDataAdder(ref FlattenedLevelAdd, ref FlattenedLevelRemove, to);
-
-    to.m_AddedTiles = FlattenedLevelAdd.Values.ToList();
-    to.m_RemovedTiles = FlattenedLevelRemove.ToList();
-
-    return to;
-  }
-
-  private void ExtractSelectedVersions(ref FileData fileData, List<Version> versions)
-  {
-    // Promote all selected autos to manuals
-    // This function will ignore passed in manual versions so we don't need to remove them from the list
-    PromoteAutoSavesEx(ref fileData, versions, false);
-    fileData.m_AutoSaves.Clear();
-
-    Dictionary<Vector2Int, TileGrid.Element> FlattenedLevelAdd = new();
-    HashSet<Vector2Int> FlattenedLevelRemove = new();
-
-    int version = 1;
-
-    for (int i = 0; i < fileData.m_ManualSaves.Count; ++i)
-    {
-      FlattenLevelDataAdder(ref FlattenedLevelAdd, ref FlattenedLevelRemove, fileData.m_ManualSaves[i]);
-
-      // Remove if we are not extracting this version
-      if (!versions.Contains(fileData.m_ManualSaves[i].m_Version))
-      {
-        fileData.m_ManualSaves.RemoveAt(i);
-        --i;
-      }
-      else
-      {
-        // Update tiles just in case the detas got flattened
-        fileData.m_ManualSaves[i].m_AddedTiles = FlattenedLevelAdd.Values.ToList();
-        fileData.m_ManualSaves[i].m_RemovedTiles = FlattenedLevelRemove.ToList();
-        fileData.m_ManualSaves[i].m_Version = new Version(version++, 0);
-
-        FlattenedLevelAdd.Clear();
-        FlattenedLevelRemove.Clear();
-      }
-    }
-  }
-
-  public void PromoteAutoSave(string fullFilePath, Version version)
+  public void PromoteAutoSave(string fullFilePath, FileVersion version)
   {
     GetFileInfoFromFullFilePath(fullFilePath, out FileInfo fileInfo);
     GetVersionLevelData(fileInfo.m_FileData, version, out LevelData level);
     PromoteAutoSaveEx(ref fileInfo.m_FileData, level);
     WriteDataToFile(fileInfo.m_SaveFilePath, fileInfo);
-  }
-
-  // Promotes multiple autosaves to be a manual save, leaf to branch.
-  // NOTE: Does not save file
-  private void PromoteAutoSavesEx(ref FileData fileData, List<Version> versions, bool updateVersions = true)
-  {
-    foreach (LevelData level in fileData.m_AutoSaves.AsEnumerable().Reverse())
-    {
-      if (!versions.Any(item => item == level.m_Version))
-        continue;
-
-      PromoteAutoSaveEx(ref fileData, level, updateVersions);
-    }
-  }
-
-  // Promotes an autosave to be a manual save, leaf to branch.
-  // NOTE: Does not save file
-  private void PromoteAutoSaveEx(ref FileData fileData, LevelData level, bool updateVersions = true)
-  {
-    Dictionary<Vector2Int, TileGrid.Element> autosGrid = new();
-
-    Version AutoSaveVersion = level.m_Version;
-
-    for (int i = 0; i < fileData.m_ManualSaves.Count; ++i)
-    {
-      LevelData currentManual = fileData.m_ManualSaves[i];
-
-      AddLevelDeltasToGrid(ref autosGrid, currentManual);
-
-      if (currentManual.m_Version.m_ManualVersion < AutoSaveVersion.m_ManualVersion)
-        continue;
-
-      // We added the auto save, push forward the version numbers for all the future versions
-      if (currentManual.m_Version.m_ManualVersion > AutoSaveVersion.m_ManualVersion)
-      {
-        ++currentManual.m_Version.m_ManualVersion;
-        continue;
-      }
-
-      // We are on our autos manual version
-      // If we have more manuals after this
-      if (fileData.m_ManualSaves.Count > (i + 1))
-      {
-        // Add the new delta to the next manual so it effectivly removes the promoted autosaves deltas
-        Dictionary<Vector2Int, TileGrid.Element> nextGrid = new(autosGrid);
-
-        AddLevelDeltasToGrid(ref nextGrid, fileData.m_ManualSaves[i + 1]);
-        AddLevelDeltasToGrid(ref autosGrid, level);
-
-        GetDifferencesEx(out LevelData differences, autosGrid, nextGrid.ToList());
-
-        fileData.m_ManualSaves[i + 1].m_AddedTiles = differences.m_AddedTiles;
-        fileData.m_ManualSaves[i + 1].m_RemovedTiles = differences.m_RemovedTiles;
-
-        // Remove the autosave we are promoting before modifieing it and adding it to the manual list
-        fileData.m_AutoSaves.Remove(level);
-
-        // Promote auto save
-        if (updateVersions)
-        {
-          level.m_Version = currentManual.m_Version;
-          level.m_Version.m_ManualVersion += 1;
-        }
-        // Insert auto into the slot right after its manual
-        fileData.m_ManualSaves.Insert(i + 1, level);
-
-        // If we aren't updateing any of the levels versions we can stop here
-        if (!updateVersions)
-          return;
-
-        // Add one to i so we skip the added auto when continueing the loop
-        ++i;
-
-        // Push forward the manual version for all the autosaves after this
-        foreach (LevelData auto in fileData.m_AutoSaves)
-        {
-          if (auto.m_Version.m_ManualVersion > currentManual.m_Version.m_ManualVersion)
-            ++auto.m_Version.m_ManualVersion;
-        }
-      }
-      else
-      {
-        // Promote auto and we don't need to worry about anything else
-        if (updateVersions)
-        {
-          level.m_Version = currentManual.m_Version;
-          level.m_Version.m_ManualVersion += 1;
-        }
-        fileData.m_ManualSaves.Add(level);
-        // We added one more manual so the loop will continue, but we are done, so return
-        return;
-      }
-    }
-  }
-
-  // Adds the level datas deltas to an add/removed tiles arrays
-  private void FlattenLevelDataAdder(ref Dictionary<Vector2Int, TileGrid.Element> FlattenedLevelAdd, ref HashSet<Vector2Int> FlattenedLevelRemove, LevelData addedData)
-  {
-    foreach (var tile in addedData.m_AddedTiles)
-    {
-      // Add the tile to the list
-      // If we had record to remove it earlier, remove the record
-      if (FlattenedLevelRemove.Contains(tile.m_GridIndex))
-        FlattenedLevelRemove.Remove(tile.m_GridIndex);
-      FlattenedLevelAdd[tile.m_GridIndex] = tile;
-    }
-    foreach (var pos in addedData.m_RemovedTiles)
-    {
-      // Remove a tile if we have one
-      if (FlattenedLevelAdd.ContainsKey(pos))
-        FlattenedLevelAdd.Remove(pos);
-      // Keep the remove in the list even if we deleted a tile, because the tile could be replacing a previously placed tile and we need to delete that too
-      FlattenedLevelRemove.Add(pos);
-    }
-  }
-
-  public void GetVersionLevelData(FileData fileData, Version version, out LevelData levelData)
-  {
-    if (fileData == null)
-      throw new InvalidOperationException("File data is null");
-
-    levelData = new();
-
-    List<LevelData> levelList = version.IsManual() ? fileData.m_ManualSaves : fileData.m_AutoSaves;
-    foreach (var data in levelList)
-    {
-      if (data.m_Version == version)
-      {
-        levelData = data;
-        return;
-      }
-    }
-
-    throw new InvalidOperationException($"{version} can not found");
-  }
-
-  // Finds the newest autosave from a manual save version
-  // Returns 0 if no versions were found
-  int GetLastAutoSaveVersion(FileData fileData, int manualVersion)
-  {
-    int lastVersion = 0;
-    foreach (var data in fileData.m_AutoSaves)
-    {
-      if (data.m_Version.m_ManualVersion == manualVersion && data.m_Version.m_AutoVersion > lastVersion)
-        lastVersion = data.m_Version.m_AutoVersion;
-    }
-    return lastVersion;
-  }
-
-  // Finds the newest autosave from a manual save version
-  // Returns 0 if no versions were found
-  int GetLastManualSaveVersion(FileData fileData)
-  {
-    int lastVersion = 0;
-    foreach (var data in fileData.m_ManualSaves)
-    {
-      if (data.m_Version.m_ManualVersion > lastVersion)
-        lastVersion = data.m_Version.m_ManualVersion;
-    }
-    return lastVersion;
   }
 
   void SetDirectoryName(string name)
@@ -1819,6 +1330,11 @@ public class FileSystem : MonoBehaviour
         m_ActionQueue.Enqueue(action);
       }
     }
+  }
+
+  public void MainThreadDispatcherQueue(System.Action action)
+  {
+    m_MainThreadDispatcher.Enqueue(action);
   }
 }
 

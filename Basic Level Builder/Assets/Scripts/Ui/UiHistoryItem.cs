@@ -6,10 +6,9 @@ Copyright 2018-2025, DigiPen Institute of Technology
 ***************************************************/
 
 using System;
-using System.Collections.Generic;
-using System.IO;
 using UnityEngine;
 using UnityEngine.UI;
+using static FileVersioning;
 
 public class UiHistoryItem : MonoBehaviour
 {
@@ -102,7 +101,7 @@ public class UiHistoryItem : MonoBehaviour
     return m_LevelData.m_Version.IsManual();
   }
 
-  public FileSystem.Version GetVersion()
+  public FileVersion GetVersion()
   {
     return m_LevelData.m_Version;
   }
