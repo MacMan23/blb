@@ -12,12 +12,12 @@ public class OverwriteConfirmer : ModalDialog
 {
   public TextMeshProUGUI m_BodyText;
 
-  FileSystem m_FS;
+  FileSystemWrapper m_FS;
 
 
   private void Awake()
   {
-    m_FS = FindObjectOfType<FileSystem>();
+    m_FS = FindObjectOfType<FileSystemWrapper>();
   }
 
 

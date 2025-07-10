@@ -172,7 +172,7 @@ public static class FileVersioning
       catch (InvalidOperationException)
       {
         Debug.Log($"Couldn't find {version} in file `{fileInfo.m_SaveFilePath}");
-        FileSystem.Instance.MainThreadDispatcherQueue(() => StatusBar.Print("Error, couldn't find the proper save to load. Loaded branched manual instead."));
+        FileSystemWrapper.Instance.MainThreadDispatcherQueue(() => StatusBar.Print("Error, couldn't find the proper save to load. Loaded branched manual instead."));
         // Just return the tiles we've loaded so far (the manual save)
       }
     }
@@ -423,7 +423,7 @@ public static class FileVersioning
 
   public static void SetVersionNameEx(string fullFilePath, FileVersion version, string name)
   {
-    FileSystem.Instance.GetFileInfoFromFullFilePath(fullFilePath, out FileInfo fileInfo);
+    FileSystemWrapper.Instance.GetFileInfoFromFullFilePath(fullFilePath, out FileInfo fileInfo);
     List<LevelData> levelList = version.IsManual() ? fileInfo.m_FileData.m_ManualSaves : fileInfo.m_FileData.m_AutoSaves;
     foreach (var data in levelList)
     {

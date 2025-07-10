@@ -77,7 +77,7 @@ public class UiFileInfo : MonoBehaviour
 
       try
       {
-        FileSystem.Instance.GetFileInfoFromFullFilePath(m_FullFilePath, out fileInfo);
+        FileSystemWrapper.Instance.GetFileInfoFromFullFilePath(m_FullFilePath, out fileInfo);
       }
       catch (Exception e)
       {
@@ -185,7 +185,7 @@ public class UiFileInfo : MonoBehaviour
     if (m_Selection.Count > 1 || m_Selection[0].GetVersion().IsManual())
       return;
 
-    FileSystem.Instance.PromoteAutoSave(m_FullFilePath, m_Selection[0].GetVersion());
+    FileSystemWrapper.Instance.PromoteAutoSave(m_FullFilePath, m_Selection[0].GetVersion());
     ClearHistoryItemList();
     LoadHistoryItemList();
   }
@@ -204,9 +204,9 @@ public class UiFileInfo : MonoBehaviour
     }
 
     if (m_Selection.Count == 1)
-      FileSystem.Instance.ExportVersion(m_Selection[0].GetFilePath(), m_Selection[0].GetVersion());
+      FileSystemWrapper.Instance.ExportVersion(m_Selection[0].GetFilePath(), m_Selection[0].GetVersion());
     else
-      FileSystem.Instance.ExportMultipleVersions(m_Selection[0].GetFilePath(), versions);
+      FileSystemWrapper.Instance.ExportMultipleVersions(m_Selection[0].GetFilePath(), versions);
   }
 
   // TODO: If deleting last manual save ask if want to delete whole file.
@@ -219,7 +219,7 @@ public class UiFileInfo : MonoBehaviour
       throw new Exception("Deleting version(s) with no version(s) selected");
     }
 
-    FileSystem.Instance.GetFileInfoFromFullFilePath(m_FullFilePath, out FileSystem.FileInfo fileInfo);
+    FileSystemWrapper.Instance.GetFileInfoFromFullFilePath(m_FullFilePath, out FileSystem.FileInfo fileInfo);
     if (m_Selection.Count > 1)
     {
       List<FileVersion> versions = new();
@@ -228,11 +228,11 @@ public class UiFileInfo : MonoBehaviour
         versions.Add(item.GetVersion());
       }
 
-      FileSystem.Instance.DeleteMultipleVersions(fileInfo, versions);
+      FileSystemWrapper.Instance.DeleteMultipleVersions(fileInfo, versions);
     }
     else
     {
-      FileSystem.Instance.DeleteVersion(fileInfo, m_Selection[0].GetVersion());
+      FileSystemWrapper.Instance.DeleteVersion(fileInfo, m_Selection[0].GetVersion());
     }
 
     // We changed up a lot if we deleted a manual and its autos

@@ -13,6 +13,6 @@ public class SaveAsDialog : PromptFileNameDialog
       return;
 
     Close();
-    FileSystem.Instance.SaveAs(m_CurrentValidName);
+    FileSystemWrapper.Instance.SaveAs(m_CurrentValidName);
   }
 }

@@ -36,7 +36,7 @@ public class UiSaveFileItem : MonoBehaviour, IPointerEnterHandler, IPointerExitH
 
   public void Load()
   {
-    FileSystem.Instance.LoadFromFullFilePath(m_FullPath);
+    FileSystemWrapper.Instance.LoadFromFullFilePath(m_FullPath);
   }
 
   public void OnPointerEnter(PointerEventData eventData)

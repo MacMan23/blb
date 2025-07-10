@@ -13,6 +13,6 @@ public class ExportAsDialog : PromptFileNameDialog
       return;
 
     Close();
-    FileSystem.Instance.TryStartExportSavingThread(m_CurrentValidName);
+    FileSystemWrapper.Instance.TryStartExportSavingThread(m_CurrentValidName);
   }
 }

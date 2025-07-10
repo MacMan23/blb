@@ -6,7 +6,6 @@ public class WebOptions : MonoBehaviour
 {
   public bool m_UseWebDataOptions = true;
   public Transform m_TileButtonsRoot;
-  public FileSystem m_FileSystem;
   public bool m_ParseDebugWebData = false;
   public string m_DebugWebData = "";
 
@@ -218,7 +217,7 @@ public class WebOptions : MonoBehaviour
       if (comparisonName == sanitizedLevelNameString)
       {
         found = true;
-        m_FileSystem.LoadFromTextAsset(level);
+        FileSystemWrapper.Instance.LoadFromTextAsset(level);
 
         break;
       }

@@ -18,7 +18,6 @@ public class OperationSystem : MonoBehaviour
     get { return s_Operations[^1]; }
   }
 
-  public FileSystem m_FileSystem;
   public TileGrid m_TileGrid;
   public int m_UndoDepth = 64;
   public bool m_UseAutosaving = true;
@@ -97,7 +96,7 @@ public class OperationSystem : MonoBehaviour
 
     if (s_UseAutosaving && s_OperationCounter >= s_AutosaveInterval)
     {
-      Instance.m_FileSystem.Autosave();
+      FileSystemWrapper.Instance.Autosave();
       s_OperationCounter = 0;
     }
   }

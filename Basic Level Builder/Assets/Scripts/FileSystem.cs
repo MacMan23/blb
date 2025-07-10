@@ -18,33 +18,6 @@ using static FileVersioning;
 
 public class FileSystem : MonoBehaviour
 {
-  #region singleton
-  private static FileSystem _instance;
-  public static FileSystem Instance
-  {
-    get
-    {
-      if (_instance == null)
-      {
-        _instance = FindObjectOfType<FileSystem>();
-      }
-      return _instance;
-    }
-  }
-
-  private void Awake()
-  {
-    if (_instance != null && _instance != this)
-    {
-      Destroy(this.gameObject);
-    }
-    else
-    {
-      _instance = this;
-    }
-  }
-  #endregion
-
   readonly static public string s_FilenameExtension = ".blb";
   readonly static public string s_RootDirectoryName = "Basic Level Builder";
   readonly static public string s_DateTimeFormat = "h-mm-ss.ff tt, ddd d MMM yyyy";
@@ -62,16 +35,16 @@ public class FileSystem : MonoBehaviour
 
   ModalDialogMaster m_ModalDialogMaster;
   [SerializeField]
-  ModalDialogAdder m_OverrideDialogAdder;
+  protected ModalDialogAdder m_OverrideDialogAdder;
   [SerializeField]
-  ModalDialogAdder m_SaveAsDialogAdder;
+  protected ModalDialogAdder m_SaveAsDialogAdder;
   [SerializeField]
-  ModalDialogAdder m_ExportAsDialogAdder;
+  protected ModalDialogAdder m_ExportAsDialogAdder;
 
-  string m_CurrentDirectoryPath;
-  string m_PendingSaveFullFilePath = "";
-  FileData m_PendingExportFileData = null;
-  List<FileVersion> m_PendingExportVersions = null;
+  protected string m_CurrentDirectoryPath;
+  protected string m_PendingSaveFullFilePath = "";
+  protected FileData m_PendingExportFileData = null;
+  protected List<FileVersion> m_PendingExportVersions = null;
 
   FileInfo m_MountedFileInfo;
 
@@ -82,7 +55,7 @@ public class FileSystem : MonoBehaviour
   // Only one save thread is run at once.
   private Thread m_SavingThread;
   // A queue of events that the saving thread will enqueue for the main thread
-  private readonly MainThreadDispatcher m_MainThreadDispatcher = new();
+  protected readonly MainThreadDispatcher m_MainThreadDispatcher = new();
 
   [DllImport("__Internal")]
   private static extern void SyncFiles();
@@ -195,7 +168,7 @@ public class FileSystem : MonoBehaviour
         Debug.LogWarning(errorString);
 
         UnmountFile();
-        SaveAs(tempPath, false);
+        Save(false, tempPath, false);
 
         StatusBar.Print(errorString);
       }
@@ -208,7 +181,7 @@ public class FileSystem : MonoBehaviour
   /// <summary>
   /// Creates new file data structures.
   /// </summary>
-  public static void CreateFileInfo(out FileInfo fileInfo, string filePath = "")
+  private static void CreateFileInfo(out FileInfo fileInfo, string filePath = "")
   {
     fileInfo = new()
     {
@@ -221,7 +194,7 @@ public class FileSystem : MonoBehaviour
   /// <summary>
   /// Clears the file data structures.
   /// </summary>
-  void ClearFileData(FileInfo fileInfo)
+  private void ClearFileData(FileInfo fileInfo)
   {
     fileInfo.m_FileHeader = null;
     fileInfo.m_FileData = null;
@@ -239,7 +212,7 @@ public class FileSystem : MonoBehaviour
   /// <summary>
   /// Unmounts the current file.
   /// </summary>
-  void UnmountFile()
+  private void UnmountFile()
   {
     m_MountedFileInfo.m_SaveFilePath = "";
   }
@@ -248,52 +221,23 @@ public class FileSystem : MonoBehaviour
   /// Mounts a file at the specified path.
   /// </summary>
   /// <param name="filePath">The path to the file to mount</param>
-  void MountFile(string filePath, FileInfo fileInfo)
+  private void MountFile(string filePath, FileInfo fileInfo)
   {
     m_MountedFileInfo = fileInfo;
     m_MountedFileInfo.m_SaveFilePath = filePath;
   }
 
-  bool FileExists(string filePath)
+  private bool FileExists(string filePath)
   {
     return !String.IsNullOrEmpty(filePath) && File.Exists(filePath);
   }
 
-  bool IsFileMounted()
+  private bool IsFileMounted()
   {
     return !String.IsNullOrEmpty(m_MountedFileInfo.m_SaveFilePath);
   }
 
-  public void ExportMultipleVersions(string sourcePath, List<FileVersion> versions)
-  {
-    // Gather the level data to export
-    GetFileInfoFromFullFilePath(sourcePath, out FileInfo sourceFileInfo);
-
-    m_PendingExportVersions = versions;
-    m_PendingExportFileData = sourceFileInfo.m_FileData;
-
-    // Call dialogue to get export file name
-    m_ExportAsDialogAdder.RequestDialogsAtCenterWithStrings();
-  }
-
-  public void ExportVersion(string sourcePath, FileVersion version)
-  {
-    // Gather the level data to export
-    GetFileInfoFromFullFilePath(sourcePath, out FileInfo sourceFileInfo);
-
-    GetVersionLevelData(sourceFileInfo.m_FileData, version, out LevelData levelData);
-    levelData.m_AddedTiles = GetGridDictionaryFromFileData(sourceFileInfo, version).Values.ToList();
-    // Set the data to be the first version of this file.
-    levelData.m_Version = new(1, 0);
-
-    m_PendingExportFileData = new();
-    m_PendingExportFileData.m_ManualSaves.Add(levelData);
-
-    // Call dialogue to get export file name
-    m_ExportAsDialogAdder.RequestDialogsAtCenterWithStrings();
-  }
-
-  void OnDroppedFiles(List<string> paths, POINT dropPoint)
+  private void OnDroppedFiles(List<string> paths, POINT dropPoint)
   {
     if (m_ModalDialogMaster.m_Active || GlobalData.AreEffectsUnderway() || GlobalData.IsInPlayMode())
       return;
@@ -303,31 +247,10 @@ public class FileSystem : MonoBehaviour
     if (validPaths.Count == 0)
       StatusBar.Print("Drag and drop only supports <b>.blb</b> files.");
     else
-      LoadFromFullFilePath(validPaths[0]);
+      LoadFromFullFilePathEx(validPaths[0]);
   }
 
-  /// <summary>
-  /// Performs a manual save of the current level.
-  /// </summary>
-  public void ManualSave()
-  {
-    Save(false);
-  }
-
-  /// <summary>
-  /// Performs an automatic save of the current level.
-  /// </summary>
-  public void Autosave()
-  {
-    Save(true);
-  }
-
-  public void SaveAs(string name, bool shouldPrintElapsedTime = true)
-  {
-    Save(false, name, shouldPrintElapsedTime);
-  }
-
-  void Save(bool autosave, string saveAsFileName = null, bool shouldPrintElapsedTime = true)
+  protected void Save(bool autosave, string saveAsFileName = null, bool shouldPrintElapsedTime = true)
   {
     if (GlobalData.AreEffectsUnderway())
       return;
@@ -409,22 +332,7 @@ public class FileSystem : MonoBehaviour
     StartSavingThread(destFilePath, autosave, saveAsFileName != null, shouldPrintElapsedTime);
   }
 
-  public void ConfirmOverwrite()
-  {
-    // Check if we were doing a SaveAs or an Export
-    // If the Export data is empty, then we are doing a SaveAs
-    if (m_PendingExportFileData == null)
-    {
-      StartSavingThread(m_PendingSaveFullFilePath, false);
-    }
-    else
-    {
-      StartExportSavingThread(m_PendingSaveFullFilePath);
-    }
-    m_PendingSaveFullFilePath = "";
-  }
-
-  void StartSavingThread(string destFilePath, bool autosave, bool isSaveAs = false, bool shouldPrintElapsedTime = true)
+  protected void StartSavingThread(string destFilePath, bool autosave, bool isSaveAs = false, bool shouldPrintElapsedTime = true)
   {
     // Copy the map data into a buffer to use for the saving thread.
     m_TileGrid.CopyGridBuffer();
@@ -441,30 +349,14 @@ public class FileSystem : MonoBehaviour
     m_SavingThread.Start(parameters);
   }
 
-  public void TryStartExportSavingThread(string fileName)
-  {
-    string destFilePath = Path.Combine(m_CurrentDirectoryPath, fileName + s_FilenameExtension);
-
-    // Give prompt if we are going to write to and existing file
-    if (File.Exists(destFilePath))
-    {
-      m_PendingSaveFullFilePath = destFilePath;
-
-      m_OverrideDialogAdder.RequestDialogsAtCenterWithStrings(Path.GetFileName(destFilePath));
-      return;
-    }
-
-    StartExportSavingThread(destFilePath);
-  }
-
-  private void StartExportSavingThread(string destFilePath)
+  protected void StartExportSavingThread(string destFilePath)
   {
     m_SavingThread = new Thread(new ParameterizedThreadStart(ExportSavingThread));
 
     m_SavingThread.Start(destFilePath);
   }
 
-  void SavingThreadFlatten(object threadParameters)
+  private void SavingThreadFlatten(object threadParameters)
   {
     var startTime = DateTime.Now;
 
@@ -502,7 +394,7 @@ public class FileSystem : MonoBehaviour
     }
   }
 
-  void SavingThread(object threadParameters)
+  private void SavingThread(object threadParameters)
   {
     var startTime = DateTime.Now;
 
@@ -661,7 +553,7 @@ public class FileSystem : MonoBehaviour
     }
   }
 
-  void ExportSavingThread(object threadParameter)
+  private void ExportSavingThread(object threadParameter)
   {
     var startTime = DateTime.Now;
 
@@ -706,11 +598,6 @@ public class FileSystem : MonoBehaviour
       m_MainThreadDispatcher.Enqueue(() => AddFileItemForFile(m_SaveList, fullFilePath));
   }
 
-  public void SetVersionName(string fullFilePath, FileVersion version, string name)
-  {
-    SetVersionNameEx(fullFilePath, version, name);
-  }
-
   /// <summary>
   /// Copies a file from the source file info to the destination path.
   /// </summary>
@@ -732,7 +619,7 @@ public class FileSystem : MonoBehaviour
   /// <param name="shouldCopyFile">Whether to copy the file instead of writing data.</param>
   /// <param name="shouldPrintElapsedTime">Whether to print the elapsed time.</param>
   /// <exception cref="Exception">Thrown when an error occurs during file operations.</exception>
-  private void WriteDataToFile(string destFilePath, FileInfo sourceFileInfo, bool shouldMountSave,
+  protected void WriteDataToFile(string destFilePath, FileInfo sourceFileInfo, bool shouldMountSave,
     bool isOverwriting, DateTime startTime, bool isAutosave, bool shouldCopyFile, bool shouldPrintElapsedTime = true)
   {
     if (shouldCopyFile)
@@ -791,7 +678,7 @@ public class FileSystem : MonoBehaviour
   /// <param name="destFilePath">The destination file path.</param>
   /// <param name="sourceFileInfo">The source file info.</param>
   /// <exception cref="Exception">Thrown when an error occurs during file operations.</exception>
-  private void WriteDataToFile(string destFilePath, FileInfo sourceFileInfo)
+  protected void WriteDataToFile(string destFilePath, FileInfo sourceFileInfo)
   {
     List<byte> data = new();
     data.AddRange(System.Text.Encoding.Default.GetBytes(JsonUtility.ToJson(sourceFileInfo.m_FileHeader) + "\n"));
@@ -801,11 +688,6 @@ public class FileSystem : MonoBehaviour
       data.AddRange(System.Text.Encoding.Default.GetBytes(JsonUtility.ToJson(sourceFileInfo.m_FileData)));
 
     File.WriteAllBytes(destFilePath, data.ToArray());
-  }
-
-  public void CancelOverwrite()
-  {
-    m_PendingSaveFullFilePath = "";
   }
 
   // Deprecated for now untill real use is found.
@@ -856,7 +738,7 @@ public class FileSystem : MonoBehaviour
   /// <param name="fullFilePath">The full path to the file.</param>
   /// <param name="fileInfo">The file info to populate.</param>
   /// <exception cref="Exception">Thrown when the file cannot be found.</exception>
-  public void GetFileInfoFromFullFilePath(string fullFilePath, out FileInfo fileInfo)
+  protected void GetFileInfoFromFullFilePathEx(string fullFilePath, out FileInfo fileInfo)
   {
     CreateFileInfo(out fileInfo, fullFilePath);
     if (!File.Exists(fullFilePath))
@@ -867,7 +749,7 @@ public class FileSystem : MonoBehaviour
     GetDataFromJson(File.ReadAllBytes(fullFilePath), fileInfo);
   }
 
-  public void LoadFromFullFilePath(string fullFilePath, FileVersion? version = null)
+  protected void LoadFromFullFilePathEx(string fullFilePath, FileVersion? version = null)
   {
     if (GlobalData.AreEffectsUnderway())
       return;
@@ -890,7 +772,7 @@ public class FileSystem : MonoBehaviour
     }
   }
 
-  public void LoadFromTextAsset(TextAsset level)
+  protected void LoadFromTextAssetEx(TextAsset level)
   {
     if (GlobalData.AreEffectsUnderway())
       return;
@@ -908,7 +790,7 @@ public class FileSystem : MonoBehaviour
   }
 
   // Intermidiatarty load function. Calls the rest of the load functions.
-  void LoadFromJson(byte[] json, FileVersion? version = null)
+  private void LoadFromJson(byte[] json, FileVersion? version = null)
   {
     // Make sure we have file data for the load
     if (!FileDataExists(m_MountedFileInfo.m_FileData))
@@ -925,7 +807,7 @@ public class FileSystem : MonoBehaviour
   /// <param name="json">The JSON data as bytes.</param>
   /// <param name="fileInfo">The file info to populate.</param>
   /// <exception cref="FormatException">Thrown when the file format is invalid.</exception>
-  void GetDataFromJson(byte[] json, FileInfo fileInfo)
+  private void GetDataFromJson(byte[] json, FileInfo fileInfo)
   {
     // Read the header first
     // The header is always uncompressed, and the data might be
@@ -970,7 +852,7 @@ public class FileSystem : MonoBehaviour
   /// <param name="left">The left part of the split (before the newline).</param>
   /// <param name="right">The right part of the split (after the newline).</param>
   /// <exception cref="FormatException">Thrown when no newline character is found.</exception>
-  void SplitNewLineBytes(in byte[] data, out byte[] left, out byte[] right)
+  private void SplitNewLineBytes(in byte[] data, out byte[] left, out byte[] right)
   {
     left = new byte[0];
     int i;
@@ -992,38 +874,7 @@ public class FileSystem : MonoBehaviour
     }
   }
 
-  /// <summary>
-  /// Removes a number od saved versions and saves the file
-  /// </summary>
-  /// <param name="fileInfo">The file info containing the save.</param>
-  /// <param name="versions">A list of versions to delete.</param>
-  /// <exception cref="Exception">Thrown when an error occurs.</exception>
-  public void DeleteMultipleVersions(FileInfo fileInfo, List<FileVersion> versions)
-  {
-    foreach (var version in versions)
-    {
-      DeleteVersionEx(fileInfo, version);
-      UpdateLoadedVersionIfDeleted(fileInfo, version);
-    }
-
-    SaveAfterDeletion(fileInfo, "multiple versions");
-  }
-
-  /// <summary>
-  /// Removes one saved version and saves the file
-  /// </summary>
-  /// <param name="fileInfo">The file info containing the save.</param>
-  /// <param name="version">The version of the save to delete.</param>
-  /// <exception cref="Exception">Thrown when an error occurs.</exception>
-  /// 
-  public void DeleteVersion(FileInfo fileInfo, FileVersion version)
-  {
-    DeleteVersionEx(fileInfo, version);
-    SaveAfterDeletion(fileInfo, version.ToString());
-    UpdateLoadedVersionIfDeleted(fileInfo, version);
-  }
-
-  private void UpdateLoadedVersionIfDeleted(FileInfo fileInfo, FileVersion version)
+  protected void UpdateLoadedVersionIfDeleted(FileInfo fileInfo, FileVersion version)
   {
     // If deleting from our own loaded file
     if (m_MountedFileInfo.m_SaveFilePath == fileInfo.m_SaveFilePath)
@@ -1036,7 +887,7 @@ public class FileSystem : MonoBehaviour
     }
   }
 
-  private void SaveAfterDeletion(FileInfo fileInfo, string versionDescription)
+  protected void SaveAfterDeletion(FileInfo fileInfo, string versionDescription)
   {
     try
     {
@@ -1060,15 +911,7 @@ public class FileSystem : MonoBehaviour
     StatusBar.Print($"Sucessfuly deleted {versionDescription} from {fileInfo.m_SaveFilePath}");
   }
 
-  public void PromoteAutoSave(string fullFilePath, FileVersion version)
-  {
-    GetFileInfoFromFullFilePath(fullFilePath, out FileInfo fileInfo);
-    GetVersionLevelData(fileInfo.m_FileData, version, out LevelData level);
-    PromoteAutoSaveEx(ref fileInfo.m_FileData, level);
-    WriteDataToFile(fileInfo.m_SaveFilePath, fileInfo);
-  }
-
-  void SetDirectoryName(string name)
+  private void SetDirectoryName(string name)
   {
     if (GlobalData.AreEffectsUnderway())
       return;
@@ -1123,34 +966,26 @@ public class FileSystem : MonoBehaviour
     m_CurrentDirectoryPath = newDirectoryPath;
   }
 
-  public void ShowDirectoryInExplorer()
-  {
-    if (Application.platform == RuntimePlatform.WebGLPlayer)
-      return;
-
-    Application.OpenURL($"file://{m_CurrentDirectoryPath}");
-  }
-
-  void MoveFileItemToTop(UiListView fileList, string fullFilePath)
+  private void MoveFileItemToTop(UiListView fileList, string fullFilePath)
   {
     var item = fileList.GetItemByFullFilePath(fullFilePath);
     fileList.MoveToTop(item.transform);
   }
 
-  void RemoveFileItem(UiListView fileList, string fullFilePath)
+  private void RemoveFileItem(UiListView fileList, string fullFilePath)
   {
     var element = fileList.GetItemByFullFilePath(fullFilePath);
     fileList.Remove(element.GetComponent<RectTransform>());
   }
 
-  void AddFileItemForFile(UiListView fileList, string fullFilePath)
+  private void AddFileItemForFile(UiListView fileList, string fullFilePath)
   {
     var fileName = Path.GetFileNameWithoutExtension(fullFilePath);
     var rt = AddHelper(fullFilePath, fileName);
     fileList.Add(rt);
   }
 
-  void AddFileItemsForFiles(string[] fullFilePaths)
+  private void AddFileItemsForFiles(string[] fullFilePaths)
   {
     if (GlobalData.AreEffectsUnderway())
       return;
@@ -1171,7 +1006,7 @@ public class FileSystem : MonoBehaviour
     m_SaveList.Add(listItems);
   }
 
-  RectTransform AddHelper(string fullFilePath, string fileName)
+  private RectTransform AddHelper(string fullFilePath, string fileName)
   {
     var listItem = Instantiate(m_FileItemPrefab);
 
@@ -1181,7 +1016,7 @@ public class FileSystem : MonoBehaviour
     return rt;
   }
 
-  bool ValidateDirectoryName(string directoryName)
+  private bool ValidateDirectoryName(string directoryName)
   {
     if (string.IsNullOrEmpty(directoryName) || string.IsNullOrWhiteSpace(directoryName))
       return false;
@@ -1194,7 +1029,7 @@ public class FileSystem : MonoBehaviour
       return true;
   }
 
-  string GetDocumentsPath()
+  private string GetDocumentsPath()
   {
     try
     {
@@ -1227,7 +1062,7 @@ public class FileSystem : MonoBehaviour
   /// Creates a temporary file name with a random GUID.
   /// </summary>
   /// <returns>The full path to the temporary file</returns>
-  string CreateTempFileName()
+  private string CreateTempFileName()
   {
     return Path.Combine(m_CurrentDirectoryPath, Guid.NewGuid().ToString() + s_FilenameExtension);
   }
@@ -1236,7 +1071,7 @@ public class FileSystem : MonoBehaviour
   /// Sorts an array of file paths by their last modified date.
   /// </summary>
   /// <param name="files">The array of file paths to sort</param>
-  void SortByDateModified(string[] files)
+  private void SortByDateModified(string[] files)
   {
     Array.Sort(files, DateModifiedComparison);
   }
@@ -1247,7 +1082,7 @@ public class FileSystem : MonoBehaviour
   /// <param name="a">The first file path</param>
   /// <param name="b">The second file path</param>
   /// <returns>A comparison value indicating the relative order of the files</returns>
-  static int DateModifiedComparison(string a, string b)
+  private static int DateModifiedComparison(string a, string b)
   {
     var dateTimeA = File.GetLastWriteTime(a);
     var dateTimeB = File.GetLastWriteTime(b);
@@ -1330,11 +1165,6 @@ public class FileSystem : MonoBehaviour
         m_ActionQueue.Enqueue(action);
       }
     }
-  }
-
-  public void MainThreadDispatcherQueue(System.Action action)
-  {
-    m_MainThreadDispatcher.Enqueue(action);
   }
 }
 

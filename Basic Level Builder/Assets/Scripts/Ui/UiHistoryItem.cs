@@ -93,7 +93,7 @@ public class UiHistoryItem : MonoBehaviour
 
   public void SetName()
   {
-    FileSystem.Instance.SetVersionName(m_FullFilePath, m_LevelData.m_Version, m_ManualSaveInfo.m_VersionInputName.text);
+    FileSystemWrapper.Instance.SetVersionName(m_FullFilePath, m_LevelData.m_Version, m_ManualSaveInfo.m_VersionInputName.text);
   }
 
   public bool IsManualSave()
@@ -149,7 +149,7 @@ public class UiHistoryItem : MonoBehaviour
 
   public void Load()
   {
-    FileSystem.Instance.LoadFromFullFilePath(m_FullFilePath, m_LevelData.m_Version);
+    FileSystemWrapper.Instance.LoadFromFullFilePath(m_FullFilePath, m_LevelData.m_Version);
     OnCloseInfoWindow?.Invoke();
   }
 
