@@ -37,7 +37,7 @@ public class SelectorTool : BlbTool
   bool m_bCanPaste = false;
 
   //List of tile elements to cache.
-  List<TileGrid.Element> m_ClipboardElements = new List<TileGrid.Element>();
+  List<TileGrid.Element> m_ClipboardElements = new();
 
   // THE CURSOR!!!!
   Transform m_Cursor;
@@ -121,16 +121,12 @@ public class SelectorTool : BlbTool
 
     if (delta.x < 0)
     {
-      var temp = min.x;
-      min.x = max.x;
-      max.x = temp;
+      (max.x, min.x) = (min.x, max.x);
     }
 
     if (delta.y < 0)
     {
-      var temp = min.y;
-      min.y = max.y;
-      max.y = temp;
+      (max.y, min.y) = (min.y, max.y);
     }
 
     var minBounds = new Vector3(min.x, min.y);
@@ -157,18 +153,9 @@ public class SelectorTool : BlbTool
   * INPUTS       : None
   * OUTPUTS      : None
   **/
-  private void Update()
+  protected override void Update()
   {
-    if (!HotkeyMaster.s_HotkeysEnabled || GlobalData.IsInPlayMode())
-      return;
-
-    if (!m_ToolsPalette.IsSelectorActive())
-    {
-      if (Input.GetButtonDown(m_KeyboardShortcut))
-        RequestActivate();
-
-      return;
-    }
+    base.Update();
 
     var modifierKeyHeld = HotkeyMaster.IsPrimaryModifierHeld();
 
@@ -301,7 +288,7 @@ public class SelectorTool : BlbTool
     var difference = m_vecPointerDragEndPosition - m_vecPointerDownPosition;
     var width = Mathf.Abs(difference.x) + 1;
     var height = Mathf.Abs(difference.y) + 1;
-    var diagonal = Mathf.Sqrt(width * width + height * height);
+    var diagonal = Mathf.Sqrt((width * width) + (height * height));
     var diagonalString = diagonal.ToString("f2");
     var message = $"Selection size: <b>{width}</b> wide x <b>{height}</b> high, " +
       $"<b>{diagonalString}</b> diagonal";

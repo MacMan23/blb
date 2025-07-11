@@ -951,11 +951,6 @@ public class FileSystem : MonoBehaviour
 
 // TODO, Star on file name to show unsaved changes.
 
-// Extra credit
-// TODO, fix area placement taking forever
-// TODO, Large level creation and deletion still takes a long time.
-
-
 // These three are the same:
 // TODO, game exit or file load "Are you sure" when there are unsaved changes or no file is mounted
 // TODO, add are you sure, if you load a level with unsaved changes.
@@ -965,20 +960,7 @@ public class FileSystem : MonoBehaviour
 
 
 // __Needs UI__
-// TONOTDO, add feature to select a range of versions and Flatten them together
-//   No, just have them delete the old ones instead. It would do the same thing
-// TODO, right click version to delete auto or manual save
 // Unsaved changes prompt
 // Warning about max manual saves reached
 
-
-// If they want an auto save to be perminant, then load it and save.
-// Should we have a "delete all auto saves" button?
-
-// TODO: If the last version is deleted from a save, show pop up asking "If you delete this (or theses) save(s) the file will be deleted. Do you wish to continue?"
-// then delete the file, unmount, and close the info window.
-// Either that, or just create a new version with nothing in it.
-
 // TODO: Be able to delete a file from the save files bar.
-
-// TODO: Discuss, should we allow saving empty files. Ie save a level with no blocks?

@@ -1,5 +1,4 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
 
@@ -13,6 +12,7 @@ public class UiButtonHotkey : MonoBehaviour
     public UnityEvent m_Event;
     public bool m_SubjectToHotkeyDisabling;
     public bool m_AllowedInPlayMode;
+    public bool m_AllowedInUiPopups = false;
   }
 
   [System.Serializable]
@@ -24,7 +24,7 @@ public class UiButtonHotkey : MonoBehaviour
     Paired,
   }
 
-  public List<Hotkey> m_List = new List<Hotkey>();
+  public List<Hotkey> m_List = new();
 
 
   void Update()
@@ -35,6 +35,9 @@ public class UiButtonHotkey : MonoBehaviour
         return;
 
       if (!hotkey.m_AllowedInPlayMode && GlobalData.IsInPlayMode())
+        return;
+
+      if (!hotkey.m_AllowedInUiPopups && GlobalData.IsInUiPopup())
         return;
 
       switch (hotkey.m_Modifiers)

@@ -4,7 +4,7 @@
 public class ModalDialog : MonoBehaviour
 {
   public bool m_OverrideSize = false;
-  public Vector2 m_SizeToOverrideWith = new Vector2(200, 200);
+  public Vector2 m_SizeToOverrideWith = new(200, 200);
   protected RectTransform m_RectTransform;
   protected ModalDialogMaster m_Master;
 

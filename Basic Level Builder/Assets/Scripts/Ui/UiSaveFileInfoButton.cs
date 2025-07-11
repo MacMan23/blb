@@ -29,7 +29,10 @@ public class UiSaveFileInfoButton : MonoBehaviour
 
     UiSaveFileItem parent = GetComponentInParent<UiSaveFileItem>();
     if (parent != null)
+    {
       infoBox.InitLoad(parent.m_FullPath);
+      GlobalData.IncreaseUiPopup();
+    }
     else
       Debug.LogError("Could not find parent of history button");
   }

@@ -77,6 +77,7 @@ public static class GlobalData
 
   //Get the play mode status.
   static bool s_IsInPlayMode = false;
+  static int s_NumOfUiPopups = 0;
   static bool s_Transitioning = false;
   static bool s_EffectsUnderway = false;
 
@@ -122,6 +123,11 @@ public static class GlobalData
     return s_IsInPlayMode;
   }
 
+  public static bool IsInUiPopup()
+  {
+    return s_NumOfUiPopups > 0;
+  }
+
 
   public static bool IsTransitioning()
   {
@@ -152,7 +158,6 @@ public static class GlobalData
     else
       ToggleHelper();
   }
-
 
   public static void PreToggleEffectsEnded()
   {
@@ -237,6 +242,16 @@ public static class GlobalData
     s_Transitioning = false;
 
     return false;
+  }
+
+  public static void IncreaseUiPopup()
+  {
+    s_NumOfUiPopups++;
+  }
+
+  public static void DecreaseUiPopup()
+  {
+    s_NumOfUiPopups--;
   }
 
   public static void DispatchHeroDied()

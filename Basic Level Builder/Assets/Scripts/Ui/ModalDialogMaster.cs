@@ -138,7 +138,7 @@ public class ModalDialogMaster : MonoBehaviour
 
   void Activate()
   {
-    HotkeyMaster.s_HotkeysEnabled = false;
+    GlobalData.IncreaseUiPopup();
 
     m_Active = true;
     m_Image.enabled = true;
@@ -164,7 +164,7 @@ public class ModalDialogMaster : MonoBehaviour
 
   void EndDeactivate()
   {
-    HotkeyMaster.s_HotkeysEnabled = true;
+    GlobalData.DecreaseUiPopup();
     DisableImage();
   }
 
