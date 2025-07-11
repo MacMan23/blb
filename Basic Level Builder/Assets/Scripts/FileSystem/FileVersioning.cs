@@ -426,7 +426,7 @@ public static class FileVersioning
     }
   }
 
-  public static void SetVersionNameEx(string fullFilePath, FileVersion version, string name)
+  public static FileInfo SetVersionNameEx(string fullFilePath, FileVersion version, string name)
   {
     FileSystemWrapper.Instance.GetFileInfoFromFullFilePath(fullFilePath, out FileInfo fileInfo);
     List<LevelData> levelList = version.IsManual() ? fileInfo.m_FileData.m_ManualSaves : fileInfo.m_FileData.m_AutoSaves;
@@ -435,7 +435,7 @@ public static class FileVersioning
     if (data != null)
     {
       data.m_Name = name;
-      return;
+      return fileInfo;
     }
 
     throw new InvalidOperationException($"{version} not found");

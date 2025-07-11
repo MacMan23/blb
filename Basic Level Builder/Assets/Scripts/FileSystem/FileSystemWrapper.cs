@@ -93,7 +93,8 @@ public class FileSystemWrapper : FileSystem
 
   public void SetVersionName(string fullFilePath, FileVersion version, string name)
   {
-    SetVersionNameEx(fullFilePath, version, name);
+    FileInfo fileInfo = SetVersionNameEx(fullFilePath, version, name);
+    WriteDataToFile(fullFilePath, fileInfo);
   }
 
   /// <summary>
