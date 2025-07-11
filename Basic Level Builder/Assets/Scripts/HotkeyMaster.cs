@@ -14,10 +14,7 @@ public class HotkeyMaster : MonoBehaviour
 
   public static bool IsMultiSelectHeld()
   {
-    if (Application.platform == RuntimePlatform.OSXPlayer)
-      return Input.GetKey(KeyCode.LeftCommand) || Input.GetKey(KeyCode.RightCommand);
-
-    return Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
+    return Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl) || Input.GetKey(KeyCode.LeftCommand) || Input.GetKey(KeyCode.RightCommand);
   }
 
   public static bool IsRangeSelectHeld()
@@ -39,35 +36,28 @@ public class HotkeyMaster : MonoBehaviour
 
   public static bool IsPrimaryModifierHeldEx()
   {
-    var shiftHeld = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+    var altHeld = Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt);
 
     if (Application.isEditor || Application.platform == RuntimePlatform.WebGLPlayer)
-      return shiftHeld;
-    if (Application.platform == RuntimePlatform.OSXPlayer)
-      return Input.GetKey(KeyCode.LeftCommand) || Input.GetKey(KeyCode.RightCommand) || shiftHeld;
+      return altHeld;
 
-    return (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl) || shiftHeld);
+    return Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl) || Input.GetKey(KeyCode.LeftCommand) || Input.GetKey(KeyCode.RightCommand);
   }
 
 
   public static bool IsSecondaryModifierHeldEx()
   {
-    return (Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt));
+    return Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
   }
 
 
   public static bool IsPairedModifierHeld()
   {
-    var standardSecondaryHeld = IsSecondaryModifierHeldEx();
-    var shiftHeld = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+    return IsSecondaryModifierHeldEx() && IsPrimaryModifierHeldEx();
+  }
 
-    if (Application.isEditor || Application.platform == RuntimePlatform.WebGLPlayer)
-      return shiftHeld && standardSecondaryHeld;
-    if (Application.platform == RuntimePlatform.OSXPlayer)
-      return (Input.GetKey(KeyCode.LeftCommand) || Input.GetKey(KeyCode.RightCommand)) &&
-        (standardSecondaryHeld || shiftHeld);
-
-    return (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)) &&
-      (standardSecondaryHeld || shiftHeld);
+  public static bool IsAnyModifierHeld()
+  {
+    return IsSecondaryModifierHeldEx() || IsPrimaryModifierHeldEx();
   }
 }

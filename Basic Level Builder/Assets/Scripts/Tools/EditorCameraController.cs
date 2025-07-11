@@ -88,7 +88,7 @@ public class EditorCameraController : MonoBehaviour
     if (GlobalData.IsInPlayMode())
       return;
 
-    if (HotkeyMaster.s_HotkeysEnabled && !GlobalData.IsInUiPopup())
+    if (HotkeyMaster.s_HotkeysEnabled && !GlobalData.IsInUiPopup() && !HotkeyMaster.IsAnyModifierHeld())
       HandleMovement();
   }
 
