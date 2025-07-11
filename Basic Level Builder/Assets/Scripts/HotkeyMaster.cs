@@ -27,6 +27,18 @@ public class HotkeyMaster : MonoBehaviour
 
   public static bool IsPrimaryModifierHeld()
   {
+
+    return IsPrimaryModifierHeldEx() && !IsSecondaryModifierHeldEx();
+  }
+
+
+  public static bool IsSecondaryModifierHeld()
+  {
+    return !IsPrimaryModifierHeldEx() && IsSecondaryModifierHeldEx();
+  }
+
+  public static bool IsPrimaryModifierHeldEx()
+  {
     var shiftHeld = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
 
     if (Application.isEditor || Application.platform == RuntimePlatform.WebGLPlayer)
@@ -34,19 +46,19 @@ public class HotkeyMaster : MonoBehaviour
     if (Application.platform == RuntimePlatform.OSXPlayer)
       return Input.GetKey(KeyCode.LeftCommand) || Input.GetKey(KeyCode.RightCommand) || shiftHeld;
 
-    return Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl) || shiftHeld;
+    return (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl) || shiftHeld);
   }
 
 
-  public static bool IsSecondaryModifierHeld()
+  public static bool IsSecondaryModifierHeldEx()
   {
-    return Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt);
+    return (Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt));
   }
 
 
   public static bool IsPairedModifierHeld()
   {
-    var standardSecondaryHeld = IsSecondaryModifierHeld();
+    var standardSecondaryHeld = IsSecondaryModifierHeldEx();
     var shiftHeld = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
 
     if (Application.isEditor || Application.platform == RuntimePlatform.WebGLPlayer)

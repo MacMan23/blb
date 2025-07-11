@@ -251,6 +251,16 @@ public class FileSystem : MonoBehaviour
     if (GlobalData.AreEffectsUnderway())
       return;
 
+    m_TileGrid.GetLevelData(out LevelData levelData);
+    // Check if we are going to save an empty level
+    if (levelData.m_AddedTiles.Count == 0)
+    {
+      var errorString = "Failed to save because the level is empty";
+      m_MainThreadDispatcher.Enqueue(() => StatusBar.Print(errorString));
+      Debug.Log(errorString);
+      return;
+    }
+
     // If we have a thread running
     if (m_SavingThread != null && m_SavingThread.IsAlive)
       return;
@@ -330,9 +340,10 @@ public class FileSystem : MonoBehaviour
 
   protected void StartSavingThread(string destFilePath, bool autosave, bool isSaveAs = false, bool shouldPrintElapsedTime = true)
   {
+    
     // Copy the map data into a buffer to use for the saving thread.
     m_TileGrid.CopyGridBuffer();
-
+    
     // Define parameters for the branched thread function
     object[] parameters = { destFilePath, autosave, shouldPrintElapsedTime };
 
