@@ -9,7 +9,7 @@ public class ColorblindToggler : MonoBehaviour
 
   private void Update()
   {
-    if (!HotkeyMaster.s_HotkeysEnabled)
+    if (!HotkeyMaster.s_HotkeysEnabled && GlobalData.IsInUiPopup())
       return;
 
     if (HotkeyMaster.IsPrimaryModifierHeld() && Input.GetKeyDown(KeyCode.I))

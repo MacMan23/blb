@@ -2,6 +2,10 @@
 Authors:        Brenden Epp
 Last Updated:   7/09/2025
 
+Description:
+  Contains functionality for modifying and comparing
+  file versions
+
 Copyright 2018-2025, DigiPen Institute of Technology
 ***************************************************/
 

@@ -45,7 +45,7 @@ public class OperationSystem : MonoBehaviour
 
   private void Update()
   {
-    if (GlobalData.IsInPlayMode() || !HotkeyMaster.s_HotkeysEnabled)
+    if (GlobalData.IsInPlayMode() || !HotkeyMaster.s_HotkeysEnabled || GlobalData.IsInUiPopup())
       return;
 
     var modifierKeyHeld = HotkeyMaster.IsPrimaryModifierHeld();

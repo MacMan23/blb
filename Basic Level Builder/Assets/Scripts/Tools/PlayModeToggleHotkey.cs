@@ -26,7 +26,7 @@ public class PlayModeToggleHotkey : MonoBehaviour
   **/
   void Update()
   {
-    if (HotkeyMaster.s_HotkeysEnabled && Input.GetButtonDown("Play"))
+    if (HotkeyMaster.s_HotkeysEnabled && Input.GetButtonDown("Play") && !GlobalData.IsInUiPopup())
     {
       GlobalData.TogglePlayMode();
     }
