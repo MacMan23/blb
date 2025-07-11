@@ -22864,6 +22864,7 @@ MonoBehaviour:
           m_CallState: 2
     m_SubjectToHotkeyDisabling: 0
     m_AllowedInPlayMode: 0
+    m_AllowedInUiPopups: 0
 --- !u!1 &803031638
 GameObject:
   m_ObjectHideFlags: 0
@@ -29341,6 +29342,7 @@ MonoBehaviour:
           m_CallState: 2
     m_SubjectToHotkeyDisabling: 0
     m_AllowedInPlayMode: 0
+    m_AllowedInUiPopups: 0
 --- !u!1 &953985185
 GameObject:
   m_ObjectHideFlags: 0
@@ -49496,6 +49498,7 @@ MonoBehaviour:
           m_CallState: 2
     m_SubjectToHotkeyDisabling: 0
     m_AllowedInPlayMode: 0
+    m_AllowedInUiPopups: 0
 --- !u!1 &1790348408
 GameObject:
   m_ObjectHideFlags: 0
@@ -52318,8 +52321,8 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 1439737676}
   m_HandleRect: {fileID: 1439737675}
   m_Direction: 2
-  m_Value: 1
-  m_Size: 0.65217394
+  m_Value: 0
+  m_Size: 1
   m_NumberOfSteps: 0
   m_OnValueChanged:
     m_PersistentCalls:
