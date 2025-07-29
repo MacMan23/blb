@@ -1,742 +1,100 @@
-﻿/***************************************************
-Authors:        Douglas Zwick, Brenden Epp
-Last Updated:   3/24/2025
+/***************************************************
+Authors:        Brenden Epp
+Last Updated:   7/09/2025
 
 Copyright 2018-2025, DigiPen Institute of Technology
 ***************************************************/
 
-using B83.Win32;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
-using System.Threading;
 using UnityEngine;
-using static FileDirUtilities;
 using static FileVersioning;
 
-public class FileSystem : MonoBehaviour
+public class FileSystem : FileSystemInternal
 {
-  readonly static public string s_DateTimeFormat = "h-mm-ss.ff tt, ddd d MMM yyyy";
-  readonly static public int s_MaxAutoSaveCount = 20;
-  readonly static public int s_MaxManualSaveCount = 100;
-  readonly static bool s_ShouldCompress = false;
-  static string s_EditorVersion;
-
-  public string m_DefaultDirectoryName = "Default Project";
-  public TileGrid m_TileGrid;
-  public FileDirUtilities m_FileDirUtilities;
-
-  UnityDragAndDropHook m_DragAndDropHook;
-
-  ModalDialogMaster m_ModalDialogMaster;
-  [SerializeField]
-  protected ModalDialogAdder m_OverrideDialogAdder;
-  [SerializeField]
-  protected ModalDialogAdder m_SaveAsDialogAdder;
-  [SerializeField]
-  protected ModalDialogAdder m_ExportAsDialogAdder;
-
-  protected string m_PendingSaveFullFilePath = "";
-  protected FileData m_PendingExportFileData = null;
-  protected List<FileVersion> m_PendingExportVersions = null;
-
-  FileInfo m_MountedFileInfo;
-
-  // The version of the manual or autosave that is loaded
-  FileVersion m_loadedVersion;
-
-  // A thread to run when saving should be performed.
-  // Only one save thread is run at once.
-  private Thread m_SavingThread;
-  // A queue of events that the saving thread will enqueue for the main thread
-  protected readonly MainThreadDispatcher m_MainThreadDispatcher = new();
-
-  [DllImport("__Internal")]
-  private static extern void SyncFiles();
-
-  #region FileStructure classes
-
-  [Serializable]
-  public struct JsonDateTime
+  #region singleton
+  private static FileSystem _instance;
+  public static FileSystem Instance
   {
-    public long value;
-    public static implicit operator DateTime(JsonDateTime jdt)
+    get
     {
-      return DateTime.FromFileTime(jdt.value);
-    }
-    public static implicit operator JsonDateTime(DateTime dt)
-    {
-      JsonDateTime jdt = new();
-      jdt.value = dt.ToFileTime();
-      return jdt;
+      if (_instance == null)
+      {
+        _instance = FindObjectOfType<FileSystem>();
+      }
+      return _instance;
     }
   }
 
-  public struct FileInfo
+  private void Awake()
   {
-    public bool m_IsTempFile;
-    public string m_SaveFilePath;
-    public FileData m_FileData;
-    public FileHeader m_FileHeader;
-  }
-
-  [Serializable]
-  public class FileHeader
-  {
-    public FileHeader(string ver = "", bool shouldCompress = false)
+    if (_instance != null && _instance != this)
     {
-      m_BlbVersion = ver;
-      m_IsDataCompressed = shouldCompress;
+      Destroy(this.gameObject);
     }
-    public string m_BlbVersion;
-    public bool m_IsDataCompressed = false;
-  }
-
-  [Serializable]
-  public class FileData
-  {
-    public FileData()
+    else
     {
-      m_ManualSaves = new List<LevelData>();
-      m_AutoSaves = new List<LevelData>();
+      _instance = this;
     }
-    public List<LevelData> m_ManualSaves;
-    public List<LevelData> m_AutoSaves;
-  }
-
-  [Serializable]
-  public class LevelData
-  {
-    public LevelData()
-    {
-      m_AddedTiles = new List<TileGrid.Element>();
-      m_RemovedTiles = new List<Vector2Int>();
-    }
-
-    public FileVersion m_Version;
-    public string m_Name;
-    public JsonDateTime m_TimeStamp;
-    public List<TileGrid.Element> m_AddedTiles;
-    public List<Vector2Int> m_RemovedTiles;
   }
   #endregion
 
-  // Start is called before the first frame update
-  void Start()
+  /// <summary>
+  /// Performs a manual save of the current level.
+  /// </summary>
+  public void ManualSave()
   {
-    s_EditorVersion = Application.version;
-    m_ModalDialogMaster = FindObjectOfType<ModalDialogMaster>();
-
-    m_FileDirUtilities.SetDirectoryName(m_DefaultDirectoryName);
-  }
-
-  void Update()
-  {
-    // Calls the unity functions that the save thread can not
-    m_MainThreadDispatcher.Update();
-  }
-
-  private void OnEnable()
-  {
-    m_DragAndDropHook = new UnityDragAndDropHook();
-    m_DragAndDropHook.InstallHook();
-    m_DragAndDropHook.OnDroppedFiles += OnDroppedFiles;
-  }
-
-  private void OnDisable()
-  {
-    m_DragAndDropHook.UninstallHook();
-    m_DragAndDropHook.OnDroppedFiles -= OnDroppedFiles;
-  }
-
-  // Check if any file got deleted when we were off the game
-  private void OnApplicationFocus(bool focus)
-  {
-    if (focus)
-    {
-      if (IsFileMounted() && !FileExists(m_MountedFileInfo.m_SaveFilePath))
-      {
-        var errorString = $"Error: File with path \"{m_MountedFileInfo.m_SaveFilePath}\" could not be found. " +
-               "Loaded level has been saved with the same name.";
-        var tempPath = Path.GetFileNameWithoutExtension(m_MountedFileInfo.m_SaveFilePath);
-        Debug.LogWarning(errorString);
-
-        UnmountFile();
-        Save(false, tempPath, false);
-
-        StatusBar.Print(errorString);
-      }
-
-      // Update file list incase files were added or removed
-      m_FileDirUtilities.SetDirectoryName(m_DefaultDirectoryName);
-    }
+    Save(false);
   }
 
   /// <summary>
-  /// Creates new file data structures.
+  /// Performs an automatic save of the current level.
   /// </summary>
-  private static void CreateFileInfo(out FileInfo fileInfo, string filePath = "")
+  public void Autosave()
   {
-    fileInfo = new()
-    {
-      m_SaveFilePath = filePath,
-      m_FileHeader = new(s_EditorVersion, s_ShouldCompress),
-      m_FileData = new()
-    };
+    Save(true);
   }
 
-  /// <summary>
-  /// Clears the file data structures.
-  /// </summary>
-  private void ClearFileData(FileInfo fileInfo)
+  public void SaveAs(string name, bool shouldPrintElapsedTime = true)
   {
-    fileInfo.m_FileHeader = null;
-    fileInfo.m_FileData = null;
+    Save(false, name, shouldPrintElapsedTime);
   }
 
-  /// <summary>
-  /// Checks if file data exists.
-  /// </summary>
-  /// <returns>True if file data exists, false otherwise</returns>
-  public static bool FileDataExists(FileData fileData)
+  public void ExportMultipleVersions(string sourcePath, List<FileVersion> versions)
   {
-    return fileData != null;
+    // Gather the level data to export
+    GetFileInfoFromFullFilePath(sourcePath, out FileInfo sourceFileInfo);
+
+    m_PendingExportVersions = versions;
+    m_PendingExportFileData = sourceFileInfo.m_FileData;
+
+    // Call dialogue to get export file name
+    m_ExportAsDialogAdder.RequestDialogsAtCenterWithStrings();
   }
 
-  /// <summary>
-  /// Unmounts the current file.
-  /// </summary>
-  private void UnmountFile()
+  public void ExportVersion(string sourcePath, FileVersion version)
   {
-    m_MountedFileInfo.m_SaveFilePath = "";
-  }
+    // Gather the level data to export
+    GetFileInfoFromFullFilePath(sourcePath, out FileInfo sourceFileInfo);
 
-  /// <summary>
-  /// Mounts a file at the specified path.
-  /// </summary>
-  /// <param name="filePath">The path to the file to mount</param>
-  private void MountFile(string filePath, FileInfo fileInfo)
-  {
-    m_MountedFileInfo = fileInfo;
-    m_MountedFileInfo.m_SaveFilePath = filePath;
-  }
-
-  private bool FileExists(string filePath)
-  {
-    return !String.IsNullOrEmpty(filePath) && File.Exists(filePath);
-  }
-
-  private bool IsFileMounted()
-  {
-    return !String.IsNullOrEmpty(m_MountedFileInfo.m_SaveFilePath);
-  }
-
-  private void OnDroppedFiles(List<string> paths, POINT dropPoint)
-  {
-    if (m_ModalDialogMaster.m_Active || GlobalData.AreEffectsUnderway() || GlobalData.IsInPlayMode())
-      return;
-
-    var validPaths = paths.Where(path => path.EndsWith(".blb")).ToList();
-
-    if (validPaths.Count == 0)
-      StatusBar.Print("Drag and drop only supports <b>.blb</b> files.");
-    else
-      LoadFromFullFilePathEx(validPaths[0]);
-  }
-
-  protected void Save(bool autosave, string saveAsFileName = null, bool shouldPrintElapsedTime = true)
-  {
-    if (GlobalData.AreEffectsUnderway())
-      return;
-
-    m_TileGrid.GetLevelData(out LevelData levelData);
-    // Check if we are going to save an empty level
-    if (levelData.m_AddedTiles.Count == 0)
-    {
-      var errorString = "Failed to save because the level is empty";
-      m_MainThreadDispatcher.Enqueue(() => StatusBar.Print(errorString));
-      Debug.Log(errorString);
-      return;
-    }
-
-    // If we have a thread running
-    if (m_SavingThread != null && m_SavingThread.IsAlive)
-      return;
-
-    if (!FileDataExists(m_MountedFileInfo.m_FileData))
-    {
-      CreateFileInfo(out m_MountedFileInfo);
-    }
-
-    string destFilePath;
-    // If we are doing a SAVE AS
-    if (saveAsFileName != null)
-    {
-      destFilePath = m_FileDirUtilities.CreateFilePath(saveAsFileName);
-
-      // Give prompt if we are going to write to and existing file
-      if (File.Exists(destFilePath))
-      {
-        m_PendingSaveFullFilePath = destFilePath;
-
-        m_OverrideDialogAdder.RequestDialogsAtCenterWithStrings(Path.GetFileName(destFilePath));
-        return;
-      }
-    }
-    else
-    {
-      if (IsFileMounted())
-      {
-        // If we are doing a save, but we only have a temp file
-        if (m_MountedFileInfo.m_IsTempFile && !autosave)
-        {
-          // request a name for a new file to save to
-          m_SaveAsDialogAdder.RequestDialogsAtCenterWithStrings();
-          return;
-        }
-        else
-        {
-          destFilePath = m_MountedFileInfo.m_SaveFilePath;
-
-          // If our file is deleted/missing
-          if (!File.Exists(m_MountedFileInfo.m_SaveFilePath))
-          {
-            // Because of the file validation on application focus, this SHOULD never happen.
-            // But to be safe incase the file is deleted while playing the game, do this
-            var errorString = $"Error: File with path \"{m_MountedFileInfo.m_SaveFilePath}\" could not be found." + Environment.NewLine +
-              "A new file has been made for this save.";
-            StatusBar.Print(errorString);
-            Debug.LogWarning(errorString);
-            m_FileDirUtilities.RemoveFileItem(m_MountedFileInfo.m_SaveFilePath);
-            UnmountFile();
-          }
-        }
-      }
-      else
-      {
-        // We are doing a manual or auto save with no mounted file
-        // If an auto save, create a temp file and write to that
-        if (autosave)
-        {
-          destFilePath = m_FileDirUtilities.CreateTempFileName();
-          m_MountedFileInfo.m_IsTempFile = true;
-          // Mount temp file so we can check when the full file path isn't the temp file
-          MountFile(destFilePath, m_MountedFileInfo);
-        }
-        else
-        {
-          // We are doing a manual save,
-          // request a name for the new file to save to
-          m_SaveAsDialogAdder.RequestDialogsAtCenterWithStrings();
-          return;
-        }
-      }
-    }
-
-    StartSavingThread(destFilePath, autosave, saveAsFileName != null, shouldPrintElapsedTime);
-  }
-
-  protected void StartSavingThread(string destFilePath, bool autosave, bool isSaveAs = false, bool shouldPrintElapsedTime = true)
-  {
-    
-    // Copy the map data into a buffer to use for the saving thread.
-    m_TileGrid.CopyGridBuffer();
-    
-    // Define parameters for the branched thread function
-    object[] parameters = { destFilePath, autosave, shouldPrintElapsedTime };
-
-    // Create a new thread and pass the ParameterizedThreadStart delegate
-    if (isSaveAs)
-      m_SavingThread = new Thread(new ParameterizedThreadStart(SavingThreadFlatten));
-    else
-      m_SavingThread = new Thread(new ParameterizedThreadStart(SavingThread));
-
-    m_SavingThread.Start(parameters);
-  }
-
-  protected void StartExportSavingThread(string destFilePath)
-  {
-    m_SavingThread = new Thread(new ParameterizedThreadStart(ExportSavingThread));
-
-    m_SavingThread.Start(destFilePath);
-  }
-
-  private void SavingThreadFlatten(object threadParameters)
-  {
-    var startTime = DateTime.Now;
-
-    // Extract the parameters from the object array
-    object[] parameters = (object[])threadParameters;
-
-    // Access the parameters
-    string destFilePath = (string)parameters[0];
-    bool isOverwriting = File.Exists(destFilePath);
-
-    // Create new file date to clear out the old and only write in the current tile grid
-    m_MountedFileInfo.m_FileData = new();
-
-    m_TileGrid.GetLevelData(out LevelData levelData);
-
-    levelData.m_TimeStamp = DateTime.Now;
+    GetVersionLevelData(sourceFileInfo.m_FileData, version, out LevelData levelData);
+    levelData.m_AddedTiles = GetGridDictionaryFromFileData(sourceFileInfo, version).Values.ToList();
+    // Set the data to be the first version of this file.
     levelData.m_Version = new(1, 0);
 
-    m_MountedFileInfo.m_FileData.m_ManualSaves.Add(levelData);
+    m_PendingExportFileData = new();
+    m_PendingExportFileData.m_ManualSaves.Add(levelData);
 
-    try
-    {
-      bool shouldMountSave = true;
-      bool isAutosave = false;
-      bool shouldCopyFile = false;
-      bool shouldPrintElapsedTime = (bool)parameters[2];
-      WriteDataToFile(destFilePath, m_MountedFileInfo, shouldMountSave, isOverwriting, startTime, isAutosave, shouldCopyFile, shouldPrintElapsedTime);
-      m_loadedVersion = levelData.m_Version;
-    }
-    catch (Exception e)
-    {
-      var errorString = $"Error while flattening and saving file: {e.Message} ({e.GetType()})";
-      m_MainThreadDispatcher.Enqueue(() => StatusBar.Print(errorString));
-      Debug.LogError(errorString);
-    }
+    // Call dialogue to get export file name
+    m_ExportAsDialogAdder.RequestDialogsAtCenterWithStrings();
   }
 
-  private void SavingThread(object threadParameters)
+  public void SetVersionName(string fullFilePath, FileVersion version, string name)
   {
-    var startTime = DateTime.Now;
-
-    // Extract the parameters from the object array
-    object[] parameters = (object[])threadParameters;
-
-    // Access the parameters
-    string destFilePath = (string)parameters[0];
-    bool autosave = (bool)parameters[1];
-    bool shouldPrintElapsedTime = (bool)parameters[2];
-    bool overwriting = File.Exists(destFilePath);
-    // TODO, Don't auto save if the diffences from the last auto save are the same. Ie no unsaved changes.
-    #region Add level changes to level data
-    // Edge cases
-    // #: Overwriting, MountedFile, Differences, Saving to mounted file
-    // 1: 1, 0, 0, 0 (Save as; we are writing to an existing file, yet we have no mounted file. Thus we just save our editor level) [TileGrid]
-    // 2: 1, 1, 0, 0 (Overwrite save to our mounted file or another file. No changes, so just copy our file over) [File copy]
-    // 3: 1, 1, 1, 0 (Overwrite save to our mounted file or another file. Add changes to mounted file string) [oldSave + diff]
-    // 4: 0, 1, 0, 0 (Save as; Copy our mounted file to a new file) [File copy]
-    // 5: 0, 1, 1, 0 (Save as; Copy our level with the differences added to a new file) [oldSave + diff]
-    // 6: 0, 0, 0, 0 (Save as; Write editor level to file) [TileGrid]
-    // 7: 1, 1, 0, 1 (Skip, We are saving to our own file, yet we have no differences) [return]
-    // 8: 1, 1, 1, 1 (Save to our file with the differences) [oldSave + diff]
-    // We can't have differences if we don't have a mounted file
-    // We can only save to the mounted file if the file exist, meaning overwriting is true.
-    // We can't save to the mounted file if we have no mounted file
-
-    // If we will be copying the mounted file over to a diffrent file
-    bool copyFile = false;
-    bool hasDifferences = GetDifferences(out LevelData levelData, m_MountedFileInfo, m_TileGrid);
-
-    // If we are writting to our own file yet we have no changes, skip the save
-    // Or we are writting to a temp file with no changes, ignore write
-    if (overwriting && FileExists(m_MountedFileInfo.m_SaveFilePath) && destFilePath.Equals(m_MountedFileInfo.m_SaveFilePath) && !hasDifferences)
-    {
-      // #7
-      var errorString = "Skipped save because there is nothing new to save";
-      m_MainThreadDispatcher.Enqueue(() => StatusBar.Print(errorString));
-      Debug.Log(errorString);
-      return;
-    }
-
-    // TODO, see where we need to set and reset the m_MountedfileData
-    // If we don't have a file mounted, mount the soon to be created file
-    // TODO Maybe make a lock here incase two threads do it
-    if (!FileDataExists(m_MountedFileInfo.m_FileData))
-    {
-      Debug.LogError("Damn, This should not happen. Check why file data doesn't exist here.");
-    }
-
-    // If we are doing an auto check if we have to many
-    if (autosave)
-    {
-      // first of all, if m_MaxAutosaveCount <= 0, then no autosaving
-      // should occur at all
-      if (s_MaxAutoSaveCount <= 0)
-        return;
-
-      // now, if the autosave count is at its limit, then we should
-      // get rid of the oldest autosave
-      if (m_MountedFileInfo.m_FileData.m_AutoSaves.Count >= s_MaxAutoSaveCount)
-      {
-        m_MountedFileInfo.m_FileData.m_AutoSaves.RemoveAt(0);
-      }
-    }
-    else
-    {
-      // now, if the manual count is at its limit, then we should
-      // get rid of the oldest save
-      if (m_MountedFileInfo.m_FileData.m_ManualSaves.Count >= s_MaxManualSaveCount)
-      {
-        m_MountedFileInfo.m_FileData.m_ManualSaves.RemoveAt(0);
-      }
-    }
-
-    // TODO, check if the auto save has differences from the last auto save, if not, discard save,
-    // TODO, check if manual save is the same as the last auto save, if so just move auto to manual
-    // Only write if we have differences, or we have no user created file yet
-    if (hasDifferences || m_MountedFileInfo.m_IsTempFile)
-    {
-      // #6, 1, 3, 5, 8
-      // We have data to add/overwite to any file
-      levelData.m_TimeStamp = DateTime.Now;
-
-      // Manual
-      if (!autosave)
-      {
-        if (m_MountedFileInfo.m_FileData.m_ManualSaves.Count > 0)
-        {
-          levelData.m_Version = new(m_MountedFileInfo.m_FileData.m_ManualSaves[^1].m_Version.m_ManualVersion + 1, 0);
-        }
-        else
-        {
-          levelData.m_Version = new(1, 0);
-        }
-
-        m_MountedFileInfo.m_FileData.m_ManualSaves.Add(levelData);
-      }
-      // If this is an auto save, store what version of the manual save we branched from to get these differences to save
-      else
-      {
-        // If we a auto saving to a temp file
-        if (m_MountedFileInfo.m_IsTempFile)
-        {
-          // We aren't diffing from a manual save, but we list auto as 1 anyway since a val of 0 is treated as a manual save
-          levelData.m_Version = new(1, 1);
-        }
-        else
-        {
-          // Set the manual save version we are branching off from
-          // Get the manual version or the branched manual version if we loaded an auto save
-          levelData.m_Version.m_ManualVersion = m_loadedVersion.m_ManualVersion;
-
-          // Check if there are other autosaves branched from this manual
-          // If so, our version will be 1 more than the newest one
-          int lastVersion = GetLastAutoSaveVersion(m_MountedFileInfo.m_FileData, m_loadedVersion.m_ManualVersion);
-          levelData.m_Version.m_AutoVersion = lastVersion + 1;
-        }
-
-        m_MountedFileInfo.m_FileData.m_AutoSaves.Add(levelData);
-      }
-    }
-    else
-    {
-      // #2, 4
-      // We have no changes to write, but we are writting to some file that isn't our own
-      // So just copy our file to the destination file
-      copyFile = true;
-    }
-    #endregion Add level changes to level data
-
-    // If we have reach the max manual saves for the first time, give a warning that we will start to delete saves.
-    if (m_MountedFileInfo.m_FileData.m_ManualSaves.Count > s_MaxManualSaveCount)
-    {
-      Debug.Log("You have reached the maximum number of saves. " +
-        "Any more saves on this save file will delete your oldest save to make room for you new saves.");
-      // TODO, give warning popup
-    }
-    try
-    {
-      bool shouldMountSave = true;
-      WriteDataToFile(destFilePath, m_MountedFileInfo, shouldMountSave,
-      overwriting, startTime, autosave, copyFile, shouldPrintElapsedTime);
-
-      // If we are saving to the file we have mounted, set our loaded version to that new save
-      if (m_MountedFileInfo.m_SaveFilePath == destFilePath || shouldMountSave)
-      {
-        m_loadedVersion = levelData.m_Version;
-      }
-    }
-    catch (Exception e)
-    {
-      var errorString = $"Error while saving file: {e.Message} ({e.GetType()})";
-      m_MainThreadDispatcher.Enqueue(() => StatusBar.Print(errorString));
-      Debug.LogError(errorString);
-    }
-  }
-
-  private void ExportSavingThread(object threadParameter)
-  {
-    var startTime = DateTime.Now;
-
-    // Extract the parameters from the object array
-    string destFilePath = (string)threadParameter;
-
-    bool isOverwriting = File.Exists(destFilePath);
-
-    CreateFileInfo(out FileInfo sourceInfo, destFilePath);
-
-    // If we are exporting out multiple versions, this variable should exist
-    if (m_PendingExportVersions != null)
-      ExtractSelectedVersions(ref m_PendingExportFileData, m_PendingExportVersions);
-
-    sourceInfo.m_FileData = m_PendingExportFileData;
-
-    // Null out data so we know if we finished our export
-    m_PendingExportFileData = null;
-    m_PendingExportVersions = null;
-
-    try
-    {
-      bool shouldMountSave = false;
-      bool isAutosave = false;
-      bool shouldCopyFile = false;
-      bool shouldPrintElapsedTime = true;
-      WriteDataToFile(destFilePath, sourceInfo, shouldMountSave, isOverwriting, startTime, isAutosave, shouldCopyFile, shouldPrintElapsedTime);
-    }
-    catch (Exception e)
-    {
-      var errorString = $"Error while exporting and saving file: {e.Message} ({e.GetType()})";
-      m_MainThreadDispatcher.Enqueue(() => StatusBar.Print(errorString));
-      Debug.LogError(errorString);
-    }
-  }
-
-  private void UpdateFileToItemList(string fullFilePath, bool overwriting)
-  {
-    if (overwriting)
-      m_MainThreadDispatcher.Enqueue(() => m_FileDirUtilities.MoveFileItemToTop(fullFilePath));
-    else
-      m_MainThreadDispatcher.Enqueue(() => m_FileDirUtilities.AddFileItemForFile(fullFilePath));
-  }
-
-  /// <summary>
-  /// Copies a file from the source file info to the destination path.
-  /// </summary>
-  /// <exception cref="Exception">Thrown when an error occurs during the copy operation.</exception>
-  private void CopyFile(string destFilePath, FileInfo sourceFileInfo)
-  {
-    File.Copy(sourceFileInfo.m_SaveFilePath, destFilePath, true);
-  }
-
-  /// <summary>
-  /// Writes data to a file with additional operations like mounting and UI updates.
-  /// </summary>
-  /// <param name="destFilePath">The destination file path.</param>
-  /// <param name="sourceFileInfo">The source file info.</param>
-  /// <param name="shouldMountSave">Whether to mount the save after writing.</param>
-  /// <param name="isOverwriting">Whether the operation is overwriting an existing file.</param>
-  /// <param name="startTime">The start time of the operation for duration calculation.</param>
-  /// <param name="isAutosave">Whether the operation is an autosave.</param>
-  /// <param name="shouldCopyFile">Whether to copy the file instead of writing data.</param>
-  /// <param name="shouldPrintElapsedTime">Whether to print the elapsed time.</param>
-  /// <exception cref="Exception">Thrown when an error occurs during file operations.</exception>
-  protected void WriteDataToFile(string destFilePath, FileInfo sourceFileInfo, bool shouldMountSave,
-    bool isOverwriting, DateTime startTime, bool isAutosave, bool shouldCopyFile, bool shouldPrintElapsedTime = true)
-  {
-    if (shouldCopyFile)
-    {
-      CopyFile(destFilePath, sourceFileInfo);
-    }
-    else
-    {
-      WriteDataToFile(destFilePath, sourceFileInfo);
-    }
-
-    // If we did a manual save with a temp file, we no longer need the temp file.
-    if (sourceFileInfo.m_IsTempFile && !destFilePath.Equals(m_MountedFileInfo.m_SaveFilePath))
-    {
-      File.Delete(sourceFileInfo.m_SaveFilePath);
-      sourceFileInfo.m_IsTempFile = false;
-    }
-
-    // If we aren't saving to a temp file
-    if (!sourceFileInfo.m_IsTempFile)
-    {
-      UpdateFileToItemList(destFilePath, isOverwriting);
-    }
-
-    if (Application.platform == RuntimePlatform.WebGLPlayer)
-      SyncFiles();
-
-    if (shouldMountSave)
-      MountFile(destFilePath, sourceFileInfo);
-
-    if (shouldPrintElapsedTime)
-    {
-      var duration = DateTime.Now - startTime;
-      var h = duration.Hours; // If this is greater than 0, we got beeg problems
-      var m = duration.Minutes;
-      var s = Math.Round(duration.TotalSeconds % 60.0, 2);
-
-      var durationStr = "";
-      if (h > 0)
-        durationStr += $"{h}h ";
-      if (m > 0)
-        durationStr += $"{m}m ";
-      durationStr += $"{s}s";
-
-      var mainColor = "#ffffff99";
-      var fileColor = isAutosave ? "white" : "yellow";
-      var timeColor = "#ffffff66";
-      m_MainThreadDispatcher.Enqueue(() =>
-      StatusBar.Print($"<color={mainColor}>Saved</color> <color={fileColor}>{Path.GetFileName(destFilePath)}</color> <color={timeColor}>in {durationStr}</color>"));
-    }
-  }
-
-  /// <summary>
-  /// Writes data to a file.
-  /// </summary>
-  /// <param name="destFilePath">The destination file path.</param>
-  /// <param name="sourceFileInfo">The source file info.</param>
-  /// <exception cref="Exception">Thrown when an error occurs during file operations.</exception>
-  protected void WriteDataToFile(string destFilePath, FileInfo sourceFileInfo)
-  {
-    List<byte> data = new();
-    data.AddRange(System.Text.Encoding.Default.GetBytes(JsonUtility.ToJson(sourceFileInfo.m_FileHeader) + "\n"));
-    if (s_ShouldCompress)
-      data.AddRange(StringCompression.Compress(JsonUtility.ToJson(sourceFileInfo.m_FileData)));
-    else
-      data.AddRange(System.Text.Encoding.Default.GetBytes(JsonUtility.ToJson(sourceFileInfo.m_FileData)));
-
-    File.WriteAllBytes(destFilePath, data.ToArray());
-  }
-
-  // Deprecated for now untill real use is found.
-  // Will need update for save versioning.
-  [Obsolete]
-  public void CopyToClipboard()
-  {
-    if (GlobalData.AreEffectsUnderway())
-      return;
-
-    var jsonString = m_TileGrid.ToJsonString();
-    // If we are useing a compression alg for loading/saving, copy this level as a copressed string
-    //if (s_ShouldCompress)
-    //jsonString = StringCompression.Compress(jsonString);
-
-    var te = new TextEditor { text = jsonString };
-    te.SelectAll();
-    te.Copy();
-
-    StatusBar.Print("Level copied to clipboard.");
-  }
-
-  // Deprecated for now untill real use is found.
-  // Will need update for save versioning.
-  [Obsolete]
-  public void LoadFromClipboard()
-  {
-    if (GlobalData.AreEffectsUnderway())
-      return;
-
-    var te = new TextEditor { multiline = true };
-    te.Paste();
-    var text = te.text;
-
-    if (string.IsNullOrEmpty(text))
-    {
-      StatusBar.Print("You tried to paste a level from the clipboard, but it's empty.");
-    }
-    else
-    {
-      //LoadFromJson(text);
-    }
+    FileInfo fileInfo = SetVersionNameEx(fullFilePath, version, name);
+    WriteDataToFile(fullFilePath, fileInfo);
   }
 
   /// <summary>
@@ -745,233 +103,108 @@ public class FileSystem : MonoBehaviour
   /// <param name="fullFilePath">The full path to the file.</param>
   /// <param name="fileInfo">The file info to populate.</param>
   /// <exception cref="Exception">Thrown when the file cannot be found.</exception>
-  protected void GetFileInfoFromFullFilePathEx(string fullFilePath, out FileInfo fileInfo)
+  public void GetFileInfoFromFullFilePath(string fullFilePath, out FileInfo fileInfo)
   {
-    CreateFileInfo(out fileInfo, fullFilePath);
-    if (!File.Exists(fullFilePath))
-    {
-      throw new Exception($"File not found: {fullFilePath}");
-    }
-
-    GetDataFromJson(File.ReadAllBytes(fullFilePath), fileInfo);
+    GetFileInfoFromFullFilePathEx(fullFilePath, out fileInfo);
   }
 
-  protected void LoadFromFullFilePathEx(string fullFilePath, FileVersion? version = null)
+  public void LoadFromFullFilePath(string fullFilePath, FileVersion? version = null)
   {
-    if (GlobalData.AreEffectsUnderway())
-      return;
-
-    try
-    {
-      if (!FileDataExists(m_MountedFileInfo.m_FileData))
-        CreateFileInfo(out m_MountedFileInfo);
-
-      MountFile(fullFilePath, m_MountedFileInfo);
-      LoadFromJson(File.ReadAllBytes(fullFilePath), version);
-
-      m_loadedVersion = version ?? new(GetLastManualSaveVersion(m_MountedFileInfo.m_FileData), 0);
-    }
-    catch (Exception e)
-    {
-      // File not loaded, remove file mount
-      UnmountFile();
-      Debug.LogError($"Error while loading. {e.Message} ({e.GetType()})");
-    }
+    LoadFromFullFilePathEx(fullFilePath, version);
   }
 
-  protected void LoadFromTextAssetEx(TextAsset level)
+  public void LoadFromTextAsset(TextAsset level)
   {
-    if (GlobalData.AreEffectsUnderway())
-      return;
-
-    // There is no file loaded from, so mount no files
-    UnmountFile();
-    try
-    {
-      LoadFromJson(level.bytes);
-    }
-    catch (Exception e)
-    {
-      Debug.LogError($"Error while loading. {e.Message} ({e.GetType()})");
-    }
-  }
-
-  // Intermidiatarty load function. Calls the rest of the load functions.
-  private void LoadFromJson(byte[] json, FileVersion? version = null)
-  {
-    // Make sure we have file data for the load
-    if (!FileDataExists(m_MountedFileInfo.m_FileData))
-      CreateFileInfo(out m_MountedFileInfo);
-
-    GetDataFromJson(json, m_MountedFileInfo);
-
-    m_TileGrid.LoadFromDictonary(GetGridDictionaryFromFileData(m_MountedFileInfo, version));
+    LoadFromTextAssetEx(level);
   }
 
   /// <summary>
-  /// Grabs data from file and stores it in passed in FileData and a Header.
+  /// Removes a number od saved versions and saves the file
   /// </summary>
-  /// <param name="json">The JSON data as bytes.</param>
-  /// <param name="fileInfo">The file info to populate.</param>
-  /// <exception cref="FormatException">Thrown when the file format is invalid.</exception>
-  private void GetDataFromJson(byte[] json, FileInfo fileInfo)
+  /// <param name="fileInfo">The file info containing the save.</param>
+  /// <param name="versions">A list of versions to delete.</param>
+  /// <exception cref="Exception">Thrown when an error occurs.</exception>
+  public void DeleteMultipleVersions(FileInfo fileInfo, List<FileVersion> versions)
   {
-    // Read the header first
-    // The header is always uncompressed, and the data might be
-    byte[] headerBytes;
-    byte[] dataBytes;
-
-    try
+    foreach (var version in versions)
     {
-      SplitNewLineBytes(json, out headerBytes, out dataBytes);
-    }
-    catch (FormatException e)
-    {
-      throw new FormatException("Header and/or level data cannot be found", e);
+      DeleteVersionEx(fileInfo, version);
+      UpdateLoadedVersionIfDeleted(fileInfo, version);
     }
 
-    JsonUtility.FromJsonOverwrite(System.Text.Encoding.Default.GetString(headerBytes), fileInfo.m_FileHeader);
+    SaveAfterDeletion(fileInfo, "multiple versions");
+  }
 
-    // If the save file was made with a diffrent version
-    if (!fileInfo.m_FileHeader.m_BlbVersion.Equals(s_EditorVersion))
+  /// <summary>
+  /// Removes one saved version and saves the file
+  /// </summary>
+  /// <param name="fileInfo">The file info containing the save.</param>
+  /// <param name="version">The version of the save to delete.</param>
+  /// <exception cref="Exception">Thrown when an error occurs.</exception>
+  /// 
+  public void DeleteVersion(FileInfo fileInfo, FileVersion version)
+  {
+    DeleteVersionEx(fileInfo, version);
+    SaveAfterDeletion(fileInfo, version.ToString());
+    UpdateLoadedVersionIfDeleted(fileInfo, version);
+  }
+
+  public void PromoteAutoSave(string fullFilePath, FileVersion version)
+  {
+    GetFileInfoFromFullFilePathEx(fullFilePath, out FileInfo fileInfo);
+    GetVersionLevelData(fileInfo.m_FileData, version, out LevelData level);
+    PromoteAutoSaveEx(ref fileInfo.m_FileData, level);
+    WriteDataToFile(fileInfo.m_SaveFilePath, fileInfo);
+  }
+
+  public void ShowDirectoryInExplorer()
+  {
+    if (Application.platform == RuntimePlatform.WebGLPlayer)
+      return;
+
+    Application.OpenURL($"file://{m_FileDirUtilities.GetCurrentDirectoryPath()}");
+  }
+
+  public void MainThreadDispatcherQueue(System.Action action)
+  {
+    m_MainThreadDispatcher.Enqueue(action);
+  }
+
+  // Functions for dialogs to call
+
+  public void ConfirmOverwrite()
+  {
+    // Check if we were doing a SaveAs or an Export
+    // If the Export data is empty, then we are doing a SaveAs
+    if (m_PendingExportFileData == null)
     {
-      string errorStr = $"Save file {Path.GetFileName(fileInfo.m_SaveFilePath)} was made with a different BLB version. There may be possible errors.";
-      Debug.Log(errorStr);
-      m_MainThreadDispatcher.Enqueue(() => StatusBar.Print(errorStr));
-      // TODO, should we return or keep going? Do we want to run a file with a diff version?
+      StartSavingThread(m_PendingSaveFullFilePath, false);
     }
-
-    string data;
-
-    // Decompress string if needed
-    if (fileInfo.m_FileHeader.m_IsDataCompressed)
-      data = StringCompression.Decompress(dataBytes);
     else
-      data = System.Text.Encoding.Default.GetString(dataBytes);
-
-    JsonUtility.FromJsonOverwrite(data, fileInfo.m_FileData);
+    {
+      StartExportSavingThread(m_PendingSaveFullFilePath);
+    }
+    m_PendingSaveFullFilePath = "";
   }
 
-  /// <summary>
-  /// Splits a byte array at the first newline character.
-  /// </summary>
-  /// <param name="data">The data to split.</param>
-  /// <param name="left">The left part of the split (before the newline).</param>
-  /// <param name="right">The right part of the split (after the newline).</param>
-  /// <exception cref="FormatException">Thrown when no newline character is found.</exception>
-  private void SplitNewLineBytes(in byte[] data, out byte[] left, out byte[] right)
+  public void CancelOverwrite()
   {
-    left = new byte[0];
-    int i;
-    for (i = 0; i < data.Length; i++)
-    {
-      if (data[i] == '\n')
-      {
-        // copy all the data from 0 to i - 1 to the left buffer
-        left = data.Take(i).ToArray();
-        break;
-      }
-    }
-    // copy all the data from i + 1 to data.Length - 1 to the right buffer
-    right = data.Skip(i + 1).ToArray();
-
-    if (left.Length == 0)
-    {
-      throw new FormatException("No newline character found in the data");
-    }
+    m_PendingSaveFullFilePath = "";
   }
 
-  protected void UpdateLoadedVersionIfDeleted(FileInfo fileInfo, FileVersion version)
+  public void TryStartExportSavingThread(string fileName)
   {
-    // If deleting from our own loaded file
-    if (m_MountedFileInfo.m_SaveFilePath == fileInfo.m_SaveFilePath)
-    {
-      // Mark the version we have loaded from to be the newest one
-      if (m_loadedVersion.m_ManualVersion == version.m_ManualVersion && fileInfo.m_FileData.m_ManualSaves.Count > 0)
-      {
-        m_loadedVersion = fileInfo.m_FileData.m_ManualSaves[^1].m_Version;
-      }
-    }
-  }
+    string destFilePath = m_FileDirUtilities.CreateFilePath(fileName);
 
-  protected void SaveAfterDeletion(FileInfo fileInfo, string versionDescription)
-  {
-    try
+    // Give prompt if we are going to write to and existing file
+    if (File.Exists(destFilePath))
     {
-      // If deleting from our own loaded file
-      // Update the mounted data to the new data
-      if (m_MountedFileInfo.m_SaveFilePath == fileInfo.m_SaveFilePath)
-      {
-        m_MountedFileInfo = fileInfo;
-      }
+      m_PendingSaveFullFilePath = destFilePath;
 
-      WriteDataToFile(fileInfo.m_SaveFilePath, fileInfo);
-    }
-    catch (Exception e)
-    {
-      throw new Exception($"Failed to save file after deleting {versionDescription}\nException {e.Message}, {e.GetType()}");
-
+      m_OverrideDialogAdder.RequestDialogsAtCenterWithStrings(Path.GetFileName(destFilePath));
+      return;
     }
 
-    m_FileDirUtilities.MoveFileItemToTop(fileInfo.m_SaveFilePath);
-
-    StatusBar.Print($"Sucessfuly deleted {versionDescription} from {fileInfo.m_SaveFilePath}");
-  }
-
-  /// <summary>
-  /// A thread-safe dispatcher for executing actions on the main Unity thread.
-  /// Used by background threads to queue up actions that must run on the main thread.
-  /// </summary>
-  public class MainThreadDispatcher
-  {
-    private static readonly object s_LockObject = new();
-    private Queue<System.Action> m_ActionQueue = new();
-
-    /// <summary>
-    /// Runs all the queued actions in the list.
-    /// This should only be called from the main Unity thread.
-    /// </summary>
-    public void Update()
-    {
-      lock (s_LockObject)
-      {
-        // Execute all queued actions on the main thread
-        while (m_ActionQueue.Count > 0)
-        {
-          System.Action action = m_ActionQueue.Dequeue();
-          action.Invoke();
-        }
-      }
-    }
-
-    /// <summary>
-    /// Adds a function call to the queue to be executed on the main thread.
-    /// This can be called from any thread.
-    /// </summary>
-    /// <param name="action">The action to execute on the main thread</param>
-    public void Enqueue(System.Action action)
-    {
-      lock (s_LockObject)
-      {
-        // Enqueue the action to be executed on the main thread
-        m_ActionQueue.Enqueue(action);
-      }
-    }
+    StartExportSavingThread(destFilePath);
   }
 }
-
-// TODO, Star on file name to show unsaved changes.
-
-// These three are the same:
-// TODO, game exit or file load "Are you sure" when there are unsaved changes or no file is mounted
-// TODO, add are you sure, if you load a level with unsaved changes.
-// TODO, When closeing app, ask to save if there are unsaved changes.
-// If no, delete temp file on close
-// OOOR we could just autosave to the latest manual
-
-
-// __Needs UI__
-// Unsaved changes prompt
-// Warning about max manual saves reached
-
-// TODO: Be able to delete a file from the save files bar.

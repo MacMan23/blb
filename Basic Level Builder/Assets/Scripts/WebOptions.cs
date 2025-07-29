@@ -217,7 +217,7 @@ public class WebOptions : MonoBehaviour
       if (comparisonName == sanitizedLevelNameString)
       {
         found = true;
-        FileSystemWrapper.Instance.LoadFromTextAsset(level);
+        FileSystem.Instance.LoadFromTextAsset(level);
 
         break;
       }

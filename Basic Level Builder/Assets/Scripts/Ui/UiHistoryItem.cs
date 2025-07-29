@@ -27,7 +27,7 @@ public class UiHistoryItem : MonoBehaviour
   public delegate void CloseInfoWindowAction();
   public static event CloseInfoWindowAction OnCloseInfoWindow;
 
-  private FileSystem.LevelData m_LevelData;
+  private FileSystemInternal.LevelData m_LevelData;
   private string m_FullFilePath;
 
   [SerializeField]
@@ -63,7 +63,7 @@ public class UiHistoryItem : MonoBehaviour
     public RectTransform m_Arrow;
   }
 
-  public void Init(FileSystem.LevelData levelData, string fullFilePath)
+  public void Init(FileSystemInternal.LevelData levelData, string fullFilePath)
   {
     m_LevelData = levelData;
     m_FullFilePath = fullFilePath;
@@ -93,7 +93,7 @@ public class UiHistoryItem : MonoBehaviour
 
   public void SetName()
   {
-    FileSystemWrapper.Instance.SetVersionName(m_FullFilePath, m_LevelData.m_Version, m_ManualSaveInfo.m_VersionInputName.text);
+    FileSystem.Instance.SetVersionName(m_FullFilePath, m_LevelData.m_Version, m_ManualSaveInfo.m_VersionInputName.text);
   }
 
   public bool IsManualSave()
@@ -149,7 +149,7 @@ public class UiHistoryItem : MonoBehaviour
 
   public void Load()
   {
-    FileSystemWrapper.Instance.LoadFromFullFilePath(m_FullFilePath, m_LevelData.m_Version);
+    FileSystem.Instance.LoadFromFullFilePath(m_FullFilePath, m_LevelData.m_Version);
     OnCloseInfoWindow?.Invoke();
   }
 

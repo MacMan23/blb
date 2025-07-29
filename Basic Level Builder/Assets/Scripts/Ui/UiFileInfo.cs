@@ -73,11 +73,11 @@ public class UiFileInfo : MonoBehaviour
     {
       // Create all the file items
       // Load the files data
-      FileSystem.FileInfo fileInfo;
+      FileSystemInternal.FileInfo fileInfo;
 
       try
       {
-        FileSystemWrapper.Instance.GetFileInfoFromFullFilePath(m_FullFilePath, out fileInfo);
+        FileSystem.Instance.GetFileInfoFromFullFilePath(m_FullFilePath, out fileInfo);
       }
       catch (Exception e)
       {
@@ -136,7 +136,7 @@ public class UiFileInfo : MonoBehaviour
     Destroy(gameObject);
   }
 
-  private UiHistoryItem CreateHistoryItem(FileSystem.LevelData levelData, string fullFilePath, UiHistoryItem prefab)
+  private UiHistoryItem CreateHistoryItem(FileSystemInternal.LevelData levelData, string fullFilePath, UiHistoryItem prefab)
   {
     UiHistoryItem historyItem = Instantiate(prefab);
     // Give level data so it can init its text and thumbnail
@@ -186,7 +186,7 @@ public class UiFileInfo : MonoBehaviour
     if (m_Selection.Count > 1 || m_Selection[0].GetVersion().IsManual())
       return;
 
-    FileSystemWrapper.Instance.PromoteAutoSave(m_FullFilePath, m_Selection[0].GetVersion());
+    FileSystem.Instance.PromoteAutoSave(m_FullFilePath, m_Selection[0].GetVersion());
     ClearHistoryItemList();
     LoadHistoryItemList();
   }
@@ -205,9 +205,9 @@ public class UiFileInfo : MonoBehaviour
     }
 
     if (m_Selection.Count == 1)
-      FileSystemWrapper.Instance.ExportVersion(m_Selection[0].GetFilePath(), m_Selection[0].GetVersion());
+      FileSystem.Instance.ExportVersion(m_Selection[0].GetFilePath(), m_Selection[0].GetVersion());
     else
-      FileSystemWrapper.Instance.ExportMultipleVersions(m_Selection[0].GetFilePath(), versions);
+      FileSystem.Instance.ExportMultipleVersions(m_Selection[0].GetFilePath(), versions);
   }
 
   // TODO: If deleting last manual save ask if want to delete whole file.
@@ -220,7 +220,7 @@ public class UiFileInfo : MonoBehaviour
       throw new Exception("Deleting version(s) with no version(s) selected");
     }
 
-    FileSystemWrapper.Instance.GetFileInfoFromFullFilePath(m_FullFilePath, out FileSystem.FileInfo fileInfo);
+    FileSystem.Instance.GetFileInfoFromFullFilePath(m_FullFilePath, out FileSystemInternal.FileInfo fileInfo);
     if (m_Selection.Count > 1)
     {
       List<FileVersion> versions = new();
@@ -229,11 +229,11 @@ public class UiFileInfo : MonoBehaviour
         versions.Add(item.GetVersion());
       }
 
-      FileSystemWrapper.Instance.DeleteMultipleVersions(fileInfo, versions);
+      FileSystem.Instance.DeleteMultipleVersions(fileInfo, versions);
     }
     else
     {
-      FileSystemWrapper.Instance.DeleteVersion(fileInfo, m_Selection[0].GetVersion());
+      FileSystem.Instance.DeleteVersion(fileInfo, m_Selection[0].GetVersion());
     }
 
     // We changed up a lot if we deleted a manual and its autos

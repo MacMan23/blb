@@ -253,7 +253,7 @@ public class TileGrid : MonoBehaviour
     return gridStringBuilder.ToString();
   }
 
-  public void GetLevelData(out FileSystem.LevelData levelData)
+  public void GetLevelData(out FileSystemInternal.LevelData levelData)
   {
     levelData = new()
     {

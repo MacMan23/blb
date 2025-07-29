@@ -28,13 +28,12 @@ public class HotkeyMaster : MonoBehaviour
     return IsPrimaryModifierHeldEx() && !IsSecondaryModifierHeldEx();
   }
 
-
   public static bool IsSecondaryModifierHeld()
   {
     return !IsPrimaryModifierHeldEx() && IsSecondaryModifierHeldEx();
   }
 
-  public static bool IsPrimaryModifierHeldEx()
+  private static bool IsPrimaryModifierHeldEx()
   {
     var altHeld = Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt);
 
@@ -44,12 +43,10 @@ public class HotkeyMaster : MonoBehaviour
     return Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl) || Input.GetKey(KeyCode.LeftCommand) || Input.GetKey(KeyCode.RightCommand);
   }
 
-
-  public static bool IsSecondaryModifierHeldEx()
+  private static bool IsSecondaryModifierHeldEx()
   {
     return Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
   }
-
 
   public static bool IsPairedModifierHeld()
   {

@@ -96,7 +96,7 @@ public class OperationSystem : MonoBehaviour
 
     if (s_UseAutosaving && s_OperationCounter >= s_AutosaveInterval)
     {
-      FileSystemWrapper.Instance.Autosave();
+      FileSystem.Instance.Autosave();
       s_OperationCounter = 0;
     }
   }
