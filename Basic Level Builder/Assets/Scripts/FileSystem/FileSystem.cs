@@ -178,7 +178,7 @@ public class FileSystem : FileSystemInternal
     // If the Export data is empty, then we are doing a SaveAs
     if (m_PendingExportFileData == null)
     {
-      StartSavingThread(m_PendingSaveFullFilePath, false);
+      StartSavingThread(m_PendingSaveFullFilePath, false, true);
     }
     else
     {
