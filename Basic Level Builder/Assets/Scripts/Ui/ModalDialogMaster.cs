@@ -152,6 +152,8 @@ public class ModalDialogMaster : MonoBehaviour
 
   void Deactivate()
   {
+    GlobalData.DecreaseUiPopup();
+
     m_Active = false;
     m_Image.raycastTarget = false;
 
@@ -164,7 +166,6 @@ public class ModalDialogMaster : MonoBehaviour
 
   void EndDeactivate()
   {
-    GlobalData.DecreaseUiPopup();
     DisableImage();
   }
 
