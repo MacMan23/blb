@@ -71,9 +71,9 @@ public class UiHistoryItem : MonoBehaviour
     if (string.IsNullOrEmpty(levelData.m_Name))
     {
       if (IsManualSave())
-        m_ManualSaveInfo.m_VersionInputName.text = s_ManualSaveName + levelData.m_Version.m_ManualVersion;
+        m_ManualSaveInfo.m_VersionInputName.text = s_ManualSaveName + levelData.m_Version.m_ManualVersion + " ID: " + levelData.m_Id;
       else
-        m_AutoSaveInfo.m_VersionName.text = "<i>" + s_AutoSaveName + levelData.m_Version.m_AutoVersion;
+        m_AutoSaveInfo.m_VersionName.text = "<i>" + s_AutoSaveName + levelData.m_Version.m_AutoVersion + " ID: " + levelData.m_Id;
     }
     else
     {
@@ -104,6 +104,11 @@ public class UiHistoryItem : MonoBehaviour
   public FileVersion GetVersion()
   {
     return m_LevelData.m_Version;
+  }
+
+  public uint GetId()
+  {
+    return m_LevelData.m_Id;
   }
 
   public string GetFilePath()

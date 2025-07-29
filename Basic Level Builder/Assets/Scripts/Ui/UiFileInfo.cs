@@ -7,6 +7,7 @@ Copyright 2018-2025, DigiPen Institute of Technology
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
 using static FileVersioning;
@@ -34,6 +35,10 @@ public class UiFileInfo : MonoBehaviour
   private GameObject m_DeleteButton;
 
   private List<UiHistoryItem> m_Selection = new();
+
+  List<uint> m_ExpandedManuals = new();
+  uint m_SelectedSave;
+
   // The first selected item to use when selecting in a range
   // This will update for as long as the range selection modifier is not held
   // If the modifier is held, it will select all items between this index and the next selected item
@@ -108,7 +113,6 @@ public class UiFileInfo : MonoBehaviour
 
       UpdateVersionList(items);
 
-      items[0].Select();
       // First time run will collapse all
       ToggleSaveExpansion();
     }
@@ -152,7 +156,7 @@ public class UiFileInfo : MonoBehaviour
   public void ToggleSaveExpansion()
   {
     // If we have no expanded saves, set to expand all
-    bool shouldExpand = GetNumberExpandedSaves() == 0;
+    bool shouldExpand = GetNumberOfExpandedSaves() == 0;
 
     // Loop all save versions
     for (int i = 0; i < m_Content.childCount; i++)
@@ -187,8 +191,8 @@ public class UiFileInfo : MonoBehaviour
       return;
 
     FileSystem.Instance.PromoteAutoSave(m_FullFilePath, m_Selection[0].GetVersion());
-    ClearHistoryItemList();
-    LoadHistoryItemList();
+
+    RefreshUi();
   }
 
   public void ExportSelectedVersions()
@@ -236,21 +240,65 @@ public class UiFileInfo : MonoBehaviour
       FileSystem.Instance.DeleteVersion(fileInfo, m_Selection[0].GetVersion());
     }
 
-    // We changed up a lot if we deleted a manual and its autos
-    // Or if we deleted multiple files,
-    // So delete and recreate the item list
-    if (m_Selection.Count > 1 || m_Selection[0].IsManualSave())
-    {
-      ClearHistoryItemList();
-      LoadHistoryItemList();
-    }
-    else
-      DestroyImmediate(m_Selection[0].gameObject);
-    ClearSelection();
+    RefreshUi();
+  }
+
+  private void RefreshUi()
+  {
+    SaveUiState();
+    ClearHistoryItemList();
+    LoadHistoryItemList();
+    LoadUiState();
     UpdateVersionInfo();
   }
 
-  private int GetNumberExpandedSaves()
+  private void LoadUiState()
+  {
+    m_Selection.Clear();
+
+    for (int i = 0; i < m_Content.childCount; i++)
+    {
+      var child = m_Content.GetChild(i);
+      if (child != null && child.TryGetComponent<UiHistoryItem>(out var item))
+      {
+        if (item.GetId() == m_SelectedSave)
+          item.Select();
+
+        if (item.IsManualSave() && m_ExpandedManuals.Any(p => p == item.GetId()))
+        {
+          item.ToggleExpand();
+          m_ExpandedManuals.Remove(item.GetId());
+        }
+      }
+
+      // If we finished expanding all saves and selecting the last selected
+      if (m_ExpandedManuals.Count == 0 && m_Selection.Count == 1)
+        break;
+    }
+  }
+
+  private void SaveUiState()
+  {
+    if (m_Selection.Count > 0)
+      m_SelectedSave = m_Selection[0].GetId();
+    else
+      m_SelectedSave = 0;
+
+    m_ExpandedManuals.Clear();
+    for (int i = 0; i < m_Content.childCount; i++)
+    {
+      var child = m_Content.GetChild(i);
+      if (child != null && child.TryGetComponent<UiHistoryItem>(out var item))
+      {
+        if (item.IsManualSave() && item.IsExpanded())
+        {
+          m_ExpandedManuals.Add(item.GetId());
+        }
+      }
+    }
+  }
+
+  private int GetNumberOfExpandedSaves()
   {
     int num = 0;
     for (int i = 0; i < m_Content.childCount; i++)

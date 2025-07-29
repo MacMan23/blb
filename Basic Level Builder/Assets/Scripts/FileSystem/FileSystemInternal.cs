@@ -12,6 +12,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
+using UnityEditor;
 using UnityEngine;
 using static FileDirUtilities;
 using static FileVersioning;
@@ -104,6 +105,7 @@ public class FileSystemInternal : MonoBehaviour
     }
     public List<LevelData> m_ManualSaves;
     public List<LevelData> m_AutoSaves;
+    public uint m_LastId;
   }
 
   [Serializable]
@@ -117,6 +119,7 @@ public class FileSystemInternal : MonoBehaviour
 
     public FileVersion m_Version;
     public string m_Name;
+    public uint m_Id;
     public JsonDateTime m_TimeStamp;
     public List<TileGrid.Element> m_AddedTiles;
     public List<Vector2Int> m_RemovedTiles;
@@ -485,6 +488,7 @@ public class FileSystemInternal : MonoBehaviour
       // #6, 1, 3, 5, 8
       // We have data to add/overwite to any file
       levelData.m_TimeStamp = DateTime.Now;
+      levelData.m_Id = ++m_MountedFileInfo.m_FileData.m_LastId;
 
       // Manual
       if (!autosave)

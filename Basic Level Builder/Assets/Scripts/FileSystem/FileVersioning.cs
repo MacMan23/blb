@@ -235,6 +235,7 @@ public static class FileVersioning
     HashSet<Vector2Int> flattenedLevelRemove = new();
 
     int version = 1;
+    fileData.m_LastId = 0;
 
     for (int i = 0; i < fileData.m_ManualSaves.Count; ++i)
     {
@@ -252,6 +253,7 @@ public static class FileVersioning
       fileData.m_ManualSaves[i].m_AddedTiles = flattenedLevelAdd.Values.ToList();
       fileData.m_ManualSaves[i].m_RemovedTiles = flattenedLevelRemove.ToList();
       fileData.m_ManualSaves[i].m_Version = new FileVersion(version++, 0);
+      fileData.m_ManualSaves[i].m_Id = ++fileData.m_LastId;
 
       flattenedLevelAdd.Clear();
       flattenedLevelRemove.Clear();

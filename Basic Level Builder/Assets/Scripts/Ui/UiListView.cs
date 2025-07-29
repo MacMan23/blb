@@ -121,7 +121,7 @@ public class UiListView : MonoBehaviour
 
     foreach (var item in items)
     {
-      if (item.m_FullPath == fullPath)
+      if (string.Compare(item.m_FullPath, fullPath, System.StringComparison.InvariantCultureIgnoreCase) == 0)
         return item;
     }
 
