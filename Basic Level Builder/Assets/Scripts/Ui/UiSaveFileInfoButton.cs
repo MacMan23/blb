@@ -31,7 +31,7 @@ public class UiSaveFileInfoButton : MonoBehaviour
     if (parent != null)
     {
       infoBox.InitLoad(parent.m_FullPath);
-      GlobalData.IncreaseUiPopup();
+      GlobalData.IncrementUiPopup();
     }
     else
       Debug.LogError("Could not find parent of history button");

@@ -244,12 +244,12 @@ public static class GlobalData
     return false;
   }
 
-  public static void IncreaseUiPopup()
+  public static void IncrementUiPopup()
   {
     s_NumOfUiPopups++;
   }
 
-  public static void DecreaseUiPopup()
+  public static void DecrementUiPopup()
   {
     s_NumOfUiPopups--;
   }

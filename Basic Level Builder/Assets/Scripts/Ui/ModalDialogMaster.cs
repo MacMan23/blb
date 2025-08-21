@@ -138,7 +138,7 @@ public class ModalDialogMaster : MonoBehaviour
 
   void Activate()
   {
-    GlobalData.IncreaseUiPopup();
+    GlobalData.IncrementUiPopup();
 
     m_Active = true;
     m_Image.enabled = true;
@@ -152,7 +152,7 @@ public class ModalDialogMaster : MonoBehaviour
 
   void Deactivate()
   {
-    GlobalData.DecreaseUiPopup();
+    GlobalData.DecrementUiPopup();
 
     m_Active = false;
     m_Image.raycastTarget = false;

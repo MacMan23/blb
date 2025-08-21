@@ -140,7 +140,7 @@ public class UiFileInfo : MonoBehaviour
 
     // Toggle on the black background
     root.GetComponent<Image>().enabled = false;
-    GlobalData.DecreaseUiPopup();
+    GlobalData.DecrementUiPopup();
 
     Destroy(gameObject);
   }
