@@ -755,6 +755,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe1392e5df51153418a23c4e1f4b946e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_UseAdaptiveHotkeyText: 0
+  m_PrefaceText: 
   m_Text: Slope Left
   m_TooltipPrefab: {fileID: 3956001862937307442, guid: 13d12636cc140d346b13d5ca53a5625d,
     type: 3}
@@ -1450,6 +1452,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe1392e5df51153418a23c4e1f4b946e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_UseAdaptiveHotkeyText: 0
+  m_PrefaceText: 
   m_Text: Background Slope Right
   m_TooltipPrefab: {fileID: 3956001862937307442, guid: 13d12636cc140d346b13d5ca53a5625d,
     type: 3}
@@ -1789,6 +1793,9 @@ MonoBehaviour:
   m_OverrideDialogAdder: {fileID: 128438542}
   m_SaveAsDialogAdder: {fileID: 128438543}
   m_ExportAsDialogAdder: {fileID: 128438546}
+  m_TempThumbnailImages:
+  - {fileID: 2800000, guid: c134c7dc5476e8341a7359d52300246f, type: 3}
+  - {fileID: 2800000, guid: 82fdc1a4be3ae7145b835936ffeb31f8, type: 3}
 --- !u!114 &128438548
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2030,6 +2037,7 @@ GameObject:
   - component: {fileID: 167155018}
   - component: {fileID: 167155017}
   - component: {fileID: 167155016}
+  - component: {fileID: 167155022}
   m_Layer: 5
   m_Name: RedoButton
   m_TagString: Untagged
@@ -2082,6 +2090,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe1392e5df51153418a23c4e1f4b946e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_UseAdaptiveHotkeyText: 1
+  m_PrefaceText: Redo
   m_Text: Redo (Shift + Y)
   m_TooltipPrefab: {fileID: 3956001862937307442, guid: 13d12636cc140d346b13d5ca53a5625d,
     type: 3}
@@ -2199,6 +2209,39 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 167155014}
   m_CullTransparentMesh: 0
+--- !u!114 &167155022
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 167155014}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 79f6096ac2dc4234490189d4e446d560, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_List:
+  - m_Button: Redo
+    m_Modifiers: 1
+    m_Event:
+      m_PersistentCalls:
+        m_Calls:
+        - m_Target: {fileID: 167155016}
+          m_TargetAssemblyTypeName: ButtonSwitchboard, Assembly-CSharp
+          m_MethodName: AttemptRedo
+          m_Mode: 1
+          m_Arguments:
+            m_ObjectArgument: {fileID: 0}
+            m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+            m_IntArgument: 0
+            m_FloatArgument: 0
+            m_StringArgument: 
+            m_BoolArgument: 0
+          m_CallState: 2
+    m_SubjectToHotkeyDisabling: 1
+    m_AllowedInPlayMode: 0
+    m_AllowedInUiPopups: 0
 --- !u!1 &172505627
 GameObject:
   m_ObjectHideFlags: 0
@@ -2254,6 +2297,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe1392e5df51153418a23c4e1f4b946e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_UseAdaptiveHotkeyText: 0
+  m_PrefaceText: 
   m_Text: Background Slope Left
   m_TooltipPrefab: {fileID: 3956001862937307442, guid: 13d12636cc140d346b13d5ca53a5625d,
     type: 3}
@@ -7324,6 +7369,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe1392e5df51153418a23c4e1f4b946e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_UseAdaptiveHotkeyText: 0
+  m_PrefaceText: 
   m_Text: Turn On Colorblind Mode
   m_TooltipPrefab: {fileID: 3956001862937307442, guid: 13d12636cc140d346b13d5ca53a5625d,
     type: 3}
@@ -8088,6 +8135,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe1392e5df51153418a23c4e1f4b946e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_UseAdaptiveHotkeyText: 0
+  m_PrefaceText: 
   m_Text: Start
   m_TooltipPrefab: {fileID: 3956001862937307442, guid: 13d12636cc140d346b13d5ca53a5625d,
     type: 3}
@@ -8261,6 +8310,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe1392e5df51153418a23c4e1f4b946e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_UseAdaptiveHotkeyText: 0
+  m_PrefaceText: 
   m_Text: Hand Tool (5)
   m_TooltipPrefab: {fileID: 3956001862937307442, guid: 13d12636cc140d346b13d5ca53a5625d,
     type: 3}
@@ -8877,6 +8928,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe1392e5df51153418a23c4e1f4b946e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_UseAdaptiveHotkeyText: 0
+  m_PrefaceText: 
   m_Text: Slope Right Inverted
   m_TooltipPrefab: {fileID: 3956001862937307442, guid: 13d12636cc140d346b13d5ca53a5625d,
     type: 3}
@@ -9191,6 +9244,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe1392e5df51153418a23c4e1f4b946e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_UseAdaptiveHotkeyText: 0
+  m_PrefaceText: 
   m_Text: Key
   m_TooltipPrefab: {fileID: 3956001862937307442, guid: 13d12636cc140d346b13d5ca53a5625d,
     type: 3}
@@ -9453,6 +9508,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe1392e5df51153418a23c4e1f4b946e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_UseAdaptiveHotkeyText: 0
+  m_PrefaceText: 
   m_Text: Show/Hide Panel
   m_TooltipPrefab: {fileID: 3956001862937307442, guid: 13d12636cc140d346b13d5ca53a5625d,
     type: 3}
@@ -9853,6 +9910,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe1392e5df51153418a23c4e1f4b946e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_UseAdaptiveHotkeyText: 0
+  m_PrefaceText: 
   m_Text: Clear Level
   m_TooltipPrefab: {fileID: 3956001862937307442, guid: 13d12636cc140d346b13d5ca53a5625d,
     type: 3}
@@ -10015,6 +10074,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe1392e5df51153418a23c4e1f4b946e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_UseAdaptiveHotkeyText: 0
+  m_PrefaceText: 
   m_Text: Slope Left Inverted
   m_TooltipPrefab: {fileID: 3956001862937307442, guid: 13d12636cc140d346b13d5ca53a5625d,
     type: 3}
@@ -10412,6 +10473,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe1392e5df51153418a23c4e1f4b946e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_UseAdaptiveHotkeyText: 0
+  m_PrefaceText: 
   m_Text: Teleporter
   m_TooltipPrefab: {fileID: 3956001862937307442, guid: 13d12636cc140d346b13d5ca53a5625d,
     type: 3}
@@ -10459,7 +10522,6 @@ GameObject:
   - component: {fileID: 519420029}
   - component: {fileID: 519420034}
   - component: {fileID: 519420030}
-  - component: {fileID: 519420033}
   - component: {fileID: 519420035}
   - component: {fileID: 519420037}
   - component: {fileID: 519420036}
@@ -10588,18 +10650,6 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &519420033
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 519420028}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 085543b60c42d9e4bac8ddb1e713466d, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!82 &519420034
 AudioSource:
   m_ObjectHideFlags: 0
@@ -11074,6 +11124,7 @@ GameObject:
   - component: {fileID: 573329735}
   - component: {fileID: 573329734}
   - component: {fileID: 573329733}
+  - component: {fileID: 573329739}
   m_Layer: 5
   m_Name: ColorblindModeButton
   m_TagString: Untagged
@@ -11127,6 +11178,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe1392e5df51153418a23c4e1f4b946e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_UseAdaptiveHotkeyText: 1
+  m_PrefaceText: Turn On Colorblind Mode
   m_Text: Turn On Colorblind Mode (Shift + I)
   m_TooltipPrefab: {fileID: 3956001862937307442, guid: 13d12636cc140d346b13d5ca53a5625d,
     type: 3}
@@ -11244,6 +11297,39 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 573329731}
   m_CullTransparentMesh: 0
+--- !u!114 &573329739
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 573329731}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 79f6096ac2dc4234490189d4e446d560, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_List:
+  - m_Button: Colorblind Mode
+    m_Modifiers: 2
+    m_Event:
+      m_PersistentCalls:
+        m_Calls:
+        - m_Target: {fileID: 2031376955}
+          m_TargetAssemblyTypeName: ColorblindToggler, Assembly-CSharp
+          m_MethodName: ToggleColorblindMode
+          m_Mode: 1
+          m_Arguments:
+            m_ObjectArgument: {fileID: 0}
+            m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+            m_IntArgument: 0
+            m_FloatArgument: 0
+            m_StringArgument: 
+            m_BoolArgument: 0
+          m_CallState: 2
+    m_SubjectToHotkeyDisabling: 1
+    m_AllowedInPlayMode: 1
+    m_AllowedInUiPopups: 0
 --- !u!1 &573693412
 GameObject:
   m_ObjectHideFlags: 0
@@ -16535,6 +16621,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe1392e5df51153418a23c4e1f4b946e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_UseAdaptiveHotkeyText: 0
+  m_PrefaceText: 
   m_Text: Star
   m_TooltipPrefab: {fileID: 3956001862937307442, guid: 13d12636cc140d346b13d5ca53a5625d,
     type: 3}
@@ -22009,6 +22097,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe1392e5df51153418a23c4e1f4b946e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_UseAdaptiveHotkeyText: 0
+  m_PrefaceText: 
   m_Text: Goal
   m_TooltipPrefab: {fileID: 3956001862937307442, guid: 13d12636cc140d346b13d5ca53a5625d,
     type: 3}
@@ -22341,6 +22431,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe1392e5df51153418a23c4e1f4b946e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_UseAdaptiveHotkeyText: 0
+  m_PrefaceText: 
   m_Text: Goon
   m_TooltipPrefab: {fileID: 3956001862937307442, guid: 13d12636cc140d346b13d5ca53a5625d,
     type: 3}
@@ -22689,6 +22781,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe1392e5df51153418a23c4e1f4b946e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_UseAdaptiveHotkeyText: 0
+  m_PrefaceText: 
   m_Text: Exit (Shift + Q)
   m_TooltipPrefab: {fileID: 3956001862937307442, guid: 13d12636cc140d346b13d5ca53a5625d,
     type: 3}
@@ -23191,6 +23285,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe1392e5df51153418a23c4e1f4b946e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_UseAdaptiveHotkeyText: 0
+  m_PrefaceText: 
   m_Text: Selector Tool (4)
   m_TooltipPrefab: {fileID: 3956001862937307442, guid: 13d12636cc140d346b13d5ca53a5625d,
     type: 3}
@@ -23384,6 +23480,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe1392e5df51153418a23c4e1f4b946e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_UseAdaptiveHotkeyText: 0
+  m_PrefaceText: 
   m_Text: Background Slope Right Inverted
   m_TooltipPrefab: {fileID: 3956001862937307442, guid: 13d12636cc140d346b13d5ca53a5625d,
     type: 3}
@@ -24017,6 +24115,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe1392e5df51153418a23c4e1f4b946e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_UseAdaptiveHotkeyText: 0
+  m_PrefaceText: 
   m_Text: Invisible Solid
   m_TooltipPrefab: {fileID: 3956001862937307442, guid: 13d12636cc140d346b13d5ca53a5625d,
     type: 3}
@@ -29307,7 +29407,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe1392e5df51153418a23c4e1f4b946e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_Text: Save (Shift + S)
+  m_UseAdaptiveHotkeyText: 1
+  m_PrefaceText: Save
+  m_Text: ' (alt + s)'
   m_TooltipPrefab: {fileID: 3956001862937307442, guid: 13d12636cc140d346b13d5ca53a5625d,
     type: 3}
 --- !u!114 &951350830
@@ -29398,6 +29500,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe1392e5df51153418a23c4e1f4b946e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_UseAdaptiveHotkeyText: 0
+  m_PrefaceText: 
   m_Text: Background Slope Left Inverted
   m_TooltipPrefab: {fileID: 3956001862937307442, guid: 13d12636cc140d346b13d5ca53a5625d,
     type: 3}
@@ -30129,6 +30233,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe1392e5df51153418a23c4e1f4b946e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_UseAdaptiveHotkeyText: 0
+  m_PrefaceText: 
   m_Text: Solid
   m_TooltipPrefab: {fileID: 3956001862937307442, guid: 13d12636cc140d346b13d5ca53a5625d,
     type: 3}
@@ -30339,6 +30445,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe1392e5df51153418a23c4e1f4b946e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_UseAdaptiveHotkeyText: 0
+  m_PrefaceText: 
   m_Text: Path Tool (6)
   m_TooltipPrefab: {fileID: 3956001862937307442, guid: 13d12636cc140d346b13d5ca53a5625d,
     type: 3}
@@ -32102,6 +32210,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe1392e5df51153418a23c4e1f4b946e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_UseAdaptiveHotkeyText: 0
+  m_PrefaceText: 
   m_Text: False Solid
   m_TooltipPrefab: {fileID: 3956001862937307442, guid: 13d12636cc140d346b13d5ca53a5625d,
     type: 3}
@@ -32753,6 +32863,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe1392e5df51153418a23c4e1f4b946e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_UseAdaptiveHotkeyText: 0
+  m_PrefaceText: 
   m_Text: Slope Right
   m_TooltipPrefab: {fileID: 3956001862937307442, guid: 13d12636cc140d346b13d5ca53a5625d,
     type: 3}
@@ -32895,6 +33007,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe1392e5df51153418a23c4e1f4b946e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_UseAdaptiveHotkeyText: 0
+  m_PrefaceText: 
   m_Text: Booster
   m_TooltipPrefab: {fileID: 3956001862937307442, guid: 13d12636cc140d346b13d5ca53a5625d,
     type: 3}
@@ -34132,6 +34246,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe1392e5df51153418a23c4e1f4b946e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_UseAdaptiveHotkeyText: 0
+  m_PrefaceText: 
   m_Text: Empty
   m_TooltipPrefab: {fileID: 3956001862937307442, guid: 13d12636cc140d346b13d5ca53a5625d,
     type: 3}
@@ -34489,6 +34605,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe1392e5df51153418a23c4e1f4b946e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_UseAdaptiveHotkeyText: 0
+  m_PrefaceText: 
   m_Text: Deadly
   m_TooltipPrefab: {fileID: 3956001862937307442, guid: 13d12636cc140d346b13d5ca53a5625d,
     type: 3}
@@ -35286,6 +35404,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe1392e5df51153418a23c4e1f4b946e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_UseAdaptiveHotkeyText: 0
+  m_PrefaceText: 
   m_Text: Show/Hide Panel
   m_TooltipPrefab: {fileID: 3956001862937307442, guid: 13d12636cc140d346b13d5ca53a5625d,
     type: 3}
@@ -35877,6 +35997,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe1392e5df51153418a23c4e1f4b946e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_UseAdaptiveHotkeyText: 0
+  m_PrefaceText: 
   m_Text: Toggle FPS Cap
   m_TooltipPrefab: {fileID: 3956001862937307442, guid: 13d12636cc140d346b13d5ca53a5625d,
     type: 3}
@@ -36433,6 +36555,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe1392e5df51153418a23c4e1f4b946e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_UseAdaptiveHotkeyText: 0
+  m_PrefaceText: 
   m_Text: Checkpoint
   m_TooltipPrefab: {fileID: 3956001862937307442, guid: 13d12636cc140d346b13d5ca53a5625d,
     type: 3}
@@ -36784,6 +36908,7 @@ GameObject:
   - component: {fileID: 1494779842}
   - component: {fileID: 1494779846}
   - component: {fileID: 1494779847}
+  - component: {fileID: 1494779848}
   m_Layer: 5
   m_Name: PlayButton
   m_TagString: Untagged
@@ -36938,6 +37063,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe1392e5df51153418a23c4e1f4b946e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_UseAdaptiveHotkeyText: 0
+  m_PrefaceText: Play
   m_Text: Play (Enter)
   m_TooltipPrefab: {fileID: 3956001862937307442, guid: 13d12636cc140d346b13d5ca53a5625d,
     type: 3}
@@ -36953,6 +37080,39 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d9e12e6c2d849c548aefded15de3293f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!114 &1494779848
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1494779840}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 79f6096ac2dc4234490189d4e446d560, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_List:
+  - m_Button: Play
+    m_Modifiers: 0
+    m_Event:
+      m_PersistentCalls:
+        m_Calls:
+        - m_Target: {fileID: 1494779847}
+          m_TargetAssemblyTypeName: PlayModeToggler, Assembly-CSharp
+          m_MethodName: Toggle
+          m_Mode: 1
+          m_Arguments:
+            m_ObjectArgument: {fileID: 0}
+            m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+            m_IntArgument: 0
+            m_FloatArgument: 0
+            m_StringArgument: 
+            m_BoolArgument: 0
+          m_CallState: 2
+    m_SubjectToHotkeyDisabling: 1
+    m_AllowedInPlayMode: 1
+    m_AllowedInUiPopups: 0
 --- !u!1 &1496645991
 GameObject:
   m_ObjectHideFlags: 0
@@ -37136,6 +37296,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe1392e5df51153418a23c4e1f4b946e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_UseAdaptiveHotkeyText: 0
+  m_PrefaceText: 
   m_Text: Switch
   m_TooltipPrefab: {fileID: 3956001862937307442, guid: 13d12636cc140d346b13d5ca53a5625d,
     type: 3}
@@ -37714,6 +37876,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe1392e5df51153418a23c4e1f4b946e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_UseAdaptiveHotkeyText: 0
+  m_PrefaceText: 
   m_Text: Turn On Ghost Mode (Shift + G)
   m_TooltipPrefab: {fileID: 3956001862937307442, guid: 13d12636cc140d346b13d5ca53a5625d,
     type: 3}
@@ -38480,6 +38644,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe1392e5df51153418a23c4e1f4b946e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_UseAdaptiveHotkeyText: 0
+  m_PrefaceText: 
   m_Text: Brush Tool (1)
   m_TooltipPrefab: {fileID: 3956001862937307442, guid: 13d12636cc140d346b13d5ca53a5625d,
     type: 3}
@@ -39261,6 +39427,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe1392e5df51153418a23c4e1f4b946e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_UseAdaptiveHotkeyText: 0
+  m_PrefaceText: 
   m_Text: Box Tool (2)
   m_TooltipPrefab: {fileID: 3956001862937307442, guid: 13d12636cc140d346b13d5ca53a5625d,
     type: 3}
@@ -39279,6 +39447,7 @@ GameObject:
   - component: {fileID: 1717617051}
   - component: {fileID: 1717617050}
   - component: {fileID: 1717617056}
+  - component: {fileID: 1717617057}
   m_Layer: 5
   m_Name: GhostModeButton
   m_TagString: Untagged
@@ -39319,6 +39488,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe1392e5df51153418a23c4e1f4b946e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_UseAdaptiveHotkeyText: 1
+  m_PrefaceText: Turn On Ghost Mode
   m_Text: Turn On Ghost Mode (Shift + G)
   m_TooltipPrefab: {fileID: 3956001862937307442, guid: 13d12636cc140d346b13d5ca53a5625d,
     type: 3}
@@ -39448,7 +39619,40 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1856808c41903dc4dbbd4084685d7cac, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_GhostModeEnabledTooltipText: Turn Off Ghost Mode (Shift + G)
+  m_GhostModeEnabledTooltipText: Turn Off Ghost Mode
+--- !u!114 &1717617057
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1717617048}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 79f6096ac2dc4234490189d4e446d560, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_List:
+  - m_Button: Ghost Mode
+    m_Modifiers: 2
+    m_Event:
+      m_PersistentCalls:
+        m_Calls:
+        - m_Target: {fileID: 2031376954}
+          m_TargetAssemblyTypeName: GhostToggler, Assembly-CSharp
+          m_MethodName: ToggleGhostMode
+          m_Mode: 1
+          m_Arguments:
+            m_ObjectArgument: {fileID: 0}
+            m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+            m_IntArgument: 0
+            m_FloatArgument: 0
+            m_StringArgument: 
+            m_BoolArgument: 0
+          m_CallState: 2
+    m_SubjectToHotkeyDisabling: 1
+    m_AllowedInPlayMode: 1
+    m_AllowedInUiPopups: 0
 --- !u!1 &1737022338
 GameObject:
   m_ObjectHideFlags: 0
@@ -49449,6 +49653,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe1392e5df51153418a23c4e1f4b946e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_UseAdaptiveHotkeyText: 1
+  m_PrefaceText: Save the current level with a specified file name
   m_Text: Save the current level with a specified file name (Shift + Alt + S)
   m_TooltipPrefab: {fileID: 3956001862937307442, guid: 13d12636cc140d346b13d5ca53a5625d,
     type: 3}
@@ -50423,6 +50629,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe1392e5df51153418a23c4e1f4b946e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_UseAdaptiveHotkeyText: 0
+  m_PrefaceText: 
   m_Text: Door
   m_TooltipPrefab: {fileID: 3956001862937307442, guid: 13d12636cc140d346b13d5ca53a5625d,
     type: 3}
@@ -50480,6 +50688,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe1392e5df51153418a23c4e1f4b946e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_UseAdaptiveHotkeyText: 0
+  m_PrefaceText: 
   m_Text: Edit (Enter)
   m_TooltipPrefab: {fileID: 3956001862937307442, guid: 13d12636cc140d346b13d5ca53a5625d,
     type: 3}
@@ -51176,6 +51386,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe1392e5df51153418a23c4e1f4b946e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_UseAdaptiveHotkeyText: 0
+  m_PrefaceText: 
   m_Text: Background
   m_TooltipPrefab: {fileID: 3956001862937307442, guid: 13d12636cc140d346b13d5ca53a5625d,
     type: 3}
@@ -51405,6 +51617,7 @@ GameObject:
   - component: {fileID: 2047445027}
   - component: {fileID: 2047445026}
   - component: {fileID: 2047445025}
+  - component: {fileID: 2047445031}
   m_Layer: 5
   m_Name: UndoButton
   m_TagString: Untagged
@@ -51457,7 +51670,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe1392e5df51153418a23c4e1f4b946e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_Text: Undo (Shift + Z)
+  m_UseAdaptiveHotkeyText: 1
+  m_PrefaceText: Undo
+  m_Text: Undo
   m_TooltipPrefab: {fileID: 3956001862937307442, guid: 13d12636cc140d346b13d5ca53a5625d,
     type: 3}
 --- !u!114 &2047445027
@@ -51574,6 +51789,39 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2047445023}
   m_CullTransparentMesh: 0
+--- !u!114 &2047445031
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2047445023}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 79f6096ac2dc4234490189d4e446d560, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_List:
+  - m_Button: Undo
+    m_Modifiers: 1
+    m_Event:
+      m_PersistentCalls:
+        m_Calls:
+        - m_Target: {fileID: 2047445025}
+          m_TargetAssemblyTypeName: ButtonSwitchboard, Assembly-CSharp
+          m_MethodName: AttemptUndo
+          m_Mode: 1
+          m_Arguments:
+            m_ObjectArgument: {fileID: 0}
+            m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+            m_IntArgument: 0
+            m_FloatArgument: 0
+            m_StringArgument: 
+            m_BoolArgument: 0
+          m_CallState: 2
+    m_SubjectToHotkeyDisabling: 1
+    m_AllowedInPlayMode: 0
+    m_AllowedInUiPopups: 0
 --- !u!1 &2048796034
 GameObject:
   m_ObjectHideFlags: 0
@@ -51863,6 +52111,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe1392e5df51153418a23c4e1f4b946e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_UseAdaptiveHotkeyText: 0
+  m_PrefaceText: 
   m_Text: Dropper Tool (3)
   m_TooltipPrefab: {fileID: 3956001862937307442, guid: 13d12636cc140d346b13d5ca53a5625d,
     type: 3}
@@ -52798,6 +53048,7 @@ GameObject:
   - component: {fileID: 8320027039729550239}
   - component: {fileID: 8320027039729550242}
   - component: {fileID: 1095483565}
+  - component: {fileID: 8320027039729550243}
   m_Layer: 5
   m_Name: ShowDirectoryButton
   m_TagString: Untagged
@@ -52933,9 +53184,44 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe1392e5df51153418a23c4e1f4b946e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_Text: Open an explorer window to the current directory (Shift + F)
+  m_UseAdaptiveHotkeyText: 1
+  m_PrefaceText: Open an explorer window to the current directory
+  m_Text: Open an explorer window to the current directory
   m_TooltipPrefab: {fileID: 3956001862937307442, guid: 13d12636cc140d346b13d5ca53a5625d,
     type: 3}
+--- !u!114 &8320027039729550243
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8320027039729550233}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 79f6096ac2dc4234490189d4e446d560, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_List:
+  - m_Button: Open Directory
+    m_Modifiers: 2
+    m_Event:
+      m_PersistentCalls:
+        m_Calls:
+        - m_Target: {fileID: 128438547}
+          m_TargetAssemblyTypeName: FileSystem, Assembly-CSharp
+          m_MethodName: ShowDirectoryInExplorer
+          m_Mode: 1
+          m_Arguments:
+            m_ObjectArgument: {fileID: 0}
+            m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+            m_IntArgument: 0
+            m_FloatArgument: 0
+            m_StringArgument: 
+            m_BoolArgument: 0
+          m_CallState: 2
+    m_SubjectToHotkeyDisabling: 1
+    m_AllowedInPlayMode: 0
+    m_AllowedInUiPopups: 0
 --- !u!1 &8320027040203733317
 GameObject:
   m_ObjectHideFlags: 0

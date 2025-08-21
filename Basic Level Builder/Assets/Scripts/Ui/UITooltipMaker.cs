@@ -8,7 +8,7 @@ Description:
   Class used to create a tooltip when the mouse is hovering
   over a given UI element.
 
-Copyright 2018-2019, DigiPen Institute of Technology
+Copyright 2018-2025, DigiPen Institute of Technology
 ***************************************************/
 
 using UnityEngine;
@@ -18,6 +18,15 @@ public class UITooltipMaker : MonoBehaviour, IPointerEnterHandler, IPointerExitH
 {
   /************************************************************************************/
 
+  [Tooltip("Creates an automated tool tip using the UiButtonHotkey script")]
+  public bool m_UseAdaptiveHotkeyText = false;
+
+  [HideIf("m_UseAdaptiveHotkeyText", hideWhenTrue: false)]
+  [Tooltip("Text to show before the hotkey combo. eg \"(alt + s)\"\nNormaly just the action")]
+  public string m_PrefaceText;
+  private string m_HotkeyString;
+
+  [HideIf("m_UseAdaptiveHotkeyText")]
   [Tooltip("Text to show within the tooltip.")]
   public string m_Text;
 
@@ -45,11 +54,33 @@ public class UITooltipMaker : MonoBehaviour, IPointerEnterHandler, IPointerExitH
 
   /************************************************************************************/
 
+  private void OnValidate()
+  {
+    if (m_UseAdaptiveHotkeyText)
+    {
+      if (!gameObject.TryGetComponent(out UiButtonHotkey hotKey))
+      {
+        Debug.LogWarning($"{name} requires a UiButtonHotkey component when m_UseAdaptiveHotkeyText is true.\n" +
+          $"Adding UiButtonHotkey to this game object (Ignore next warning)");
+        gameObject.AddComponent<UiButtonHotkey>();
+      }
+      else
+      {
+        m_HotkeyString = hotKey.GetHotkeyString();
+      }
+    }
+  }
+
   private void Awake()
   {
     GameObject tooltipRootObj = GameObject.FindGameObjectWithTag("TooltipRoot");
     m_TooltipRoot = (RectTransform)tooltipRootObj.transform;
     m_RootPositioner = m_TooltipRoot.GetComponent<UiSafePositioner>();
+
+    if (m_UseAdaptiveHotkeyText)
+    {
+      m_Text = m_PrefaceText + " " + m_HotkeyString;
+    }
   }
 
   public void OnPointerEnter(PointerEventData eventData)
@@ -106,13 +137,16 @@ public class UITooltipMaker : MonoBehaviour, IPointerEnterHandler, IPointerExitH
 
   public void UpdateText(string newText)
   {
-    m_Text = newText;
+    if (m_UseAdaptiveHotkeyText)
+      m_Text = newText + " " + m_HotkeyString;
+    else
+      m_Text = newText;
 
     if (m_Tooltip != null)
     {
       if (m_Tooltip.TryGetComponent<UiTooltip>(out var uiTooltip))
       {
-        uiTooltip.SetText(newText);
+        uiTooltip.SetText(m_Text);
       }
     }
   }

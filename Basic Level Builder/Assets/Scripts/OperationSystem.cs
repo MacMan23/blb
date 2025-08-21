@@ -42,25 +42,6 @@ public class OperationSystem : MonoBehaviour
     s_AutosaveInterval = m_AutosaveInterval;
   }
 
-
-  private void Update()
-  {
-    if (GlobalData.IsInPlayMode() || !HotkeyMaster.s_HotkeysEnabled || GlobalData.IsInUiPopup())
-      return;
-
-    var modifierKeyHeld = HotkeyMaster.IsPrimaryModifierHeld();
-    var undoKeyDown = Input.GetKeyDown(KeyCode.Z);
-    var redoKeyDown = Input.GetKeyDown(KeyCode.Y);
-
-    if (modifierKeyHeld)
-    {
-      if (undoKeyDown)
-        AttemptUndo();
-      else if (redoKeyDown)
-        AttemptRedo();
-    }
-  }
-
   public static void ClearOperations()
   {
     s_Operations.Clear();

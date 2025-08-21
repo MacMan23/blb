@@ -14,7 +14,7 @@ public class ChangeTooltipOnColorblindModeToggled : MonoBehaviour
   private void Awake()
   {
     m_TooltipMaker = GetComponent<UITooltipMaker>();
-    m_ColorblindModeDisabledTooltipText = m_TooltipMaker.m_Text;
+    m_ColorblindModeDisabledTooltipText = m_TooltipMaker.m_PrefaceText;
 
     GlobalData.ColorblindModeEnabled += OnColorblindModeEnabled;
     GlobalData.ColorblindModeDisabled += OnColorblindModeDisabled;

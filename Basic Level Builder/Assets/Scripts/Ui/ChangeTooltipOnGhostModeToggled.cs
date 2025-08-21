@@ -1,6 +1,4 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 
 [RequireComponent(typeof(UITooltipMaker))]
 public class ChangeTooltipOnGhostModeToggled : MonoBehaviour
@@ -14,7 +12,7 @@ public class ChangeTooltipOnGhostModeToggled : MonoBehaviour
   private void Awake()
   {
     m_TooltipMaker = GetComponent<UITooltipMaker>();
-    m_GhostModeDisabledTooltipText = m_TooltipMaker.m_Text;
+    m_GhostModeDisabledTooltipText = m_TooltipMaker.m_PrefaceText;
 
     GlobalData.GhostModeEnabled += OnGhostModeEnabled;
     GlobalData.GhostModeDisabled += OnGhostModeDisabled;
