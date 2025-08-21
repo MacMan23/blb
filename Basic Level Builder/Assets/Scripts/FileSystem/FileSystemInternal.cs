@@ -12,8 +12,8 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
-using UnityEditor;
 using UnityEngine;
+using UnityEngine.UI;
 using static FileDirUtilities;
 using static FileVersioning;
 
@@ -106,6 +106,7 @@ public class FileSystemInternal : MonoBehaviour
     public List<LevelData> m_ManualSaves;
     public List<LevelData> m_AutoSaves;
     public uint m_LastId;
+    public string m_Thumbnail;
   }
 
   [Serializable]
@@ -249,6 +250,16 @@ public class FileSystemInternal : MonoBehaviour
       LoadFromFullFilePathEx(validPaths[0]);
   }
 
+  private string GetThumbnail()
+  {
+    // TODO, code to generate thumbnail
+    Texture2D tex = null;
+    byte[] bytes = tex.EncodeToPNG(); // or EncodeToJPG(75)
+    string base64 = Convert.ToBase64String(bytes);
+
+    return base64;
+  }
+
   protected void Save(bool autosave, string saveAsFileName = null, bool shouldPrintElapsedTime = true)
   {
     if (GlobalData.AreEffectsUnderway())
@@ -386,6 +397,8 @@ public class FileSystemInternal : MonoBehaviour
     levelData.m_Version = new(1, 0);
 
     m_MountedFileInfo.m_FileData.m_ManualSaves.Add(levelData);
+
+    m_MountedFileInfo.m_FileData.m_Thumbnail = GetThumbnail();
 
     try
     {
@@ -537,6 +550,8 @@ public class FileSystemInternal : MonoBehaviour
     }
     #endregion Add level changes to level data
 
+    m_MountedFileInfo.m_FileData.m_Thumbnail = GetThumbnail();
+
     // If we have reach the max manual saves for the first time, give a warning that we will start to delete saves.
     if (m_MountedFileInfo.m_FileData.m_ManualSaves.Count > s_MaxManualSaveCount)
     {
@@ -580,6 +595,8 @@ public class FileSystemInternal : MonoBehaviour
       ExtractSelectedVersions(ref m_PendingExportFileData, m_PendingExportVersions);
 
     sourceInfo.m_FileData = m_PendingExportFileData;
+
+    sourceInfo.m_FileData.m_Thumbnail = GetThumbnail();
 
     // Null out data so we know if we finished our export
     m_PendingExportFileData = null;
