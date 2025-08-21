@@ -7,6 +7,7 @@ Copyright 2018-2025, DigiPen Institute of Technology
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
@@ -14,6 +15,9 @@ using static FileVersioning;
 
 public class UiFileInfo : MonoBehaviour
 {
+  [SerializeField]
+  private TMPro.TextMeshProUGUI m_TitlebarText;
+
   [SerializeField]
   private UiHistoryItem m_ManualSaveItemPrefab;
   [SerializeField]
@@ -62,6 +66,7 @@ public class UiFileInfo : MonoBehaviour
   {
     m_FullFilePath = fullFilePath;
     LoadHistoryItemList();
+    m_TitlebarText.text = Path.GetFileNameWithoutExtension(fullFilePath);
   }
 
   private void ClearHistoryItemList()

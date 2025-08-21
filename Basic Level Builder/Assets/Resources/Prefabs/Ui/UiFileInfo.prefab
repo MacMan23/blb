@@ -984,6 +984,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d81452e3be6888541b8f34ade358c78b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_TitlebarText: {fileID: 1955358156293999951}
   m_ManualSaveItemPrefab: {fileID: 1787404898439501975, guid: 87b657dd444b511448127f4bfee8a9f8,
     type: 3}
   m_AutoSaveItemPrefab: {fileID: 5117128532516939510, guid: 4f848be52bb135c48bee4573e10ed0e5,
