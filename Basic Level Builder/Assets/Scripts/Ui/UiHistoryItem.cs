@@ -84,6 +84,18 @@ public class UiHistoryItem : MonoBehaviour
     }
 
     m_VersionData.text = GetVersionTimeStamp();
+
+    byte[] bytes = Convert.FromBase64String(levelData.m_Thumbnail);
+    Texture2D tex = new(2, 2);
+    tex.LoadImage(bytes);
+
+    Sprite sprite = Sprite.Create(
+            tex,
+            new Rect(0, 0, tex.width, tex.height),
+            new Vector2(0.5f, 0.5f) // pivot in the center
+        );
+
+    m_ThumbnailImage.sprite = sprite;
   }
 
   public void EditName()
@@ -130,6 +142,10 @@ public class UiHistoryItem : MonoBehaviour
     return name;
   }
 
+  public Sprite GetThumbnail()
+  {
+    return m_ThumbnailImage.sprite;
+  }
   public string GetVersionTimeStamp()
   {
     return ((DateTime)m_LevelData.m_TimeStamp).ToString("M/d/yy h:mm:sstt").ToLower();

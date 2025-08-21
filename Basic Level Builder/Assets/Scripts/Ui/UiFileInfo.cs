@@ -483,6 +483,8 @@ public class UiFileInfo : MonoBehaviour
       m_versionInfoText.text = "<b>" + m_Selection[0].GetVersionName() + "</b>\r\n";
       m_versionInfoText.text += "<color=#C6C6C6>" + m_Selection[0].GetVersionTimeStamp() + "</color>";
 
+      m_VersionInfoThumbnail.sprite = m_Selection[0].GetThumbnail();
+
       // Reenable buttons if they were gone before
       m_ExportButton.SetActive(true);
       m_LoadButton.SetActive(true);
@@ -493,6 +495,8 @@ public class UiFileInfo : MonoBehaviour
     {
       m_versionInfoText.text = "<b>Multiple versions selected</b>\r\n";
       m_versionInfoText.text += "<color=#C6C6C6>" + m_Selection[0].GetVersionName();
+
+      m_VersionInfoThumbnail.sprite = m_Selection[^1].GetThumbnail();
 
       // Add all selected items up to 4 total
       if (m_Selection.Count < 5)

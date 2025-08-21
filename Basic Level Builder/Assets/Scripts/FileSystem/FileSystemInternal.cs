@@ -39,9 +39,15 @@ public class FileSystemInternal : MonoBehaviour
   [SerializeField]
   protected ModalDialogAdder m_ExportAsDialogAdder;
 
+  // TODO Remove after thumbnail loading is done
+  [SerializeField]
+  private List<Texture2D> m_TempThumbnailImages;
+
   protected string m_PendingSaveFullFilePath = "";
   protected FileData m_PendingExportFileData = null;
   protected List<FileVersion> m_PendingExportVersions = null;
+
+  private string m_PendingThumbnail = "";
 
   FileInfo m_MountedFileInfo;
 
@@ -106,7 +112,6 @@ public class FileSystemInternal : MonoBehaviour
     public List<LevelData> m_ManualSaves;
     public List<LevelData> m_AutoSaves;
     public uint m_LastId;
-    public string m_Thumbnail;
   }
 
   [Serializable]
@@ -121,6 +126,7 @@ public class FileSystemInternal : MonoBehaviour
     public FileVersion m_Version;
     public string m_Name;
     public uint m_Id;
+    public string m_Thumbnail;
     public JsonDateTime m_TimeStamp;
     public List<TileGrid.Element> m_AddedTiles;
     public List<Vector2Int> m_RemovedTiles;
@@ -250,14 +256,15 @@ public class FileSystemInternal : MonoBehaviour
       LoadFromFullFilePathEx(validPaths[0]);
   }
 
-  private string GetThumbnail()
+  private string GenerateThumbnail(List<TileGrid.Element> _grid)
   {
     // TODO, code to generate thumbnail
-    Texture2D tex = null;
-    byte[] bytes = tex.EncodeToPNG(); // or EncodeToJPG(75)
-    string base64 = Convert.ToBase64String(bytes);
+    // Texutre needs to be uncompressed and marked for read/write (Might be diffrent if the image is generated)
+    
+    Texture2D tex = m_TempThumbnailImages[UnityEngine.Random.Range(0, m_TempThumbnailImages.Count)];
 
-    return base64;
+    byte[] bytes = tex.EncodeToPNG();
+    return Convert.ToBase64String(bytes);
   }
 
   protected void Save(bool autosave, string saveAsFileName = null, bool shouldPrintElapsedTime = true)
@@ -357,7 +364,11 @@ public class FileSystemInternal : MonoBehaviour
     
     // Copy the map data into a buffer to use for the saving thread.
     m_TileGrid.CopyGridBuffer();
-    
+
+    // Gernerate the version thumbnail to be used in the thread
+    // EncodeToPNG can only be used on main thread
+    m_PendingThumbnail = GenerateThumbnail(m_TileGrid.GetGridBuffer().Select(p => p.Value).ToList());
+
     // Define parameters for the branched thread function
     object[] parameters = { destFilePath, autosave, shouldPrintElapsedTime };
 
@@ -395,10 +406,9 @@ public class FileSystemInternal : MonoBehaviour
 
     levelData.m_TimeStamp = DateTime.Now;
     levelData.m_Version = new(1, 0);
+    levelData.m_Thumbnail = m_PendingThumbnail;
 
     m_MountedFileInfo.m_FileData.m_ManualSaves.Add(levelData);
-
-    m_MountedFileInfo.m_FileData.m_Thumbnail = GetThumbnail();
 
     try
     {
@@ -448,6 +458,8 @@ public class FileSystemInternal : MonoBehaviour
     // If we will be copying the mounted file over to a diffrent file
     bool copyFile = false;
     bool hasDifferences = GetDifferences(out LevelData levelData, m_MountedFileInfo, m_TileGrid);
+
+    levelData.m_Thumbnail = m_PendingThumbnail;
 
     // If we are writting to our own file yet we have no changes, skip the save
     // Or we are writting to a temp file with no changes, ignore write
@@ -550,8 +562,6 @@ public class FileSystemInternal : MonoBehaviour
     }
     #endregion Add level changes to level data
 
-    m_MountedFileInfo.m_FileData.m_Thumbnail = GetThumbnail();
-
     // If we have reach the max manual saves for the first time, give a warning that we will start to delete saves.
     if (m_MountedFileInfo.m_FileData.m_ManualSaves.Count > s_MaxManualSaveCount)
     {
@@ -595,8 +605,6 @@ public class FileSystemInternal : MonoBehaviour
       ExtractSelectedVersions(ref m_PendingExportFileData, m_PendingExportVersions);
 
     sourceInfo.m_FileData = m_PendingExportFileData;
-
-    sourceInfo.m_FileData.m_Thumbnail = GetThumbnail();
 
     // Null out data so we know if we finished our export
     m_PendingExportFileData = null;
