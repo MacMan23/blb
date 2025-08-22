@@ -233,9 +233,19 @@ public class UiFileInfo : MonoBehaviour
     if (m_Selection.Count > 1)
     {
       List<FileVersion> versions = new();
+      int lastManaul = -1;
       foreach (var item in m_Selection)
       {
-        versions.Add(item.GetVersion());
+        FileVersion version = item.GetVersion();
+
+        // Skip auto save if we have selected its manual
+        // Because all of a manuals autos are deleted with it, otherwise we are doing a double delete
+        if (version.IsManual())
+          lastManaul = version.m_ManualVersion;
+        else if (lastManaul == version.m_ManualVersion)
+          continue;
+
+        versions.Add(version);
       }
 
       FileSystem.Instance.DeleteMultipleVersions(fileInfo, versions);
