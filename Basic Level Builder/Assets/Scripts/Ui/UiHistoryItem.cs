@@ -146,6 +146,7 @@ public class UiHistoryItem : MonoBehaviour
   {
     return m_ThumbnailImage.sprite;
   }
+
   public string GetVersionTimeStamp()
   {
     return ((DateTime)m_LevelData.m_TimeStamp).ToString("M/d/yy h:mm:sstt").ToLower();
