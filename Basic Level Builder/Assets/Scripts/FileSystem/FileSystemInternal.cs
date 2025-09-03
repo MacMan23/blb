@@ -13,7 +13,6 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
 using UnityEngine;
-using UnityEngine.UI;
 using static FileDirUtilities;
 using static FileVersioning;
 
@@ -112,6 +111,7 @@ public class FileSystemInternal : MonoBehaviour
     public List<LevelData> m_ManualSaves;
     public List<LevelData> m_AutoSaves;
     public uint m_LastId;
+    public string m_Description;
   }
 
   [Serializable]

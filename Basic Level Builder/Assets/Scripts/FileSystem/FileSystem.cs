@@ -97,6 +97,12 @@ public class FileSystem : FileSystemInternal
     WriteDataToFile(fullFilePath, fileInfo);
   }
 
+  public void SetFileDescription(string fullFilePath, string desc)
+  {
+    FileInfo fileInfo = SetFileDescriptionEx(fullFilePath, desc);
+    WriteDataToFile(fullFilePath, fileInfo);
+  }
+
   /// <summary>
   /// Gets the file info from a file at the specified path.
   /// </summary>
