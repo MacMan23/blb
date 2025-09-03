@@ -47,7 +47,7 @@ public class UiFileInfoTab : UiFileTab
     }
 
     m_FileName.text = Path.GetFileNameWithoutExtension(fullFilePath);
-    m_SaveNumber.text = fileInfo.m_FileData.m_ManualSaves.Count + " Manual Saves    " + fileInfo.m_FileData.m_AutoSaves.Count + "Auto Saves";
+    m_SaveNumber.text = fileInfo.m_FileData.m_ManualSaves.Count + " Manual Saves    " + fileInfo.m_FileData.m_AutoSaves.Count + " Auto Saves";
     string timeStamp = File.GetCreationTime(m_FullFilePath).ToString("M/d/yy h:mm:sstt").ToLower();
     m_CreationDate.text = $"<b>Created on:</b> <color=#C6C6C6>{timeStamp}</color>";
 
