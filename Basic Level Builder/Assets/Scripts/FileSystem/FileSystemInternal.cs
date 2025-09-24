@@ -256,7 +256,7 @@ public class FileSystemInternal : MonoBehaviour
       LoadFromFullFilePathEx(validPaths[0]);
   }
 
-  private string GenerateThumbnail(List<TileGrid.Element> _grid)
+  private string GenerateThumbnail(List<KeyValuePair<Vector2Int, TileGrid.Element>> _grid)
   {
     // TODO, code to generate thumbnail
     // Texutre needs to be uncompressed and marked for read/write (Might be diffrent if the image is generated)
@@ -367,7 +367,7 @@ public class FileSystemInternal : MonoBehaviour
 
     // Gernerate the version thumbnail to be used in the thread
     // EncodeToPNG can only be used on main thread
-    m_PendingThumbnail = GenerateThumbnail(m_TileGrid.GetGridBuffer().Select(p => p.Value).ToList());
+    m_PendingThumbnail = GenerateThumbnail(m_TileGrid.GetGridBuffer());
 
     // Define parameters for the branched thread function
     object[] parameters = { destFilePath, autosave, shouldPrintElapsedTime };
