@@ -1,0 +1,110 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 421ac4485a2df7d498a239b08a3b4e7a, type: 3}
+  m_Name: AxisMapping
+  m_EditorClassIdentifier: 
+  entries:
+  - axisName: Horizontal
+    buttons:
+    - Right
+    - D
+  - axisName: Vertical
+    buttons:
+    - Up
+    - W
+  - axisName: Jump
+    buttons:
+    - Space
+    - Z
+    - Joystick Button 3
+    - K
+    - W
+    - Up
+  - axisName: Mouse X
+    buttons: []
+  - axisName: Mouse Y
+    buttons: []
+  - axisName: Mouse ScrollWheel
+    buttons: []
+  - axisName: Redo
+    buttons:
+    - Y
+  - axisName: Undo
+    buttons:
+    - Z
+  - axisName: Submit
+    buttons:
+    - Return
+    - Joystick Button 0
+    - Enter
+    - Space
+  - axisName: Cancel
+    buttons:
+    - Escape
+    - Joystick Button 1
+  - axisName: PrimaryTile
+    buttons:
+    - Mouse 0
+  - axisName: SecondaryTile
+    buttons:
+    - Mouse 1
+  - axisName: ResetCamera
+    buttons:
+    - R
+  - axisName: Play
+    buttons:
+    - Return
+    - Tab
+  - axisName: Select Brush Tool
+    buttons:
+    - 1
+    - B
+  - axisName: Select Box Tool
+    buttons:
+    - 2
+    - V
+  - axisName: Select Dropper Tool
+    buttons:
+    - 3
+    - I
+  - axisName: Select Selector Tool
+    buttons:
+    - 4
+    - M
+    - L
+  - axisName: Select Hand Tool
+    buttons:
+    - 5
+    - H
+  - axisName: Quit
+    buttons:
+    - Q
+  - axisName: Save
+    buttons:
+    - S
+  - axisName: Open Directory
+    buttons:
+    - F
+  - axisName: Select Path Tool
+    buttons:
+    - 6
+    - P
+  - axisName: Delete
+    buttons:
+    - Delete
+    - Backspace
+  - axisName: Ghost Mode
+    buttons:
+    - G
+  - axisName: Colorblind Mode
+    buttons:
+    - I

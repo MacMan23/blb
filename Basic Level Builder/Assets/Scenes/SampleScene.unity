@@ -8154,6 +8154,7 @@ GameObject:
   - component: {fileID: 268664112}
   - component: {fileID: 268664115}
   - component: {fileID: 268664116}
+  - component: {fileID: 268664117}
   m_Layer: 5
   m_Name: Hand
   m_TagString: Untagged
@@ -8310,11 +8311,44 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe1392e5df51153418a23c4e1f4b946e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_UseAdaptiveHotkeyText: 0
-  m_PrefaceText: 
+  m_UseAdaptiveHotkeyText: 1
+  m_PrefaceText: Hand Tool
   m_Text: Hand Tool (5)
   m_TooltipPrefab: {fileID: 3956001862937307442, guid: 13d12636cc140d346b13d5ca53a5625d,
     type: 3}
+--- !u!114 &268664117
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 268664110}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 79f6096ac2dc4234490189d4e446d560, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_List:
+  - m_Button: Select Hand Tool
+    m_Modifiers: 0
+    m_Event:
+      m_PersistentCalls:
+        m_Calls:
+        - m_Target: {fileID: 268664115}
+          m_TargetAssemblyTypeName: BlbTool, Assembly-CSharp
+          m_MethodName: RequestActivate
+          m_Mode: 1
+          m_Arguments:
+            m_ObjectArgument: {fileID: 0}
+            m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+            m_IntArgument: 0
+            m_FloatArgument: 0
+            m_StringArgument: 
+            m_BoolArgument: 0
+          m_CallState: 2
+    m_SubjectToHotkeyDisabling: 0
+    m_AllowedInPlayMode: 0
+    m_AllowedInUiPopups: 0
 --- !u!1 &271756685
 GameObject:
   m_ObjectHideFlags: 0
@@ -9338,7 +9372,6 @@ GameObject:
   - component: {fileID: 384088612}
   - component: {fileID: 384088611}
   - component: {fileID: 384088616}
-  - component: {fileID: 384088610}
   m_Layer: 5
   m_Name: EditModeCanvas
   m_TagString: EditorCanvas
@@ -9346,18 +9379,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &384088610
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 384088609}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: cb87cf953943f994aad663576fdf84e9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!114 &384088611
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -23127,6 +23148,7 @@ GameObject:
   - component: {fileID: 803413656}
   - component: {fileID: 803413659}
   - component: {fileID: 803413660}
+  - component: {fileID: 803413661}
   m_Layer: 5
   m_Name: Selector
   m_TagString: Untagged
@@ -23285,11 +23307,44 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe1392e5df51153418a23c4e1f4b946e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_UseAdaptiveHotkeyText: 0
-  m_PrefaceText: 
+  m_UseAdaptiveHotkeyText: 1
+  m_PrefaceText: Selector Tool
   m_Text: Selector Tool (4)
   m_TooltipPrefab: {fileID: 3956001862937307442, guid: 13d12636cc140d346b13d5ca53a5625d,
     type: 3}
+--- !u!114 &803413661
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 803413654}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 79f6096ac2dc4234490189d4e446d560, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_List:
+  - m_Button: Select Selector Tool
+    m_Modifiers: 0
+    m_Event:
+      m_PersistentCalls:
+        m_Calls:
+        - m_Target: {fileID: 803413659}
+          m_TargetAssemblyTypeName: BlbTool, Assembly-CSharp
+          m_MethodName: RequestActivate
+          m_Mode: 1
+          m_Arguments:
+            m_ObjectArgument: {fileID: 0}
+            m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+            m_IntArgument: 0
+            m_FloatArgument: 0
+            m_StringArgument: 
+            m_BoolArgument: 0
+          m_CallState: 2
+    m_SubjectToHotkeyDisabling: 0
+    m_AllowedInPlayMode: 0
+    m_AllowedInUiPopups: 0
 --- !u!1 &817912827
 GameObject:
   m_ObjectHideFlags: 0
@@ -30404,6 +30459,7 @@ GameObject:
   - component: {fileID: 1044690608}
   - component: {fileID: 1044690607}
   - component: {fileID: 1044690606}
+  - component: {fileID: 1044690611}
   m_Layer: 5
   m_Name: Path
   m_TagString: Untagged
@@ -30445,8 +30501,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe1392e5df51153418a23c4e1f4b946e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_UseAdaptiveHotkeyText: 0
-  m_PrefaceText: 
+  m_UseAdaptiveHotkeyText: 1
+  m_PrefaceText: Path Tool
   m_Text: Path Tool (6)
   m_TooltipPrefab: {fileID: 3956001862937307442, guid: 13d12636cc140d346b13d5ca53a5625d,
     type: 3}
@@ -30572,6 +30628,39 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1044690604}
   m_CullTransparentMesh: 0
+--- !u!114 &1044690611
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1044690604}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 79f6096ac2dc4234490189d4e446d560, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_List:
+  - m_Button: Select Path Tool
+    m_Modifiers: 0
+    m_Event:
+      m_PersistentCalls:
+        m_Calls:
+        - m_Target: {fileID: 1044690607}
+          m_TargetAssemblyTypeName: BlbTool, Assembly-CSharp
+          m_MethodName: RequestActivate
+          m_Mode: 1
+          m_Arguments:
+            m_ObjectArgument: {fileID: 0}
+            m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+            m_IntArgument: 0
+            m_FloatArgument: 0
+            m_StringArgument: 
+            m_BoolArgument: 0
+          m_CallState: 2
+    m_SubjectToHotkeyDisabling: 0
+    m_AllowedInPlayMode: 0
+    m_AllowedInUiPopups: 0
 --- !u!1 &1050638155
 GameObject:
   m_ObjectHideFlags: 0
@@ -38488,6 +38577,7 @@ GameObject:
   - component: {fileID: 1642224165}
   - component: {fileID: 1642224168}
   - component: {fileID: 1642224169}
+  - component: {fileID: 1642224170}
   m_Layer: 5
   m_Name: Brush
   m_TagString: Untagged
@@ -38644,11 +38734,44 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe1392e5df51153418a23c4e1f4b946e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_UseAdaptiveHotkeyText: 0
-  m_PrefaceText: 
+  m_UseAdaptiveHotkeyText: 1
+  m_PrefaceText: Brush Tool
   m_Text: Brush Tool (1)
   m_TooltipPrefab: {fileID: 3956001862937307442, guid: 13d12636cc140d346b13d5ca53a5625d,
     type: 3}
+--- !u!114 &1642224170
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1642224163}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 79f6096ac2dc4234490189d4e446d560, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_List:
+  - m_Button: Select Brush Tool
+    m_Modifiers: 0
+    m_Event:
+      m_PersistentCalls:
+        m_Calls:
+        - m_Target: {fileID: 1642224168}
+          m_TargetAssemblyTypeName: BlbTool, Assembly-CSharp
+          m_MethodName: RequestActivate
+          m_Mode: 1
+          m_Arguments:
+            m_ObjectArgument: {fileID: 0}
+            m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+            m_IntArgument: 0
+            m_FloatArgument: 0
+            m_StringArgument: 
+            m_BoolArgument: 0
+          m_CallState: 2
+    m_SubjectToHotkeyDisabling: 0
+    m_AllowedInPlayMode: 0
+    m_AllowedInUiPopups: 0
 --- !u!1 &1647835273
 GameObject:
   m_ObjectHideFlags: 0
@@ -39271,6 +39394,7 @@ GameObject:
   - component: {fileID: 1699637425}
   - component: {fileID: 1699637428}
   - component: {fileID: 1699637429}
+  - component: {fileID: 1699637430}
   m_Layer: 5
   m_Name: Box
   m_TagString: Untagged
@@ -39427,11 +39551,44 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe1392e5df51153418a23c4e1f4b946e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_UseAdaptiveHotkeyText: 0
-  m_PrefaceText: 
+  m_UseAdaptiveHotkeyText: 1
+  m_PrefaceText: Box Tool
   m_Text: Box Tool (2)
   m_TooltipPrefab: {fileID: 3956001862937307442, guid: 13d12636cc140d346b13d5ca53a5625d,
     type: 3}
+--- !u!114 &1699637430
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1699637423}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 79f6096ac2dc4234490189d4e446d560, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_List:
+  - m_Button: Select Box Tool
+    m_Modifiers: 0
+    m_Event:
+      m_PersistentCalls:
+        m_Calls:
+        - m_Target: {fileID: 1699637428}
+          m_TargetAssemblyTypeName: BlbTool, Assembly-CSharp
+          m_MethodName: RequestActivate
+          m_Mode: 1
+          m_Arguments:
+            m_ObjectArgument: {fileID: 0}
+            m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+            m_IntArgument: 0
+            m_FloatArgument: 0
+            m_StringArgument: 
+            m_BoolArgument: 0
+          m_CallState: 2
+    m_SubjectToHotkeyDisabling: 0
+    m_AllowedInPlayMode: 0
+    m_AllowedInUiPopups: 0
 --- !u!1 &1717617048
 GameObject:
   m_ObjectHideFlags: 0
@@ -51956,6 +52113,7 @@ GameObject:
   - component: {fileID: 2072304670}
   - component: {fileID: 2072304673}
   - component: {fileID: 2072304674}
+  - component: {fileID: 2072304675}
   m_Layer: 5
   m_Name: Dropper
   m_TagString: Untagged
@@ -52111,11 +52269,44 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe1392e5df51153418a23c4e1f4b946e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_UseAdaptiveHotkeyText: 0
-  m_PrefaceText: 
+  m_UseAdaptiveHotkeyText: 1
+  m_PrefaceText: Dropper Tool
   m_Text: Dropper Tool (3)
   m_TooltipPrefab: {fileID: 3956001862937307442, guid: 13d12636cc140d346b13d5ca53a5625d,
     type: 3}
+--- !u!114 &2072304675
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2072304668}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 79f6096ac2dc4234490189d4e446d560, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_List:
+  - m_Button: Select Dropper Tool
+    m_Modifiers: 0
+    m_Event:
+      m_PersistentCalls:
+        m_Calls:
+        - m_Target: {fileID: 2072304673}
+          m_TargetAssemblyTypeName: BlbTool, Assembly-CSharp
+          m_MethodName: RequestActivate
+          m_Mode: 1
+          m_Arguments:
+            m_ObjectArgument: {fileID: 0}
+            m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+            m_IntArgument: 0
+            m_FloatArgument: 0
+            m_StringArgument: 
+            m_BoolArgument: 0
+          m_CallState: 2
+    m_SubjectToHotkeyDisabling: 0
+    m_AllowedInPlayMode: 0
+    m_AllowedInUiPopups: 0
 --- !u!1 &2084976338
 GameObject:
   m_ObjectHideFlags: 0
