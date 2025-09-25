@@ -4,14 +4,13 @@ using UnityEngine;
 [System.Serializable]
 public class AxisMappingEntry
 {
-  public string axisName;
-  public List<string> buttons = new();
+  public string m_axisName;
+  public List<string> m_buttons = new();
 }
 
-[CreateAssetMenu(fileName = "AxisMapping", menuName = "Input/Axis Mapping")]
 public class AxisMapping : ScriptableObject
 {
-  public List<AxisMappingEntry> entries = new();
+  public List<AxisMappingEntry> m_entries = new();
 
   private static AxisMapping _instance;
 
@@ -27,10 +26,10 @@ public class AxisMapping : ScriptableObject
 
   public IReadOnlyList<string> GetButtons(string axisName)
   {
-    foreach (var entry in entries)
+    foreach (var entry in m_entries)
     {
-      if (entry.axisName == axisName)
-        return entry.buttons;
+      if (entry.m_axisName == axisName)
+        return entry.m_buttons;
     }
     return new List<string>();
   }

@@ -28,7 +28,7 @@ public static class AxisMappingGenerator
       {
         entry = new AxisMappingEntry
         {
-          axisName = nameProp.stringValue
+          m_axisName = nameProp.stringValue
         };
         mapping.entries.Add(entry);
       }
@@ -38,8 +38,8 @@ public static class AxisMappingGenerator
       if (!string.IsNullOrEmpty(posButtonProp.stringValue) && posButtonProp.stringValue[0] != '[' && !posButtonProp.stringValue.Equals("return"))
       {
         string button = CultureInfo.CurrentCulture.TextInfo.ToTitleCase(posButtonProp.stringValue.ToLower());
-        if (!entry.buttons.Contains(button))
-          entry.buttons.Add(button);
+        if (!entry.m_buttons.Contains(button))
+          entry.m_buttons.Add(button);
       }
 
       // If the button exists and is not a numpad button (as we only want to print the number button)
@@ -47,8 +47,8 @@ public static class AxisMappingGenerator
       if (!string.IsNullOrEmpty(altPosButtonProp.stringValue) && altPosButtonProp.stringValue[0] != '[' && !posButtonProp.stringValue.Equals("return"))
       {
         string button = CultureInfo.CurrentCulture.TextInfo.ToTitleCase(altPosButtonProp.stringValue.ToLower());
-        if (!entry.buttons.Contains(button))
-          entry.buttons.Add(button);
+        if (!entry.m_buttons.Contains(button))
+          entry.m_buttons.Add(button);
       }
     }
 
