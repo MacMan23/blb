@@ -24,14 +24,14 @@ public class UiFileInfo : MonoBehaviour
   [SerializeField]
   private Color m_MaximizedColor;
 
-  private List<UiFileTab> m_Tabs = new();
+  private List<UiTab> m_Tabs = new();
 
   private string m_FullFilePath;
 
   void Awake()
   {
     // Adds all the tab bodys to the tab list
-    foreach (var tab in GetComponentsInChildren<UiFileTab>(true))
+    foreach (var tab in GetComponentsInChildren<UiTab>(true))
       m_Tabs.Add(tab);
   }
 
@@ -40,7 +40,6 @@ public class UiFileInfo : MonoBehaviour
     if (m_Tabs.Count > 0)
       OpenTab(m_Tabs[0]);
   }
-
 
   void OnEnable()
   {
@@ -77,7 +76,7 @@ public class UiFileInfo : MonoBehaviour
     Destroy(gameObject);
   }
 
-  public void OpenTab(UiFileTab tabRef)
+  public void OpenTab(UiTab tabRef)
   {
     foreach (var tab in m_Tabs)
     {

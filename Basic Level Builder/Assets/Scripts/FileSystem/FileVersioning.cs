@@ -443,16 +443,6 @@ public static class FileVersioning
     throw new InvalidOperationException($"{version} not found");
   }
 
-  public static FileInfo SetFileDescriptionEx(string fullFilePath, string desc)
-  {
-    FileSystem.Instance.GetFileInfoFromFullFilePath(fullFilePath, out FileInfo fileInfo);
-
-    fileInfo.m_FileData.m_Description = desc;
-
-    return fileInfo;
-  }
-
-
   public static void GetVersionLevelData(FileData fileData, FileVersion version, out LevelData levelData)
   {
     if (fileData == null)

@@ -10,7 +10,7 @@ using System.IO;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class UiFileInfoTab : UiFileTab
+public class UiGeneralInfoTab : UiTab
 {
   [Header("Visual Components")]
   [SerializeField]
