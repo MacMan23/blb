@@ -261,6 +261,8 @@ public class FileSystemInternal : MonoBehaviour
     // TODO, code to generate thumbnail
     // Texutre needs to be uncompressed and marked for read/write (Might be diffrent if the image is generated)
     
+    //Camera.main.transform.position // Camera pos for use, not sure if it is the center camera or corner
+
     Texture2D tex = m_TempThumbnailImages[UnityEngine.Random.Range(0, m_TempThumbnailImages.Count)];
 
     byte[] bytes = tex.EncodeToPNG();
