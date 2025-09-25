@@ -11,6 +11,7 @@ Description:
 Copyright 2018-2025, DigiPen Institute of Technology
 ***************************************************/
 
+using System;
 using UnityEngine;
 using UnityEngine.EventSystems; //Pointer over and exit.
 
@@ -86,7 +87,7 @@ public class UITooltipMaker : MonoBehaviour, IPointerEnterHandler, IPointerExitH
         }
       }
 
-      m_Text = m_PrefaceText + " " + m_HotkeyString;
+      m_Text = m_PrefaceText + Environment.NewLine + "Hotkey: " + m_HotkeyString;
     }
   }
 
@@ -145,7 +146,7 @@ public class UITooltipMaker : MonoBehaviour, IPointerEnterHandler, IPointerExitH
   public void UpdateText(string newText)
   {
     if (m_UseAdaptiveHotkeyText)
-      m_Text = newText + " " + m_HotkeyString;
+      m_Text = newText + Environment.NewLine + "Hotkey: " + m_HotkeyString;
     else
       m_Text = newText;
 
