@@ -79,6 +79,13 @@ public class UITooltipMaker : MonoBehaviour, IPointerEnterHandler, IPointerExitH
 
     if (m_UseAdaptiveHotkeyText)
     {
+      if (string.IsNullOrEmpty(m_HotkeyString)){
+        if (gameObject.TryGetComponent(out UiButtonHotkey hotKey))
+        {
+          m_HotkeyString = hotKey.GetHotkeyString();
+        }
+      }
+
       m_Text = m_PrefaceText + " " + m_HotkeyString;
     }
   }

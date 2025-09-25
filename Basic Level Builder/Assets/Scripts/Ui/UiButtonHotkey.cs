@@ -1,8 +1,6 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
-using UnityEditor;
 using UnityEngine.Events;
-using System.Globalization;
 
 public class UiButtonHotkey : MonoBehaviour
 {
@@ -28,12 +26,14 @@ public class UiButtonHotkey : MonoBehaviour
 
   public List<Hotkey> m_List = new();
 
-
   public string GetHotkeyString()
   {
-    string buttonKey = GetPositiveButton(m_List[0].m_Button);
+    string buttonKeys = AxisMapping.Instance.GetButtonsConcatenated(m_List[0].m_Button);
     string mod = ModifierToString(m_List[0].m_Modifiers);
-    return $"({mod} + {CultureInfo.CurrentCulture.TextInfo.ToTitleCase(buttonKey.ToLower())})";
+    if (string.IsNullOrEmpty(mod))
+      return $"({buttonKeys})";
+    else
+      return $"({mod} + {buttonKeys})";
   }
 
   private string ModifierToString(ModifierRequirements mod)
@@ -57,7 +57,7 @@ public class UiButtonHotkey : MonoBehaviour
       return "Alt";
     if (Application.platform is RuntimePlatform.OSXPlayer or RuntimePlatform.OSXEditor)
       return "Cmd";
-    return "Ctr";
+    return "Ctrl";
   }
 
   void Update()
@@ -94,25 +94,4 @@ public class UiButtonHotkey : MonoBehaviour
       }
     }
   }
-
-#if UNITY_EDITOR
-  public static string GetPositiveButton(string axisName)
-  {
-    var inputManager = AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/InputManager.asset")[0];
-    var obj = new SerializedObject(inputManager);
-    var axesProperty = obj.FindProperty("m_Axes");
-
-    for (int i = 0; i < axesProperty.arraySize; i++)
-    {
-      var axis = axesProperty.GetArrayElementAtIndex(i);
-      var nameProp = axis.FindPropertyRelative("m_Name");
-      if (nameProp.stringValue == axisName)
-      {
-        return axis.FindPropertyRelative("positiveButton").stringValue;
-      }
-    }
-
-    return null;
-  }
-#endif
 }
