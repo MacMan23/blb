@@ -86,7 +86,7 @@ public class UiHistoryItem : MonoBehaviour
     m_VersionData.text = GetVersionTimeStamp();
 
     byte[] bytes = Convert.FromBase64String(levelData.m_Thumbnail);
-    Texture2D tex = new(2, 2);
+    Texture2D tex = new(0, 0); // No real reason for the width/height values in the constructor, they will be overwritten anyways in LoadImage
     tex.LoadImage(bytes);
 
     Sprite sprite = Sprite.Create(

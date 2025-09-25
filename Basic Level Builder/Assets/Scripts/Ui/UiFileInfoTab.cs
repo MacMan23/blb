@@ -61,7 +61,7 @@ public class UiFileInfoTab : UiFileTab
     // Get latest manual save and its thumbnail
     FileSystemInternal.LevelData levelData = fileInfo.m_FileData.m_ManualSaves[^1];
     byte[] bytes = Convert.FromBase64String(levelData.m_Thumbnail);
-    Texture2D tex = new(2, 2);
+    Texture2D tex = new(0, 0); // No real reason for the width/height values in the constructor, they will be overwritten anyways in LoadImage
     tex.LoadImage(bytes);
 
     Sprite sprite = Sprite.Create(
