@@ -34,7 +34,8 @@ public static class AxisMappingGenerator
       }
 
       // If the button exists and is not a numpad button (as we only want to print the number button)
-      if (!string.IsNullOrEmpty(posButtonProp.stringValue) && posButtonProp.stringValue[0] != '[')
+      // Also blacklists "return" as "enter" is prefered to print as the return key 
+      if (!string.IsNullOrEmpty(posButtonProp.stringValue) && posButtonProp.stringValue[0] != '[' && !posButtonProp.stringValue.Equals("return"))
       {
         string button = CultureInfo.CurrentCulture.TextInfo.ToTitleCase(posButtonProp.stringValue.ToLower());
         if (!entry.buttons.Contains(button))
@@ -42,7 +43,8 @@ public static class AxisMappingGenerator
       }
 
       // If the button exists and is not a numpad button (as we only want to print the number button)
-      if (!string.IsNullOrEmpty(altPosButtonProp.stringValue) && altPosButtonProp.stringValue[0] != '[')
+      // Also blacklists "return" as "enter" is prefered to print as the return key 
+      if (!string.IsNullOrEmpty(altPosButtonProp.stringValue) && altPosButtonProp.stringValue[0] != '[' && !posButtonProp.stringValue.Equals("return"))
       {
         string button = CultureInfo.CurrentCulture.TextInfo.ToTitleCase(altPosButtonProp.stringValue.ToLower());
         if (!entry.buttons.Contains(button))

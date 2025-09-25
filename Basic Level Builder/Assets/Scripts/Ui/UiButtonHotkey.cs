@@ -28,12 +28,28 @@ public class UiButtonHotkey : MonoBehaviour
 
   public string GetHotkeyString()
   {
-    string buttonKeys = AxisMapping.Instance.GetButtonsConcatenated(m_List[0].m_Button);
+    // Get all button names for the first axis in the list
+    IReadOnlyList<string> buttonKeys = AxisMapping.Instance.GetButtons(m_List[0].m_Button);
     string mod = ModifierToString(m_List[0].m_Modifiers);
-    if (string.IsNullOrEmpty(mod))
-      return $"({buttonKeys})";
-    else
-      return $"({mod} + {buttonKeys})";
+
+    if (buttonKeys.Count == 0)
+      return string.Empty;
+
+    // Format first button with modifier
+    string result = string.IsNullOrEmpty(mod) ? buttonKeys[0] : $"{mod} + {buttonKeys[0]}";
+
+    // Add remaining buttons as alternatives in parentheses
+    if (buttonKeys.Count > 1)
+    {
+      List<string> altButtons = new();
+      for (int i = 1; i < buttonKeys.Count; i++)
+      {
+        altButtons.Add(string.IsNullOrEmpty(mod) ? buttonKeys[i] : $"{mod} + {buttonKeys[i]}");
+      }
+      result += " (" + string.Join(", ", altButtons) + ")";
+    }
+
+    return result;
   }
 
   private string ModifierToString(ModifierRequirements mod)

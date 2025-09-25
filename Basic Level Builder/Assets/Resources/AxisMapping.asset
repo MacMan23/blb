@@ -43,8 +43,6 @@ MonoBehaviour:
     - Z
   - axisName: Submit
     buttons:
-    - Return
-    - Joystick Button 0
     - Enter
     - Space
   - axisName: Cancel
@@ -62,7 +60,7 @@ MonoBehaviour:
     - R
   - axisName: Play
     buttons:
-    - Return
+    - Enter
     - Tab
   - axisName: Select Brush Tool
     buttons:

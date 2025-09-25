@@ -34,14 +34,4 @@ public class AxisMapping : ScriptableObject
     }
     return new List<string>();
   }
-
-  public string GetButtonsConcatenated(string axisName, string separator = ", ")
-  {
-    foreach (var entry in entries)
-    {
-      if (entry.axisName == axisName)
-        return string.Join(separator, entry.buttons);
-    }
-    return string.Empty;
-  }
 }
