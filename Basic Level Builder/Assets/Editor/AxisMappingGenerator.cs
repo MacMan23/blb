@@ -23,14 +23,14 @@ public static class AxisMappingGenerator
       SerializedProperty altPosButtonProp = axis.FindPropertyRelative("altPositiveButton");
 
       // look for an existing entry with the same axisName
-      AxisMappingEntry entry = mapping.entries.FirstOrDefault(e => e.axisName == nameProp.stringValue);
+      AxisMappingEntry entry = mapping.m_entries.FirstOrDefault(e => e.m_axisName == nameProp.stringValue);
       if (entry == null)
       {
         entry = new AxisMappingEntry
         {
           m_axisName = nameProp.stringValue
         };
-        mapping.entries.Add(entry);
+        mapping.m_entries.Add(entry);
       }
 
       // If the button exists and is not a numpad button (as we only want to print the number button)

@@ -12,97 +12,97 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 421ac4485a2df7d498a239b08a3b4e7a, type: 3}
   m_Name: AxisMapping
   m_EditorClassIdentifier: 
-  entries:
-  - axisName: Horizontal
-    buttons:
+  m_entries:
+  - m_axisName: Horizontal
+    m_buttons:
     - Right
     - D
-  - axisName: Vertical
-    buttons:
+  - m_axisName: Vertical
+    m_buttons:
     - Up
     - W
-  - axisName: Jump
-    buttons:
+  - m_axisName: Jump
+    m_buttons:
     - Space
     - Z
     - Joystick Button 3
     - K
     - W
     - Up
-  - axisName: Mouse X
-    buttons: []
-  - axisName: Mouse Y
-    buttons: []
-  - axisName: Mouse ScrollWheel
-    buttons: []
-  - axisName: Redo
-    buttons:
+  - m_axisName: Mouse X
+    m_buttons: []
+  - m_axisName: Mouse Y
+    m_buttons: []
+  - m_axisName: Mouse ScrollWheel
+    m_buttons: []
+  - m_axisName: Redo
+    m_buttons:
     - Y
-  - axisName: Undo
-    buttons:
+  - m_axisName: Undo
+    m_buttons:
     - Z
-  - axisName: Submit
-    buttons:
+  - m_axisName: Submit
+    m_buttons:
     - Enter
     - Space
-  - axisName: Cancel
-    buttons:
+  - m_axisName: Cancel
+    m_buttons:
     - Escape
     - Joystick Button 1
-  - axisName: PrimaryTile
-    buttons:
+  - m_axisName: PrimaryTile
+    m_buttons:
     - Mouse 0
-  - axisName: SecondaryTile
-    buttons:
+  - m_axisName: SecondaryTile
+    m_buttons:
     - Mouse 1
-  - axisName: ResetCamera
-    buttons:
+  - m_axisName: ResetCamera
+    m_buttons:
     - R
-  - axisName: Play
-    buttons:
+  - m_axisName: Play
+    m_buttons:
     - Enter
     - Tab
-  - axisName: Select Brush Tool
-    buttons:
+  - m_axisName: Select Brush Tool
+    m_buttons:
     - 1
     - B
-  - axisName: Select Box Tool
-    buttons:
+  - m_axisName: Select Box Tool
+    m_buttons:
     - 2
     - V
-  - axisName: Select Dropper Tool
-    buttons:
+  - m_axisName: Select Dropper Tool
+    m_buttons:
     - 3
     - I
-  - axisName: Select Selector Tool
-    buttons:
+  - m_axisName: Select Selector Tool
+    m_buttons:
     - 4
     - M
     - L
-  - axisName: Select Hand Tool
-    buttons:
+  - m_axisName: Select Hand Tool
+    m_buttons:
     - 5
     - H
-  - axisName: Quit
-    buttons:
+  - m_axisName: Quit
+    m_buttons:
     - Q
-  - axisName: Save
-    buttons:
+  - m_axisName: Save
+    m_buttons:
     - S
-  - axisName: Open Directory
-    buttons:
+  - m_axisName: Open Directory
+    m_buttons:
     - F
-  - axisName: Select Path Tool
-    buttons:
+  - m_axisName: Select Path Tool
+    m_buttons:
     - 6
     - P
-  - axisName: Delete
-    buttons:
+  - m_axisName: Delete
+    m_buttons:
     - Delete
     - Backspace
-  - axisName: Ghost Mode
-    buttons:
+  - m_axisName: Ghost Mode
+    m_buttons:
     - G
-  - axisName: Colorblind Mode
-    buttons:
+  - m_axisName: Colorblind Mode
+    m_buttons:
     - I
