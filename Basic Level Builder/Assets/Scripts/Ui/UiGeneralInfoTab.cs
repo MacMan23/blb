@@ -14,17 +14,17 @@ public class UiGeneralInfoTab : UiTab
 {
   [Header("Visual Components")]
   [SerializeField]
-  private TMPro.TextMeshProUGUI m_FileName;
+  private TMPro.TextMeshProUGUI m_FileNameTxt;
   [SerializeField]
-  private TMPro.TextMeshProUGUI m_SaveNumber;
+  private TMPro.TextMeshProUGUI m_SaveNumberTxt;
   [SerializeField]
-  private TMPro.TextMeshProUGUI m_CreationDate;
+  private TMPro.TextMeshProUGUI m_CreationDateTxt;
   [SerializeField]
   private Image m_FileThumbnail;
   [SerializeField]
-  private TMPro.TextMeshProUGUI m_LatestVersion;
+  private TMPro.TextMeshProUGUI m_LatestVersionTxt;
   [SerializeField]
-  private TMPro.TMP_InputField m_Description;
+  private TMPro.TMP_InputField m_DescriptionInputField;
 
   private string m_FullFilePath;
 
@@ -48,14 +48,14 @@ public class UiGeneralInfoTab : UiTab
     }
 
     // Set text from file data
-    m_FileName.text = Path.GetFileNameWithoutExtension(fullFilePath);
-    m_SaveNumber.text = fileInfo.m_FileData.m_ManualSaves.Count + " Manual Saves    " + fileInfo.m_FileData.m_AutoSaves.Count + " Auto Saves";
+    m_FileNameTxt.text = Path.GetFileNameWithoutExtension(fullFilePath);
+    m_SaveNumberTxt.text = fileInfo.m_FileData.m_ManualSaves.Count + " Manual Saves    " + fileInfo.m_FileData.m_AutoSaves.Count + " Auto Saves";
     string timeStamp = File.GetCreationTime(m_FullFilePath).ToString("M/d/yy h:mm:sstt").ToLower();
-    m_CreationDate.text = $"<b>Created on:</b> <color=#C6C6C6>{timeStamp}</color>";
+    m_CreationDateTxt.text = $"<b>Created on:</b> <color=#C6C6C6>{timeStamp}</color>";
 
     // Set the text description for the file
-    m_Description.text = fileInfo.m_FileData.m_Description;
-    m_Description.ForceLabelUpdate();
+    m_DescriptionInputField.text = fileInfo.m_FileData.m_Description;
+    m_DescriptionInputField.ForceLabelUpdate();
 
 
     // Get latest manual save and its thumbnail
@@ -74,7 +74,7 @@ public class UiGeneralInfoTab : UiTab
 
     // Set text for the latest manial saves timestamp (to show where/when the thumbnail comes from)
     timeStamp = ((DateTime)levelData.m_TimeStamp).ToString("M/d/yy h:mm:sstt").ToLower();
-    m_LatestVersion.text = $"<b>{levelData.m_Name}</b>\n<color=#C6C6C6>{timeStamp}</color>";
+    m_LatestVersionTxt.text = $"<b>{levelData.m_Name}</b>\n<color=#C6C6C6>{timeStamp}</color>";
   }
 
   public void SetFileDescription(string desc)
