@@ -180,7 +180,7 @@ public class FileDirUtilities : MonoBehaviour
   /// <returns>The full path to the temporary file</returns>
   public string CreateTempFileName()
   {
-    return CreateFilePath(Guid.NewGuid().ToString());
+    return CreateFilePath("temp_file_" + Guid.NewGuid().ToString());
   }
 
   public string CreateFilePath(string fileName)

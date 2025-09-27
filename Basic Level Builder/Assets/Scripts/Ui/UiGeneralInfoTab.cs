@@ -59,7 +59,20 @@ public class UiGeneralInfoTab : UiTab
 
 
     // Get latest manual save and its thumbnail
-    FileSystemInternal.LevelData levelData = fileInfo.m_FileData.m_ManualSaves[^1];
+    FileSystemInternal.LevelData levelData;
+    // Check if we have any manual saves first
+    if (fileInfo.m_FileData.m_ManualSaves.Count > 0)
+      levelData = fileInfo.m_FileData.m_ManualSaves[^1];
+    else if (fileInfo.m_FileData.m_AutoSaves.Count > 0)
+      levelData = fileInfo.m_FileData.m_AutoSaves[^1];
+    else
+    {
+      Debug.LogWarning($"No saves found in file \"{m_FullFilePath}\"");
+      StatusBar.Print($"Error: Could not load file history. No saves found in file \"{m_FullFilePath}\"");
+      FindObjectOfType<UiFileInfo>().CloseWindow();
+      return;
+    }
+
     byte[] bytes = Convert.FromBase64String(levelData.m_Thumbnail);
     Texture2D tex = new(0, 0); // No real reason for the width/height values in the constructor, they will be overwritten anyways in LoadImage
     tex.LoadImage(bytes);

@@ -184,6 +184,14 @@ public class FileSystemInternal : MonoBehaviour
     }
   }
 
+  private void OnApplicationQuit()
+  {
+    // Force autosave if we have changes.
+    bool isAutoSave = true;
+    bool shouldPrintElapsedTime = false;
+    Save(isAutoSave, null, shouldPrintElapsedTime);
+  }
+
   /// <summary>
   /// Creates new file data structures.
   /// </summary>
@@ -260,7 +268,7 @@ public class FileSystemInternal : MonoBehaviour
   {
     // TODO, code to generate thumbnail
     // Texutre needs to be uncompressed and marked for read/write (Might be diffrent if the image is generated)
-    
+
     //Camera.main.transform.position // Camera pos for use, not sure if it is the center camera or corner
 
     Texture2D tex = m_TempThumbnailImages[UnityEngine.Random.Range(0, m_TempThumbnailImages.Count)];
@@ -372,7 +380,7 @@ public class FileSystemInternal : MonoBehaviour
 
   protected void StartSavingThread(string destFilePath, bool autosave, bool isSaveAs = false, bool shouldPrintElapsedTime = true)
   {
-    
+
     // Copy the map data into a buffer to use for the saving thread.
     m_TileGrid.CopyGridBuffer();
 
@@ -468,6 +476,7 @@ public class FileSystemInternal : MonoBehaviour
 
     // If we will be copying the mounted file over to a diffrent file
     bool copyFile = false;
+
     bool hasDifferences = GetDifferences(out LevelData levelData, m_MountedFileInfo, m_TileGrid);
 
     levelData.m_Thumbnail = m_PendingThumbnail;

@@ -213,4 +213,9 @@ public class FileSystem : FileSystemInternal
 
     StartExportSavingThread(destFilePath);
   }
+
+  public void RefreshFileList()
+  {
+    m_FileDirUtilities.SetDirectoryName(m_DefaultDirectoryName);
+  }
 }

@@ -98,4 +98,11 @@ public class UiFileInfo : MonoBehaviour
       }
     }
   }
+
+  public void DeleteFile()
+  {
+    File.Delete(m_FullFilePath);
+    FileSystem.Instance.RefreshFileList();
+    CloseWindow();
+  }
 }
