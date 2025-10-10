@@ -11,11 +11,13 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 public class FileDirUtilities : MonoBehaviour
 {
   readonly static public string s_RootDirectoryName = "Basic Level Builder";
   readonly static public string s_FilenameExtension = ".blb";
+  readonly static public string s_TempFilePrefix = "temp_file_";
 
   public UiSaveFileItem m_FileItemPrefab;
   public UiListView m_SaveList;
@@ -180,7 +182,16 @@ public class FileDirUtilities : MonoBehaviour
   /// <returns>The full path to the temporary file</returns>
   public string CreateTempFileName()
   {
-    return CreateFilePath("temp_file_" + Guid.NewGuid().ToString());
+    string tempFilePath = s_TempFilePrefix + DateTime.Now.ToString("yy-M-d-HH-mm");
+    tempFilePath = Path.Combine(m_CurrentDirectoryPath, tempFilePath);
+    int dup = 0;
+    string tempFilePathDup = tempFilePath + s_FilenameExtension;
+    while (File.Exists(tempFilePathDup))
+    {
+      ++dup;
+      tempFilePathDup = tempFilePath + $" ({dup})" + s_FilenameExtension;
+    }
+    return tempFilePathDup;
   }
 
   public string CreateFilePath(string fileName)
