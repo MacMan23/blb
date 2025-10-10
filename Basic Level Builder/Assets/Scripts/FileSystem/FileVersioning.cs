@@ -106,10 +106,10 @@ public static class FileVersioning
     Dictionary<Vector2Int, TileGrid.Element> oldGrid = GetGridDictionaryFromFileData(fileInfo, from);
     Dictionary<Vector2Int, TileGrid.Element> newGrid = GetGridDictionaryFromFileData(fileInfo, to);
 
-    return GetDifferencesEx(out differences, oldGrid, newGrid.ToList());
+    return GetDifferencesEx(out differences, oldGrid, newGrid);
   }
 
-  private static bool GetDifferencesEx(out LevelData differences, Dictionary<Vector2Int, TileGrid.Element> oldGrid, List<KeyValuePair<Vector2Int, TileGrid.Element>> newGrid)
+  private static bool GetDifferencesEx(out LevelData differences, Dictionary<Vector2Int, TileGrid.Element> oldGrid, Dictionary<Vector2Int, TileGrid.Element> newGrid)
   {
     differences = new();
 
@@ -311,7 +311,7 @@ public static class FileVersioning
         AddLevelDeltasToGrid(ref nextGrid, fileData.m_ManualSaves[i + 1]);
         AddLevelDeltasToGrid(ref autosGrid, level);
 
-        GetDifferencesEx(out LevelData differences, autosGrid, nextGrid.ToList());
+        GetDifferencesEx(out LevelData differences, autosGrid, nextGrid);
 
         fileData.m_ManualSaves[i + 1].m_AddedTiles = differences.m_AddedTiles;
         fileData.m_ManualSaves[i + 1].m_RemovedTiles = differences.m_RemovedTiles;

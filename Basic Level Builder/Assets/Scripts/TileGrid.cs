@@ -14,7 +14,7 @@ using UnityEngine;
 public class TileGrid : MonoBehaviour
 {
   [System.Serializable]
-  public class Element
+  public class Element : ICloneable
   {
     public Vector2Int m_GridIndex;
     public TileType m_Type;
@@ -96,11 +96,24 @@ public class TileGrid : MonoBehaviour
 
       return m_GameObject.GetComponent<T>();
     }
+
+    public object Clone()
+    {
+      return new Element
+      {
+        m_GridIndex = m_GridIndex,
+        m_Type = m_Type,
+        m_TileColor = m_TileColor,
+        m_Direction = m_Direction,
+        m_Path = m_Path != null ? new List<Vector2Int>(m_Path) : null,
+        m_GameObject = null // intentionally not cloned
+      };
+    }
   }
 
 
   Dictionary<Vector2Int, Element> m_Grid = new();
-  List<KeyValuePair<Vector2Int, Element>> m_GridSaveBuffer;
+  Dictionary<Vector2Int, Element> m_GridSaveBuffer;
   public Transform m_BoundsRoot;
   public Transform m_MaskTransform;
   public Transform m_ColoredOutlineTransform;
@@ -232,13 +245,13 @@ public class TileGrid : MonoBehaviour
     m_WorldExtentsOutliner.OutlineWithBounds(m_MinBounds, m_MaxBounds);
   }
 
-
   public void CopyGridBuffer()
   {
-    m_GridSaveBuffer = m_Grid.ToList();
+    m_GridSaveBuffer = m_Grid.ToDictionary(entry => entry.Key,
+                                           entry => (Element) entry.Value.Clone());
   }
 
-  public List<KeyValuePair<Vector2Int, Element>> GetGridBuffer()
+  public Dictionary<Vector2Int, Element> GetGridBuffer()
   {
     return m_GridSaveBuffer;
   }

@@ -264,7 +264,7 @@ public class FileSystemInternal : MonoBehaviour
       LoadFromFullFilePathEx(validPaths[0]);
   }
 
-  private string GenerateThumbnail(List<KeyValuePair<Vector2Int, TileGrid.Element>> _grid)
+  private string GenerateThumbnail(Dictionary<Vector2Int, TileGrid.Element> _grid)
   {
     // TODO, code to generate thumbnail
     // Texutre needs to be uncompressed and marked for read/write (Might be diffrent if the image is generated)
