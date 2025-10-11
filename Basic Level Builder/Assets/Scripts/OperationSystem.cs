@@ -1,5 +1,4 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 public class OperationSystem : MonoBehaviour
@@ -16,6 +15,11 @@ public class OperationSystem : MonoBehaviour
   public static Operation s_MostRecentlyPerformedOperation
   {
     get { return s_Operations[^1]; }
+  }
+
+  public static int s_OperationCounterPublic
+  {
+    get { return s_OperationCounter; }
   }
 
   public TileGrid m_TileGrid;
@@ -48,6 +52,11 @@ public class OperationSystem : MonoBehaviour
 
     // reset the index
     s_StackIndex = 0;
+  }
+
+  public static void ResetOperationCounter()
+  {
+    s_OperationCounter = 0;
   }
 
   public void SetAutosaving(bool value)

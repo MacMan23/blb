@@ -192,6 +192,19 @@ public class FileSystemInternal : MonoBehaviour
     Save(isAutoSave, null, shouldPrintElapsedTime);
   }
 
+  private void CreateEmptyTempFile()
+  {
+    // This first save will be an empty manual
+    CreateFileInfo(out m_MountedFileInfo);
+
+    string destFilePath = m_FileDirUtilities.CreateTempFileName();
+    m_MountedFileInfo.m_IsTempFile = true;
+    m_MountedFileInfo.m_FileData.m_ManualSaves.Add(new LevelData());
+    m_MountedFileInfo.m_FileData.m_ManualSaves[0].m_TimeStamp = DateTime.Now;
+    // Mount temp file so we can check when the full file path isn't the temp file
+    MountFile(destFilePath, m_MountedFileInfo);
+  }
+
   /// <summary>
   /// Creates new file data structures.
   /// </summary>
@@ -338,6 +351,12 @@ public class FileSystemInternal : MonoBehaviour
         }
         else
         {
+          // If this is an auto save and if we did saved recently (by checking if any operations were performed after the last save)
+          if (autosave && OperationSystem.s_OperationCounterPublic == 0)
+          {
+            return;
+          }
+
           destFilePath = m_MountedFileInfo.m_SaveFilePath;
 
           // If our file is deleted/missing
@@ -360,10 +379,8 @@ public class FileSystemInternal : MonoBehaviour
         // If an auto save, create a temp file and write to that
         if (autosave)
         {
-          destFilePath = m_FileDirUtilities.CreateTempFileName();
-          m_MountedFileInfo.m_IsTempFile = true;
-          // Mount temp file so we can check when the full file path isn't the temp file
-          MountFile(destFilePath, m_MountedFileInfo);
+          CreateEmptyTempFile();
+          destFilePath = m_MountedFileInfo.m_SaveFilePath;
         }
         else
         {
@@ -527,8 +544,8 @@ public class FileSystemInternal : MonoBehaviour
 
     // TODO, check if the auto save has differences from the last auto save, if not, discard save,
     // TODO, check if manual save is the same as the last auto save, if so just move auto to manual
-    // Only write if we have differences, or we have no user created file yet
-    if (hasDifferences || m_MountedFileInfo.m_IsTempFile)
+    // Only write if we have differences
+    if (hasDifferences)
     {
       // #6, 1, 3, 5, 8
       // We have data to add/overwite to any file
@@ -550,25 +567,16 @@ public class FileSystemInternal : MonoBehaviour
         m_MountedFileInfo.m_FileData.m_ManualSaves.Add(levelData);
       }
       // If this is an auto save, store what version of the manual save we branched from to get these differences to save
-      else
+      else 
       {
-        // If we a auto saving to a temp file
-        if (m_MountedFileInfo.m_IsTempFile)
-        {
-          // We aren't diffing from a manual save, but we list auto as 1 anyway since a val of 0 is treated as a manual save
-          levelData.m_Version = new(1, 1);
-        }
-        else
-        {
-          // Set the manual save version we are branching off from
-          // Get the manual version or the branched manual version if we loaded an auto save
-          levelData.m_Version.m_ManualVersion = m_loadedVersion.m_ManualVersion;
+        // Set the manual save version we are branching off from
+        // Get the manual version or the branched manual version if we loaded an auto save
+        levelData.m_Version.m_ManualVersion = m_loadedVersion.m_ManualVersion;
 
-          // Check if there are other autosaves branched from this manual
-          // If so, our version will be 1 more than the newest one
-          int lastVersion = GetLastAutoSaveVersion(m_MountedFileInfo.m_FileData, m_loadedVersion.m_ManualVersion);
-          levelData.m_Version.m_AutoVersion = lastVersion + 1;
-        }
+        // Check if there are other autosaves branched from this manual
+        // If so, our version will be 1 more than the newest one
+        int lastVersion = GetLastAutoSaveVersion(m_MountedFileInfo.m_FileData, m_loadedVersion.m_ManualVersion);
+        levelData.m_Version.m_AutoVersion = lastVersion + 1;
 
         m_MountedFileInfo.m_FileData.m_AutoSaves.Add(levelData);
       }
@@ -709,22 +717,20 @@ public class FileSystemInternal : MonoBehaviour
     if (shouldPrintElapsedTime)
     {
       var duration = DateTime.Now - startTime;
-      var h = duration.Hours; // If this is greater than 0, we got beeg problems
-      var m = duration.Minutes;
-      var s = Math.Round(duration.TotalSeconds % 60.0, 2);
-
-      var durationStr = "";
-      if (h > 0)
-        durationStr += $"{h}h ";
-      if (m > 0)
-        durationStr += $"{m}m ";
-      durationStr += $"{s}s";
+      var durationStr = $"{(duration.Hours > 0 ? $"{duration.Hours}h " : "")}" +
+                        $"{(duration.Minutes > 0 ? $"{duration.Minutes}m " : "")}" +
+                        $"{Math.Round(duration.TotalSeconds % 60.0, 2)}s";
 
       var mainColor = "#ffffff99";
       var fileColor = isAutosave ? "white" : "yellow";
       var timeColor = "#ffffff66";
+
       m_MainThreadDispatcher.Enqueue(() =>
-      StatusBar.Print($"<color={mainColor}>Saved</color> <color={fileColor}>{Path.GetFileName(destFilePath)}</color> <color={timeColor}>in {durationStr}</color>"));
+        StatusBar.Print($"<color={mainColor}>Saved</color> " +
+                        $"<color={fileColor}>{Path.GetFileName(destFilePath)}</color> " +
+                        $"<color={timeColor}>in {durationStr}</color>")
+      );
+
     }
   }
 
@@ -744,6 +750,9 @@ public class FileSystemInternal : MonoBehaviour
       data.AddRange(System.Text.Encoding.Default.GetBytes(JsonUtility.ToJson(sourceFileInfo.m_FileData)));
 
     File.WriteAllBytes(destFilePath, data.ToArray());
+
+    // Save happened reset operations so we don't autosave again right away
+    OperationSystem.ResetOperationCounter();
   }
 
   // Deprecated for now untill real use is found.

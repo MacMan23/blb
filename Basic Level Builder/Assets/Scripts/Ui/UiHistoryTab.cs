@@ -65,6 +65,7 @@ public class UiHistoryTab : UiTab
   {
     m_FullFilePath = fullFilePath;
     LoadHistoryItemList();
+    UpdateVersionInfo();
   }
 
   private void ClearHistoryItemList()
