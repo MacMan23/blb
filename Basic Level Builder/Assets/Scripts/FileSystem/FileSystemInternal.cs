@@ -13,6 +13,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
 using UnityEngine;
+using UnityEngine.Video;
 using static FileDirUtilities;
 using static FileVersioning;
 
@@ -28,8 +29,15 @@ public class FileSystemInternal : MonoBehaviour
   public TileGrid m_TileGrid;
   public FileDirUtilities m_FileDirUtilities;
 
-  public Vector2Int m_ThumbnailSize = new(64, 64);  // Thumnbail size in pixels
-  public Sprite m_ThumbnailTileStrip;
+  // Thumbnail size in pixels
+  public Vector2Int m_ThumbnailSize = new(64, 64);
+  public Sprite m_ThumbnailTileAtlas;
+  /// <summary>
+  /// Size in pixels of the small tiles used to compose a thumbnail.
+  /// Derived from the size of the thumbnail tile atlas, assuming a square tile.
+  /// This is done in Start, so don't expect this value to be set before then.
+  /// </summary>
+  private Vector2Int m_ThumbnailTileSize;
 
   private List<ThumbnailTile> m_ThumbnailTiles = new();
 
@@ -140,18 +148,32 @@ public class FileSystemInternal : MonoBehaviour
 
   public class ThumbnailTile
   {
-    public Color32 m_Color0;
-    public Color32 m_Color1;
-    public Color32 m_Color2;
-    public Color32 m_Color3;
+    public Color[] m_ColorData;
 
-    public ThumbnailTile(TileType tileType, Color32[] colorBuffer, int yStride)
+    public ThumbnailTile(TileType tileType, Color[] atlasBuffer,
+      int atlasWidth, Vector2Int tileSize)
     {
-      var index = (int)tileType;
-      m_Color0 = colorBuffer[index];
-      m_Color1 = colorBuffer[index + 1];
-      m_Color2 = colorBuffer[index + yStride];
-      m_Color3 = colorBuffer[index + yStride + 1];
+      m_ColorData = new Color[tileSize.x * tileSize.y];
+      // The buffer contains the pixel colors starting from the bottom-left
+      //   corner of the texture. I believe it then goes to the right, and when
+      //   it reaches the end of a row, it goes back to the start of the next
+      //   row up from there.
+      // startIndex is the index of the bottom-left pixel in the tile.
+      var startIndex = (int)tileType * tileSize.x;
+      // This is the index for writing to the thumbnail tile, incremented
+      //   manually in the loop, so it's separate from the x and y indices that
+      //   are only used to read from the atlas.
+      var dataIndex = 0;
+
+      for (var y = 0; y < tileSize.y; ++y)
+      {
+        for (var x = 0; x < tileSize.x; ++x)
+        {
+          var color = atlasBuffer[startIndex + x + y * atlasWidth];
+          m_ColorData[dataIndex] = color;
+          ++dataIndex;
+        }
+      }
     }
   }
 
@@ -163,6 +185,8 @@ public class FileSystemInternal : MonoBehaviour
 
     m_FileDirUtilities.SetDirectoryName(m_DefaultDirectoryName);
 
+    var tileHeight = (int)m_ThumbnailTileAtlas.rect.height;
+    m_ThumbnailTileSize = new Vector2Int(tileHeight, tileHeight);
     GenerateThumbnailTiles();
   }
 
@@ -294,11 +318,14 @@ public class FileSystemInternal : MonoBehaviour
   /// </summary>
   private void GenerateThumbnailTiles()
   {
-    var colorBuffer = m_ThumbnailTileStrip.texture.GetPixels32();
+    var atlasBuffer = m_ThumbnailTileAtlas.texture.GetPixels();
+    var tileSize = m_ThumbnailTileSize;
+    var atlasWidth = atlasBuffer.Length / tileSize.y;
 
     foreach (TileType tileType in Enum.GetValues(typeof(TileType)))
     {
-      var thumbnailTile = new ThumbnailTile(tileType, colorBuffer, colorBuffer.Length / 2);
+      var thumbnailTile = new ThumbnailTile(tileType, atlasBuffer,
+        atlasWidth, tileSize);
       m_ThumbnailTiles.Add(thumbnailTile);
     }
   }
@@ -309,41 +336,108 @@ public class FileSystemInternal : MonoBehaviour
     // Texutre needs to be uncompressed and marked for read/write (Might be diffrent if the image is generated)
 
     var tex = new Texture2D(m_ThumbnailSize.x, m_ThumbnailSize.y, TextureFormat.RGBA32, false);
-    var colorBuffer = new Color32[m_ThumbnailSize.x * m_ThumbnailSize.y];
+    var colorBuffer = new Color[m_ThumbnailSize.x * m_ThumbnailSize.y];
 
     var cameraPosition = Camera.main.transform.position;
 
-    // Start with the camera position as the center of the thumbnail region. (Of course it won't be
-    //   exactly in the center if we're using an odd-numbered thumbnail size.)
-    // Count from the center to the left by half the width and down by half the height to find the
-    //   tile index of the bottom-left tile in the thumbnail region. Then use a nested loop to look
-    //   at each tile in that region and draw the thumbnail.
+    // thumbnail cols and rows is the width and height IN TILES of the thumbnail
+    var thumbnailCols = m_ThumbnailSize.x / m_ThumbnailTileSize.x;
+    var thumbnailRows = m_ThumbnailSize.y / m_ThumbnailTileSize.y;
 
-    var bottomLeftX = (int)(cameraPosition.x - m_ThumbnailSize.x / 2);
-    var bottomLeftY = (int)(cameraPosition.y - m_ThumbnailSize.y / 2);
-    var colorBufferYStride = m_ThumbnailSize.x;
+    // Start with the camera position as the center of the thumbnail region.
+    //   (Of course it won't be exactly in the center if we're using an
+    //   odd-numbered thumbnail size.)
+    // Count from the center to the left by half the width and down by half the
+    //   height to find the tile index of the bottom-left tile in the thumbnail
+    //   region. Then use a nested loop to look at each tile in that region and
+    //   draw the thumbnail.
 
-    // Stride size is 2 because we're going with a hard-coded 2x2 size for the thumbnail grid
-    for (var j = 0; j < m_ThumbnailSize.y; j += 2)
+    var bottomLeftX = (int)(cameraPosition.x - thumbnailCols / 2);
+    var bottomLeftY = (int)(cameraPosition.y - thumbnailRows / 2);
+
+    // Lambdas for use in the loop here, so I don't have to do a ton of ifs in
+    //   a deeply nested loop
+    Func<int, int, int> defaultX = (x, y) => x;
+    Func<int, int, int> defaultY = (x, y) => y;
+    Func<int, int, int> flipX = (x, y) => m_ThumbnailTileSize.x - 1 - x;
+    Func<int, int, int> flipY = (x, y) => m_ThumbnailTileSize.y - 1 - y;
+
+    for (var row = 0; row < thumbnailRows; ++row)
     {
-      for (var i = 0; i < m_ThumbnailSize.x; i += 2)
+      for (var col = 0; col < thumbnailCols; ++col)
       {
-        var bufferIndex = i + j * colorBufferYStride;
-
-        var tileIndex = new Vector2Int(bottomLeftX + i, bottomLeftY + j);
+        var tileIndex = new Vector2Int(bottomLeftX + col, bottomLeftY + row);
         var tileExists = _grid.TryGetValue(tileIndex, out var tile);
-
         var tileType = tileExists ? tile.m_Type : TileType.EMPTY;
+        var tileDir = tileExists ? tile.m_Direction : Direction.RIGHT;
+
+        var xTransformer = defaultX;
+        var yTransformer = defaultY;
+
+        // If the tile is a start or goon tile that's facing left rather
+        //   than right, then it should be flipped in the thumbnail.
+        if (tileType == TileType.START || tileType == TileType.GOON)
+        {
+          if (tileDir == Direction.LEFT)
+          {
+            xTransformer = flipX;
+            yTransformer = defaultY;
+          }
+        }
+        // Otherwise, if the tile is rotated to face some direction
+        //   other than right, then it should be rotated in the thumbnail.
+        else if (tileDir == Direction.UP)
+        {
+          xTransformer = flipY;
+          yTransformer = defaultX;
+        }
+        else if (tileDir == Direction.LEFT)
+        {
+          xTransformer = flipX;
+          yTransformer = flipY;
+        }
+        else if (tileDir == Direction.DOWN)
+        {
+          xTransformer = defaultY;
+          yTransformer = flipX;
+        }
+
+        var tileColor = tileExists ? tile.m_TileColor : TileColor.RED;
+        var actualColor = Color.white;
+
+        // TODO: Bluaaghhghhh..... add "NONE" to the TileColor enum and hope
+        //   it doesn't break everything. If I had that, then it would be
+        //   the default color for everything that isn't colorable, and I
+        //   wouldn't need an exhaustive list of all colorable tiles here
+        if (tileType == TileType.TELEPORTER || tileType == TileType.DOOR ||
+          tileType == TileType.KEY || tileType == TileType.SWITCH)
+        {
+          actualColor = ColorCode.Colors[tileColor];
+        }
+
         var thumbnailTile = m_ThumbnailTiles[(int)tileType];
 
-        colorBuffer[bufferIndex] = thumbnailTile.m_Color0;
-        colorBuffer[bufferIndex + 1] = thumbnailTile.m_Color1;
-        colorBuffer[bufferIndex + colorBufferYStride] = thumbnailTile.m_Color2;
-        colorBuffer[bufferIndex + colorBufferYStride + 1] = thumbnailTile.m_Color3;
+        for (var y = 0; y < m_ThumbnailTileSize.y; ++y)
+        {
+          for (var x = 0; x < m_ThumbnailTileSize.x; ++x)
+          {
+            var colorDataIndex = x + y * m_ThumbnailTileSize.x;
+            // xSub and ySub are the x and y offsets within the tile
+            var xSub = xTransformer(x, y);
+            var ySub = yTransformer(x, y);
+            
+            var bufferIndex = col * m_ThumbnailTileSize.x + xSub +
+              (row * m_ThumbnailTileSize.y + ySub) * m_ThumbnailSize.x;
+
+            var color = thumbnailTile.m_ColorData[colorDataIndex];
+
+            colorBuffer[bufferIndex] = color * actualColor;
+          }
+        }
       }
     }
 
-    tex.SetPixels32(colorBuffer);
+    tex.SetPixels(colorBuffer);
     tex.Apply();
 
     byte[] bytes = tex.EncodeToPNG();

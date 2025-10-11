@@ -1790,6 +1790,9 @@ MonoBehaviour:
   m_DefaultDirectoryName: Default Project
   m_TileGrid: {fileID: 2031376952}
   m_FileDirUtilities: {fileID: 128438548}
+  m_ThumbnailSize: {x: 100, y: 100}
+  m_ThumbnailTileAtlas: {fileID: 21300000, guid: 7e860478d976dbd44b12c1c72457b9c4,
+    type: 3}
   m_OverrideDialogAdder: {fileID: 128438542}
   m_SaveAsDialogAdder: {fileID: 128438543}
   m_ExportAsDialogAdder: {fileID: 128438546}
@@ -22160,7 +22163,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 40, y: 0}
   m_SizeDelta: {x: 0, y: 32}
   m_Pivot: {x: 0, y: 1}
 --- !u!114 &678381422
@@ -35227,7 +35230,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 74, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1399586401
