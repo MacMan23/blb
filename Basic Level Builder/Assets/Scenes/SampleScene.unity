@@ -33491,7 +33491,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_TileGrid: {fileID: 2031376952}
-  m_UndoDepth: 64
+  m_UndoDepth: 128
   m_UseAutosaving: 1
   m_AutosaveInterval: 4
 --- !u!4 &1295123611
