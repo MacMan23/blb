@@ -28,6 +28,8 @@ public class FileSystemInternal : MonoBehaviour
   public TileGrid m_TileGrid;
   public FileDirUtilities m_FileDirUtilities;
 
+  public Vector2Int m_ThumbnailSize = new(64, 64);  // Thumnbail size in pixels
+
   UnityDragAndDropHook m_DragAndDropHook;
 
   ModalDialogMaster m_ModalDialogMaster;
@@ -269,7 +271,43 @@ public class FileSystemInternal : MonoBehaviour
     // TODO, code to generate thumbnail
     // Texutre needs to be uncompressed and marked for read/write (Might be diffrent if the image is generated)
 
-    //Camera.main.transform.position // Camera pos for use, not sure if it is the center camera or corner
+    var newTex = new Texture2D(m_ThumbnailSize.x, m_ThumbnailSize.y, TextureFormat.RGBA32, false);
+    var colorBuffer = new Color32[m_ThumbnailSize.x * m_ThumbnailSize.y];
+
+    var cameraPosition = Camera.main.transform.position;
+
+    // Start with the camera position as the center of the thumbnail region. (Of course it won't be
+    //   exactly in the center if we're using an odd-numbered thumbnail size.)
+    // Count from the center to the left by half the width and down by half the height to find the
+    //   tile index of the bottom-left tile in the thumbnail region. Then use a nested loop to look
+    //   at each tile in that region and draw the thumbnail.
+
+    var bottomLeftX = (int)(cameraPosition.x - m_ThumbnailSize.x / 2);
+    var bottomLeftY = (int)(cameraPosition.y - m_ThumbnailSize.y / 2);
+
+    var emptyColor      = new Color32(  0,   0,   0,   0);
+    var solidColor      = new Color32(255, 255, 255, 255);
+    var halfSolidColor  = new Color32(255, 255, 255, 128);
+    var lavaColor       = new Color32(255,  26,  64, 255);
+    var starColor       = new Color32(255, 255, 128, 255);
+    var startColor      = new Color32(230, 193,  11, 255);
+
+    // Stride size is 2 because we're going with a hard-coded 2x2 size for the thumbnail grid
+    for (var j = 0; j < m_ThumbnailSize.y; j += 2)
+    {
+      for (var i = 0; i < m_ThumbnailSize.x; i += 2)
+      {
+        var bufferIndex = i + j * m_ThumbnailSize.x;
+
+        var thumbnailTileIndex = new Vector2Int(bottomLeftX + i, bottomLeftY + j);
+        var thumbnailTile = _grid[thumbnailTileIndex];
+
+        if (thumbnailTile == null)
+        {
+          
+        }
+      }
+    }
 
     Texture2D tex = m_TempThumbnailImages[UnityEngine.Random.Range(0, m_TempThumbnailImages.Count)];
 
