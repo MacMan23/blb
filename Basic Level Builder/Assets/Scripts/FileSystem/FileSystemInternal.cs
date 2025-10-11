@@ -29,6 +29,9 @@ public class FileSystemInternal : MonoBehaviour
   public FileDirUtilities m_FileDirUtilities;
 
   public Vector2Int m_ThumbnailSize = new(64, 64);  // Thumnbail size in pixels
+  public Sprite m_ThumbnailTileStrip;
+
+  private List<ThumbnailTile> m_ThumbnailTiles = new();
 
   UnityDragAndDropHook m_DragAndDropHook;
 
@@ -135,6 +138,23 @@ public class FileSystemInternal : MonoBehaviour
   }
   #endregion
 
+  public class ThumbnailTile
+  {
+    public Color32 m_Color0;
+    public Color32 m_Color1;
+    public Color32 m_Color2;
+    public Color32 m_Color3;
+
+    public ThumbnailTile(TileType tileType, Color32[] colorBuffer, int yStride)
+    {
+      var index = (int)tileType;
+      m_Color0 = colorBuffer[index];
+      m_Color1 = colorBuffer[index + 1];
+      m_Color2 = colorBuffer[index + yStride];
+      m_Color3 = colorBuffer[index + yStride + 1];
+    }
+  }
+
   // Start is called before the first frame update
   void Start()
   {
@@ -142,6 +162,8 @@ public class FileSystemInternal : MonoBehaviour
     m_ModalDialogMaster = FindObjectOfType<ModalDialogMaster>();
 
     m_FileDirUtilities.SetDirectoryName(m_DefaultDirectoryName);
+
+    GenerateThumbnailTiles();
   }
 
   void Update()
@@ -266,12 +288,27 @@ public class FileSystemInternal : MonoBehaviour
       LoadFromFullFilePathEx(validPaths[0]);
   }
 
+  /// <summary>
+  /// Prepares the thumbnail tile strip data in a format that can be used more rapidly for
+  /// thumbnail generation. Called in Start. Don't call this function, Brendan.
+  /// </summary>
+  private void GenerateThumbnailTiles()
+  {
+    var colorBuffer = m_ThumbnailTileStrip.texture.GetPixels32();
+
+    foreach (TileType tileType in Enum.GetValues(typeof(TileType)))
+    {
+      var thumbnailTile = new ThumbnailTile(tileType, colorBuffer, colorBuffer.Length / 2);
+      m_ThumbnailTiles.Add(thumbnailTile);
+    }
+  }
+
   private string GenerateThumbnail(Dictionary<Vector2Int, TileGrid.Element> _grid)
   {
     // TODO, code to generate thumbnail
     // Texutre needs to be uncompressed and marked for read/write (Might be diffrent if the image is generated)
 
-    var newTex = new Texture2D(m_ThumbnailSize.x, m_ThumbnailSize.y, TextureFormat.RGBA32, false);
+    var tex = new Texture2D(m_ThumbnailSize.x, m_ThumbnailSize.y, TextureFormat.RGBA32, false);
     var colorBuffer = new Color32[m_ThumbnailSize.x * m_ThumbnailSize.y];
 
     var cameraPosition = Camera.main.transform.position;
@@ -284,32 +321,30 @@ public class FileSystemInternal : MonoBehaviour
 
     var bottomLeftX = (int)(cameraPosition.x - m_ThumbnailSize.x / 2);
     var bottomLeftY = (int)(cameraPosition.y - m_ThumbnailSize.y / 2);
-
-    var emptyColor      = new Color32(  0,   0,   0,   0);
-    var solidColor      = new Color32(255, 255, 255, 255);
-    var halfSolidColor  = new Color32(255, 255, 255, 128);
-    var lavaColor       = new Color32(255,  26,  64, 255);
-    var starColor       = new Color32(255, 255, 128, 255);
-    var startColor      = new Color32(230, 193,  11, 255);
+    var colorBufferYStride = m_ThumbnailSize.x;
 
     // Stride size is 2 because we're going with a hard-coded 2x2 size for the thumbnail grid
     for (var j = 0; j < m_ThumbnailSize.y; j += 2)
     {
       for (var i = 0; i < m_ThumbnailSize.x; i += 2)
       {
-        var bufferIndex = i + j * m_ThumbnailSize.x;
+        var bufferIndex = i + j * colorBufferYStride;
 
-        var thumbnailTileIndex = new Vector2Int(bottomLeftX + i, bottomLeftY + j);
-        var thumbnailTile = _grid[thumbnailTileIndex];
+        var tileIndex = new Vector2Int(bottomLeftX + i, bottomLeftY + j);
+        var tileExists = _grid.TryGetValue(tileIndex, out var tile);
 
-        if (thumbnailTile == null)
-        {
-          
-        }
+        var tileType = tileExists ? tile.m_Type : TileType.EMPTY;
+        var thumbnailTile = m_ThumbnailTiles[(int)tileType];
+
+        colorBuffer[bufferIndex] = thumbnailTile.m_Color0;
+        colorBuffer[bufferIndex + 1] = thumbnailTile.m_Color1;
+        colorBuffer[bufferIndex + colorBufferYStride] = thumbnailTile.m_Color2;
+        colorBuffer[bufferIndex + colorBufferYStride + 1] = thumbnailTile.m_Color3;
       }
     }
 
-    Texture2D tex = m_TempThumbnailImages[UnityEngine.Random.Range(0, m_TempThumbnailImages.Count)];
+    tex.SetPixels32(colorBuffer);
+    tex.Apply();
 
     byte[] bytes = tex.EncodeToPNG();
     return Convert.ToBase64String(bytes);
