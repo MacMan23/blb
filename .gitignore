@@ -20,6 +20,10 @@
 
 # Visual Studio cache directory
 .vs/
+# Same but for VS Code
+.vscode/
+# I guess this should be in here too but idk for sure
+.vsconfig/
 
 # Gradle cache directory
 .gradle/
@@ -30,6 +34,7 @@ ExportedObj/
 *.csproj
 *.unityproj
 *.sln
+*.slnx
 *.suo
 *.tmp
 *.user
@@ -57,10 +62,11 @@ sysinfo.txt
 # Crashlytics generated file
 crashlytics-build.properties
 
+# I figure User Settings should be ignored too but idk
+UserSettings/
+
+# FamiTracker backups
+*.ftm.bak
+*.0cc.bak
 
 # End of https://www.gitignore.io/api/unity
-Basic Level Builder/.vsconfig
-Basic Level Builder/UserSettings/Layouts/default-2021.dwlt
-Basic Level Builder/UserSettings/Layouts/CurrentMaximizeLayout.dwlt
-Basic Level Builder/UserSettings/Layouts/default-2021.dwlt
-Basic Level Builder/UserSettings/Layouts/default-2021.dwlt
