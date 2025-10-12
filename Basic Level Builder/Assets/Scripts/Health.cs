@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
@@ -18,9 +19,12 @@ public class Health : MonoBehaviour
   public bool m_KilledByEnemy = false;
   public bool m_Stomper = false;  // TODO: come up with a less hacky solution
   public Rigidbody2D m_StomperRB;
+  public List<AudioClip> m_StompClips;
+  public AudioSource m_StompAudioSource;
   public Events m_Events;
 
   float m_StompVelocityThreshold = -0.8f;
+  private int m_StompComboCounter = 0;
 
 
   private void OnCollisionEnter2D(Collision2D collision)
@@ -65,12 +69,28 @@ public class Health : MonoBehaviour
       {
         enemy.GetStomped();
         m_Events.StompedEnemy.Invoke(new HealthEventData());
+        PlayStompSfx();
+
+        ++m_StompComboCounter;
       }
       else if (m_KilledByEnemy)
       {
         Die();
       }
     }
+  }
+
+
+  private void PlayStompSfx()
+  {
+    var index = Math.Min(m_StompComboCounter, m_StompClips.Count - 1);
+    m_StompAudioSource.PlayOneShot(m_StompClips[index]);
+  }
+
+
+  public void OnLanded()
+  {
+    m_StompComboCounter = 0;
   }
 
 
