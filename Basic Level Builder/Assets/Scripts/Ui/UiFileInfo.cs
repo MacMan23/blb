@@ -71,9 +71,17 @@ public class UiFileInfo : MonoBehaviour
 
     // Toggle on the black background
     root.GetComponent<Image>().enabled = false;
-    GlobalData.DecrementUiPopup();
+    StartCoroutine(DecrementUiPopup());
 
     Destroy(gameObject);
+  }
+
+  private System.Collections.IEnumerator DecrementUiPopup()
+  {
+    // Wait until the end of the frame, after all rendering and GUI updates
+    yield return new WaitForEndOfFrame();
+
+    GlobalData.DecrementUiPopup();
   }
 
   public void OpenTab(UiTab tabRef)

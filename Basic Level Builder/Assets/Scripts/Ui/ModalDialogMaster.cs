@@ -152,7 +152,7 @@ public class ModalDialogMaster : MonoBehaviour
 
   void Deactivate()
   {
-    GlobalData.DecrementUiPopup();
+    StartCoroutine(DecrementUiPopup());
 
     m_Active = false;
     m_Image.raycastTarget = false;
@@ -163,6 +163,13 @@ public class ModalDialogMaster : MonoBehaviour
     m_ActivationSequence.Call(EndDeactivate, gameObject);
   }
 
+  private System.Collections.IEnumerator DecrementUiPopup()
+  {
+    // Wait until the end of the frame, after all rendering and GUI updates
+    yield return new WaitForEndOfFrame();
+
+    GlobalData.DecrementUiPopup();
+  }
 
   void EndDeactivate()
   {
