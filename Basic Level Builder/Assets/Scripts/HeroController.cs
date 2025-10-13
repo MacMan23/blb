@@ -545,7 +545,7 @@ public class HeroController : MonoBehaviour
   void ActivateSwitch(GameObject _switch)
   {
     var switchLogic = _switch.GetComponent<SwitchLogic>();
-    switchLogic.AttemptActivate();
+    switchLogic.AttemptActivate(null);
   }
 
   /**
