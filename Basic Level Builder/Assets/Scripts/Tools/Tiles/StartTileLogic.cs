@@ -61,8 +61,6 @@ public class StartTileLogic : MonoBehaviour
     {
       m_Hero = Instantiate(m_HeroPrefab, m_cTransform.position, Quaternion.identity);
 
-      var heroController = m_Hero.GetComponent<HeroController>();
-      heroController?.SetDirection(m_TileDirection.m_Direction);
       var tileDirection = m_Hero.GetComponent<TileDirection>();
       tileDirection?.Initialize(m_TileDirection.m_Direction);
 
