@@ -176,8 +176,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_Sfx:
   - {fileID: 8300000, guid: 47293b8c641790a498ec438a01685b43, type: 3}
-  m_Cooldown: 0
+  m_Cooldown: 0.08
   m_DisableOnDeath: 1
+  m_InterruptSelf: 0
 --- !u!1 &1172249988931041594
 GameObject:
   m_ObjectHideFlags: 0
@@ -326,6 +327,152 @@ Transform:
   m_Father: {fileID: 5932613851058519360}
   m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1569746632791297092
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 5476593431433217402}
+  - component: {fileID: 8694925936122798191}
+  - component: {fileID: 8070853966576344772}
+  m_Layer: 8
+  m_Name: OneUp
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &5476593431433217402
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1569746632791297092}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 3449761693518217254}
+  m_RootOrder: 8
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!82 &8694925936122798191
+AudioSource:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1569746632791297092}
+  m_Enabled: 1
+  serializedVersion: 4
+  OutputAudioMixerGroup: {fileID: 0}
+  m_audioClip: {fileID: 0}
+  m_PlayOnAwake: 1
+  m_Volume: 1
+  m_Pitch: 1
+  Loop: 0
+  Mute: 0
+  Spatialize: 0
+  SpatializePostEffects: 0
+  Priority: 128
+  DopplerLevel: 1
+  MinDistance: 1
+  MaxDistance: 500
+  Pan2D: 0
+  rolloffMode: 0
+  BypassEffects: 0
+  BypassListenerEffects: 0
+  BypassReverbZones: 0
+  rolloffCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 1
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  panLevelCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  spreadCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  reverbZoneMixCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+--- !u!114 &8070853966576344772
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1569746632791297092}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 04661b355fe809d4db622ebb78b7507b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_Sfx:
+  - {fileID: 8300000, guid: 114eb74ab54c848498d83f826500e2b3, type: 3}
+  m_Cooldown: 0
+  m_DisableOnDeath: 1
+  m_InterruptSelf: 1
 --- !u!1 &2162355849340156720
 GameObject:
   m_ObjectHideFlags: 0
@@ -675,6 +822,7 @@ MonoBehaviour:
   - {fileID: 8300000, guid: 42a1da71c32e62442b9d34d9b0a28bc5, type: 3}
   m_Cooldown: 0
   m_DisableOnDeath: 1
+  m_InterruptSelf: 0
 --- !u!1 &3924111178053328835
 GameObject:
   m_ObjectHideFlags: 0
@@ -1002,6 +1150,7 @@ MonoBehaviour:
   - {fileID: 8300000, guid: d87026dc5ae4d944bbb8a7ca01209442, type: 3}
   m_Cooldown: 0.12
   m_DisableOnDeath: 1
+  m_InterruptSelf: 0
 --- !u!1 &5672770678663376343
 GameObject:
   m_ObjectHideFlags: 0
@@ -1407,6 +1556,8 @@ GameObject:
   - component: {fileID: -7393265525788358270}
   - component: {fileID: 6153850837278375075}
   - component: {fileID: 4774470996534533186}
+  - component: {fileID: 6847585937931495117}
+  - component: {fileID: 4418651884712217398}
   m_Layer: 8
   m_Name: PlatformerHero
   m_TagString: Untagged
@@ -1781,7 +1932,9 @@ MonoBehaviour:
   - {fileID: 8300000, guid: bbc514445b0fd4c469a207fa0999d05d, type: 3}
   - {fileID: 8300000, guid: 2743ed3d43c041448868a3e7cd2eee26, type: 3}
   - {fileID: 8300000, guid: e242da93f028a3949aa50d778188e509, type: 3}
-  m_StompAudioSource: {fileID: 8356982079808916547}
+  m_StompPlayer: {fileID: 3774609239167154790}
+  m_OneUpPlayer: {fileID: 8070853966576344772}
+  m_StompOneUpThreshold: 7
   m_Events:
     Died:
       m_PersistentCalls:
@@ -2056,6 +2209,18 @@ MonoBehaviour:
             m_StringArgument: 
             m_BoolArgument: 0
           m_CallState: 2
+        - m_Target: {fileID: 6847585937931495117}
+          m_TargetAssemblyTypeName: StompScoreMaker, Assembly-CSharp
+          m_MethodName: OnStompedEnemy
+          m_Mode: 0
+          m_Arguments:
+            m_ObjectArgument: {fileID: 0}
+            m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+            m_IntArgument: 0
+            m_FloatArgument: 0
+            m_StringArgument: 
+            m_BoolArgument: 0
+          m_CallState: 2
 --- !u!114 &7059984292627058281
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2317,6 +2482,34 @@ MonoBehaviour:
             m_StringArgument: 
             m_BoolArgument: 0
           m_CallState: 2
+    OneUpThresholdReached:
+      m_PersistentCalls:
+        m_Calls:
+        - m_Target: {fileID: 8070853966576344772}
+          m_TargetAssemblyTypeName: SfxPlayer, Assembly-CSharp
+          m_MethodName: AttemptPlay
+          m_Mode: 1
+          m_Arguments:
+            m_ObjectArgument: {fileID: 0}
+            m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+            m_IntArgument: 0
+            m_FloatArgument: 0
+            m_StringArgument: 
+            m_BoolArgument: 0
+          m_CallState: 2
+        - m_Target: {fileID: 4418651884712217398}
+          m_TargetAssemblyTypeName: CoinOneUpScoreMaker, Assembly-CSharp
+          m_MethodName: OnOneUpThresholdReached
+          m_Mode: 0
+          m_Arguments:
+            m_ObjectArgument: {fileID: 0}
+            m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+            m_IntArgument: 0
+            m_FloatArgument: 0
+            m_StringArgument: 
+            m_BoolArgument: 0
+          m_CallState: 2
+  m_OneUpThreshold: 100
 --- !u!114 &4138965738438539995
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2513,6 +2706,41 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7a9f160aa93756f4e917188853fe1a25, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!114 &6847585937931495117
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6481017039112826972}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e6fda69cf33a1374d986521e545696bd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_ScorePrefabs:
+  - {fileID: 8597650499084858480, guid: b7fb5b10ef02ae845b36c3ea1a10eb60, type: 3}
+  - {fileID: 6490332835193327300, guid: 0a8e1e39f91898c4cbd3605d30ce2deb, type: 3}
+  - {fileID: 7327846424303585962, guid: b15d66551363d724f9e1f73dc6c2d18b, type: 3}
+  - {fileID: 7583448184954404951, guid: b456fbdef9a66b04f924e119da062742, type: 3}
+  - {fileID: 8458507605903873917, guid: 24427cc1a4936b043866423bcc59fe07, type: 3}
+  - {fileID: 6831190046661212075, guid: 313f5887caf01604ca6ce5b5580d321d, type: 3}
+  - {fileID: 8311777601587015753, guid: 035f2c29e25ce764b87117b5f05ee2ae, type: 3}
+  - {fileID: 4644982347422890992, guid: 4bacfaafbc5dd314a86c5b959f004623, type: 3}
+--- !u!114 &4418651884712217398
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6481017039112826972}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d42a9f8abc5abed4cbbd5f6fee3210dc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_OneUpScorePrefab: {fileID: 4644982347422890992, guid: 4bacfaafbc5dd314a86c5b959f004623,
+    type: 3}
 --- !u!1 &6481017039477929740
 GameObject:
   m_ObjectHideFlags: 0
@@ -2931,6 +3159,7 @@ MonoBehaviour:
   - {fileID: 8300000, guid: 8d1d7b7492ffc7e44aa2c3e9841c5d26, type: 3}
   m_Cooldown: 0
   m_DisableOnDeath: 1
+  m_InterruptSelf: 0
 --- !u!1 &7082445533447069918
 GameObject:
   m_ObjectHideFlags: 0
@@ -3025,6 +3254,7 @@ GameObject:
   m_Component:
   - component: {fileID: 6529564461524996678}
   - component: {fileID: 8356982079808916547}
+  - component: {fileID: 3774609239167154790}
   m_Layer: 8
   m_Name: Stomp
   m_TagString: Untagged
@@ -3143,6 +3373,22 @@ AudioSource:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
+--- !u!114 &3774609239167154790
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7146025668604144050}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 04661b355fe809d4db622ebb78b7507b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_Sfx: []
+  m_Cooldown: 0.05
+  m_DisableOnDeath: 1
+  m_InterruptSelf: 0
 --- !u!1 &7243543197332248555
 GameObject:
   m_ObjectHideFlags: 0
@@ -3372,6 +3618,7 @@ MonoBehaviour:
   - {fileID: 8300000, guid: 5cf79518b72490d44b18158009c6cda3, type: 3}
   m_Cooldown: 0
   m_DisableOnDeath: 1
+  m_InterruptSelf: 0
 --- !u!1 &7686022174578149880
 GameObject:
   m_ObjectHideFlags: 0
@@ -3599,8 +3846,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_Sfx:
   - {fileID: 8300000, guid: 6b9d30c600d61614c87958ac8c97ff42, type: 3}
-  m_Cooldown: 0.02
+  m_Cooldown: 0.05
   m_DisableOnDeath: 1
+  m_InterruptSelf: 0
 --- !u!1 &7962778038704468139
 GameObject:
   m_ObjectHideFlags: 0
@@ -3746,6 +3994,7 @@ MonoBehaviour:
   - {fileID: 8300000, guid: 8873dacaec036b44ab6612adc99bf6cb, type: 3}
   m_Cooldown: 0
   m_DisableOnDeath: 1
+  m_InterruptSelf: 0
 --- !u!1 &8528133690737883352
 GameObject:
   m_ObjectHideFlags: 0
@@ -3783,6 +4032,7 @@ Transform:
   - {fileID: 8936102141229117770}
   - {fileID: 2383804933040398273}
   - {fileID: 6529564461524996678}
+  - {fileID: 5476593431433217402}
   m_Father: {fileID: 6481017039112826947}
   m_RootOrder: 4
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}

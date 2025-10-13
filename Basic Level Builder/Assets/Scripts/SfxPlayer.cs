@@ -7,6 +7,7 @@ public class SfxPlayer : MonoBehaviour
   public List<AudioClip> m_Sfx = new();
   public float m_Cooldown = 0;
   public bool m_DisableOnDeath = true;
+  public bool m_InterruptSelf = false;
 
   private AudioSource m_AudioSource;
   private bool m_Dead = false;
@@ -31,19 +32,30 @@ public class SfxPlayer : MonoBehaviour
 
   public void AttemptPlay()
   {
-    if (CoolingDown) return;
-
-    Play();
+    AttemptPlay(null);
   }
 
 
-  private void Play()
+  public void AttemptPlay(AudioClip clip)
+  {
+    if (CoolingDown) return;
+
+    Play(clip);
+  }
+
+
+  private void Play(AudioClip clip)
   {
     if (m_DisableOnDeath && m_Dead) return;
 
-    var clip = SelectRandomClip();
+    if (clip == null)
+    {
+      clip = SelectRandomClip();
+      if (clip == null) return;
+    }
 
-    if (clip == null) return;
+    if (m_InterruptSelf && m_AudioSource.isPlaying)
+      m_AudioSource.Stop();
 
     m_AudioSource.PlayOneShot(clip);
 

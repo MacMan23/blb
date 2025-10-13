@@ -20,11 +20,14 @@ public class Health : MonoBehaviour
   public bool m_Stomper = false;  // TODO: come up with a less hacky solution
   public Rigidbody2D m_StomperRB;
   public List<AudioClip> m_StompClips;
-  public AudioSource m_StompAudioSource;
+  public SfxPlayer m_StompPlayer;
+  public SfxPlayer m_OneUpPlayer;
+  public int m_StompOneUpThreshold = 7;
   public Events m_Events;
 
   float m_StompVelocityThreshold = -0.8f;
   private int m_StompComboCounter = 0;
+  private bool m_Dead = false;
 
 
   private void OnCollisionEnter2D(Collision2D collision)
@@ -43,6 +46,8 @@ public class Health : MonoBehaviour
 
   void OnCollision(Collider2D collider, Vector2 relativeVelocity)
   {
+    if (m_Dead) return;
+
     if (m_KilledByDeadly && collider.CompareTag("Deadly"))
     {
       Die();
@@ -68,7 +73,12 @@ public class Health : MonoBehaviour
       if (-relativeVelocity.y < m_StompVelocityThreshold)
       {
         enemy.GetStomped();
-        m_Events.StompedEnemy.Invoke(new HealthEventData());
+        var eventData = new HealthEventData()
+        {
+          m_StompComboCounter = m_StompComboCounter,
+          m_EnemyPosition = enemy.transform.position,
+        };
+        m_Events.StompedEnemy.Invoke(eventData);
         PlayStompSfx();
 
         ++m_StompComboCounter;
@@ -84,7 +94,10 @@ public class Health : MonoBehaviour
   private void PlayStompSfx()
   {
     var index = Math.Min(m_StompComboCounter, m_StompClips.Count - 1);
-    m_StompAudioSource.PlayOneShot(m_StompClips[index]);
+    m_StompPlayer.AttemptPlay(m_StompClips[index]);
+
+    if (m_StompComboCounter >= m_StompOneUpThreshold)
+      m_OneUpPlayer.AttemptPlay();
   }
 
 
@@ -108,12 +121,15 @@ public class Health : MonoBehaviour
 
   public void Die()
   {
+    m_Dead = true;
     m_Events.Died.Invoke(new HealthEventData());
   }
 
 
   void Return()
   {
+    m_Dead = false;
+
     if (m_IsTheHero)
       GlobalData.DispatchPreHeroReturn();
 
@@ -130,4 +146,6 @@ public class HealthEvent : UnityEvent<HealthEventData> { }
 
 public class HealthEventData
 {
+  public int m_StompComboCounter;
+  public Vector3 m_EnemyPosition;
 }

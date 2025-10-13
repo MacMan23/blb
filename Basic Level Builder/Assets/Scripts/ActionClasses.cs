@@ -297,6 +297,14 @@ public abstract class ActionSet : Action
     return action;
   }
 
+  public ActionVelocity2D Velocity2D(GameObject go, Vector2 end, float duration, Ease ease = null)
+  {
+    var action = new ActionVelocity2D(go, end, duration, ease);
+    Add(action);
+
+    return action;
+  }
+
   public ActionState ProcessActions(float dt, bool blocking)
   {
     for (var i = 0; i < Count; ++i)
@@ -607,6 +615,12 @@ public abstract class ActionColor : Action
   protected virtual void Initialize() { }
   protected virtual void Set(Color value) { }
 }
+
+#region Individual Classes
+// TODO:
+//   We're not supposed to use null coalescing with GameObjects, so I need to
+//   go through all of these and fix them up, because I'm pretty sure all of
+//   them do that (except the one I just added).
 
 public class ActionMove : ActionVector3
 {
@@ -986,6 +1000,26 @@ public class ActionParticleEmissionRate : ActionFloat
     emission.rateOverTimeMultiplier = value;
   }
 }
+
+public class ActionVelocity2D : ActionVector2
+{
+  private Rigidbody2D m_RB;
+
+  public ActionVelocity2D(GameObject go, Vector2 end, float duration, Ease ease = null)
+    : base(go, end, duration, ease)
+  {
+    Name = "Velocity2D";
+    m_RB = go == null ? null : go.GetComponent<Rigidbody2D>();
+  }
+
+  protected override void Initialize() { Start = m_RB.velocity; }
+  protected override void Set(Vector2 value)
+  {
+    m_RB.velocity = value;
+  }
+}
+
+#endregion
 
 public enum ActionState
 {
