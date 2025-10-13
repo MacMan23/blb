@@ -314,7 +314,7 @@ public class FileSystemInternal : MonoBehaviour
 
   /// <summary>
   /// Prepares the thumbnail tile strip data in a format that can be used more rapidly for
-  /// thumbnail generation. Called in Start. Don't call this function, Brendan.
+  /// thumbnail generation. Called in Start. Don't call this function, Brenden.
   /// </summary>
   private void GenerateThumbnailTiles()
   {
