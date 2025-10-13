@@ -307,6 +307,9 @@ public class TileGrid : MonoBehaviour
       }
     }
 
+    // Reset so dialog pop ups don't appear when the user places its first tile
+    m_MostRecentlyCreatedTile = null;
+
     RecomputeBounds();
 
     PrintLoadErrors(failures, successes, startTime);
@@ -342,6 +345,9 @@ public class TileGrid : MonoBehaviour
         ++failures;
       }
     }
+
+    // Reset so dialog pop ups don't appear when the user places its first tile
+    m_MostRecentlyCreatedTile = null;
 
     RecomputeBounds();
 
