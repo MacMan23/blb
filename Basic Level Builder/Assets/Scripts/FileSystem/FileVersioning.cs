@@ -106,10 +106,10 @@ public static class FileVersioning
     Dictionary<Vector2Int, TileGrid.Element> oldGrid = GetGridDictionaryFromFileData(fileInfo, from);
     Dictionary<Vector2Int, TileGrid.Element> newGrid = GetGridDictionaryFromFileData(fileInfo, to);
 
-    return GetDifferencesEx(out differences, oldGrid, newGrid.ToList());
+    return GetDifferencesEx(out differences, oldGrid, newGrid);
   }
 
-  private static bool GetDifferencesEx(out LevelData differences, Dictionary<Vector2Int, TileGrid.Element> oldGrid, List<KeyValuePair<Vector2Int, TileGrid.Element>> newGrid)
+  private static bool GetDifferencesEx(out LevelData differences, Dictionary<Vector2Int, TileGrid.Element> oldGrid, Dictionary<Vector2Int, TileGrid.Element> newGrid)
   {
     differences = new();
 
@@ -311,7 +311,7 @@ public static class FileVersioning
         AddLevelDeltasToGrid(ref nextGrid, fileData.m_ManualSaves[i + 1]);
         AddLevelDeltasToGrid(ref autosGrid, level);
 
-        GetDifferencesEx(out LevelData differences, autosGrid, nextGrid.ToList());
+        GetDifferencesEx(out LevelData differences, autosGrid, nextGrid);
 
         fileData.m_ManualSaves[i + 1].m_AddedTiles = differences.m_AddedTiles;
         fileData.m_ManualSaves[i + 1].m_RemovedTiles = differences.m_RemovedTiles;
@@ -442,16 +442,6 @@ public static class FileVersioning
 
     throw new InvalidOperationException($"{version} not found");
   }
-
-  public static FileInfo SetFileDescriptionEx(string fullFilePath, string desc)
-  {
-    FileSystem.Instance.GetFileInfoFromFullFilePath(fullFilePath, out FileInfo fileInfo);
-
-    fileInfo.m_FileData.m_Description = desc;
-
-    return fileInfo;
-  }
-
 
   public static void GetVersionLevelData(FileData fileData, FileVersion version, out LevelData levelData)
   {

@@ -10,21 +10,21 @@ using System.IO;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class UiFileInfoTab : UiFileTab
+public class UiGeneralInfoTab : UiTab
 {
   [Header("Visual Components")]
   [SerializeField]
-  private TMPro.TextMeshProUGUI m_FileName;
+  private TMPro.TextMeshProUGUI m_FileNameTxt;
   [SerializeField]
-  private TMPro.TextMeshProUGUI m_SaveNumber;
+  private TMPro.TextMeshProUGUI m_SaveNumberTxt;
   [SerializeField]
-  private TMPro.TextMeshProUGUI m_CreationDate;
+  private TMPro.TextMeshProUGUI m_CreationDateTxt;
   [SerializeField]
   private Image m_FileThumbnail;
   [SerializeField]
-  private TMPro.TextMeshProUGUI m_LatestVersion;
+  private TMPro.TextMeshProUGUI m_LatestVersionTxt;
   [SerializeField]
-  private TMPro.TMP_InputField m_Description;
+  private TMPro.TMP_InputField m_DescriptionInputField;
 
   private string m_FullFilePath;
 
@@ -48,18 +48,31 @@ public class UiFileInfoTab : UiFileTab
     }
 
     // Set text from file data
-    m_FileName.text = Path.GetFileNameWithoutExtension(fullFilePath);
-    m_SaveNumber.text = fileInfo.m_FileData.m_ManualSaves.Count + " Manual Saves    " + fileInfo.m_FileData.m_AutoSaves.Count + " Auto Saves";
+    m_FileNameTxt.text = Path.GetFileNameWithoutExtension(fullFilePath);
+    m_SaveNumberTxt.text = fileInfo.m_FileData.m_ManualSaves.Count + " Manual Saves    " + fileInfo.m_FileData.m_AutoSaves.Count + " Auto Saves";
     string timeStamp = File.GetCreationTime(m_FullFilePath).ToString("M/d/yy h:mm:sstt").ToLower();
-    m_CreationDate.text = $"<b>Created on:</b> <color=#C6C6C6>{timeStamp}</color>";
+    m_CreationDateTxt.text = $"<b>Created on:</b> <color=#C6C6C6>{timeStamp}</color>";
 
     // Set the text description for the file
-    m_Description.text = fileInfo.m_FileData.m_Description;
-    m_Description.ForceLabelUpdate();
+    m_DescriptionInputField.text = fileInfo.m_FileData.m_Description;
+    m_DescriptionInputField.ForceLabelUpdate();
 
 
     // Get latest manual save and its thumbnail
-    FileSystemInternal.LevelData levelData = fileInfo.m_FileData.m_ManualSaves[^1];
+    FileSystemInternal.LevelData levelData;
+    // Check if we have any manual saves first
+    if (fileInfo.m_FileData.m_ManualSaves.Count > 0)
+      levelData = fileInfo.m_FileData.m_ManualSaves[^1];
+    else if (fileInfo.m_FileData.m_AutoSaves.Count > 0)
+      levelData = fileInfo.m_FileData.m_AutoSaves[^1];
+    else
+    {
+      Debug.LogWarning($"No saves found in file \"{m_FullFilePath}\"");
+      StatusBar.Print($"Error: Could not load file history. No saves found in file \"{m_FullFilePath}\"");
+      FindObjectOfType<UiFileInfo>().CloseWindow();
+      return;
+    }
+
     byte[] bytes = Convert.FromBase64String(levelData.m_Thumbnail);
     Texture2D tex = new(0, 0); // No real reason for the width/height values in the constructor, they will be overwritten anyways in LoadImage
     tex.LoadImage(bytes);
@@ -74,7 +87,7 @@ public class UiFileInfoTab : UiFileTab
 
     // Set text for the latest manial saves timestamp (to show where/when the thumbnail comes from)
     timeStamp = ((DateTime)levelData.m_TimeStamp).ToString("M/d/yy h:mm:sstt").ToLower();
-    m_LatestVersion.text = $"<b>{levelData.m_Name}</b>\n<color=#C6C6C6>{timeStamp}</color>";
+    m_LatestVersionTxt.text = $"<b>{levelData.m_Name}</b>\n<color=#C6C6C6>{timeStamp}</color>";
   }
 
   public void SetFileDescription(string desc)

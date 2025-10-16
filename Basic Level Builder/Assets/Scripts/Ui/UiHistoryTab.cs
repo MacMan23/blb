@@ -12,7 +12,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using static FileVersioning;
 
-public class UiHistoryTab : UiFileTab
+public class UiHistoryTab : UiTab
 {
   [Header("Prefabs")]
   [SerializeField]
@@ -65,6 +65,7 @@ public class UiHistoryTab : UiFileTab
   {
     m_FullFilePath = fullFilePath;
     LoadHistoryItemList();
+    UpdateVersionInfo();
   }
 
   private void ClearHistoryItemList()
@@ -215,7 +216,7 @@ public class UiHistoryTab : UiFileTab
     if (m_Selection.Count > 1)
     {
       List<FileVersion> versions = new();
-      int lastManaul = -1;
+      int lastManual = -1;
       foreach (var item in m_Selection)
       {
         FileVersion version = item.GetVersion();
@@ -223,8 +224,8 @@ public class UiHistoryTab : UiFileTab
         // Skip auto save if we have selected its manual
         // Because all of a manuals autos are deleted with it, otherwise we are doing a double delete
         if (version.IsManual())
-          lastManaul = version.m_ManualVersion;
-        else if (lastManaul == version.m_ManualVersion)
+          lastManual = version.m_ManualVersion;
+        else if (lastManual == version.m_ManualVersion)
           continue;
 
         versions.Add(version);

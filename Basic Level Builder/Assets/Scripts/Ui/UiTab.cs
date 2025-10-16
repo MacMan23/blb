@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public abstract class UiFileTab : MonoBehaviour
+public abstract class UiTab : MonoBehaviour
 {
   public GameObject m_TabButton;
 

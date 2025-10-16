@@ -24,14 +24,14 @@ public class UiFileInfo : MonoBehaviour
   [SerializeField]
   private Color m_MaximizedColor;
 
-  private List<UiFileTab> m_Tabs = new();
+  private List<UiTab> m_Tabs = new();
 
   private string m_FullFilePath;
 
   void Awake()
   {
     // Adds all the tab bodys to the tab list
-    foreach (var tab in GetComponentsInChildren<UiFileTab>(true))
+    foreach (var tab in GetComponentsInChildren<UiTab>(true))
       m_Tabs.Add(tab);
   }
 
@@ -40,7 +40,6 @@ public class UiFileInfo : MonoBehaviour
     if (m_Tabs.Count > 0)
       OpenTab(m_Tabs[0]);
   }
-
 
   void OnEnable()
   {
@@ -72,12 +71,20 @@ public class UiFileInfo : MonoBehaviour
 
     // Toggle on the black background
     root.GetComponent<Image>().enabled = false;
-    GlobalData.DecrementUiPopup();
+    StartCoroutine(DecrementUiPopup());
 
     Destroy(gameObject);
   }
 
-  public void OpenTab(UiFileTab tabRef)
+  private System.Collections.IEnumerator DecrementUiPopup()
+  {
+    // Wait until the end of the frame, after all rendering and GUI updates
+    yield return new WaitForEndOfFrame();
+
+    GlobalData.DecrementUiPopup();
+  }
+
+  public void OpenTab(UiTab tabRef)
   {
     foreach (var tab in m_Tabs)
     {
@@ -98,5 +105,12 @@ public class UiFileInfo : MonoBehaviour
         tab.m_TabButton.GetComponent<Image>().color = m_MinimizedColor;
       }
     }
+  }
+
+  public void DeleteFile()
+  {
+    File.Delete(m_FullFilePath);
+    FileSystem.Instance.RefreshFileList();
+    CloseWindow();
   }
 }

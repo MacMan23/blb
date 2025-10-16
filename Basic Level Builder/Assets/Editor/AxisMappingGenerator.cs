@@ -23,30 +23,32 @@ public static class AxisMappingGenerator
       SerializedProperty altPosButtonProp = axis.FindPropertyRelative("altPositiveButton");
 
       // look for an existing entry with the same axisName
-      AxisMappingEntry entry = mapping.entries.FirstOrDefault(e => e.axisName == nameProp.stringValue);
+      AxisMappingEntry entry = mapping.m_entries.FirstOrDefault(e => e.m_axisName == nameProp.stringValue);
       if (entry == null)
       {
         entry = new AxisMappingEntry
         {
-          axisName = nameProp.stringValue
+          m_axisName = nameProp.stringValue
         };
-        mapping.entries.Add(entry);
+        mapping.m_entries.Add(entry);
       }
 
       // If the button exists and is not a numpad button (as we only want to print the number button)
-      if (!string.IsNullOrEmpty(posButtonProp.stringValue) && posButtonProp.stringValue[0] != '[')
+      // Also blacklists "return" as "enter" is prefered to print as the return key 
+      if (!string.IsNullOrEmpty(posButtonProp.stringValue) && posButtonProp.stringValue[0] != '[' && !posButtonProp.stringValue.Equals("return"))
       {
         string button = CultureInfo.CurrentCulture.TextInfo.ToTitleCase(posButtonProp.stringValue.ToLower());
-        if (!entry.buttons.Contains(button))
-          entry.buttons.Add(button);
+        if (!entry.m_buttons.Contains(button))
+          entry.m_buttons.Add(button);
       }
 
       // If the button exists and is not a numpad button (as we only want to print the number button)
-      if (!string.IsNullOrEmpty(altPosButtonProp.stringValue) && altPosButtonProp.stringValue[0] != '[')
+      // Also blacklists "return" as "enter" is prefered to print as the return key 
+      if (!string.IsNullOrEmpty(altPosButtonProp.stringValue) && altPosButtonProp.stringValue[0] != '[' && !posButtonProp.stringValue.Equals("return"))
       {
         string button = CultureInfo.CurrentCulture.TextInfo.ToTitleCase(altPosButtonProp.stringValue.ToLower());
-        if (!entry.buttons.Contains(button))
-          entry.buttons.Add(button);
+        if (!entry.m_buttons.Contains(button))
+          entry.m_buttons.Add(button);
       }
     }
 
