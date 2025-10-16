@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Analytics;
 using UnityEngine.Events;
 
 public class KeyCollector : MonoBehaviour
@@ -13,12 +14,19 @@ public class KeyCollector : MonoBehaviour
 
   public Events m_Events;
 
+  public List<AudioClip> m_KeyClips;
+  public List<AudioClip> m_DoorClips;
+  public SfxPlayer m_SfxPlayer;
+  public SfxPlayer m_DoorPopPlayer;
+
   KeysDisplay m_KeyHolder;
 
 
   private void Awake()
   {
     m_KeyHolder = FindObjectOfType<KeysDisplay>();
+
+    GlobalData.DoorSectionOpened += OnDoorSectionOpened;
   }
 
 
@@ -31,6 +39,12 @@ public class KeyCollector : MonoBehaviour
   private void OnTriggerEnter2D(Collider2D collision)
   {
     Collision(collision.gameObject);
+  }
+
+
+  public void OnDoorSectionOpened()
+  {
+    m_DoorPopPlayer.AttemptPlay();
   }
 
 
@@ -70,6 +84,16 @@ public class KeyCollector : MonoBehaviour
     };
 
     m_Events.Collected.Invoke(eventData);
+
+    var index = (int)color;
+    PlaySfx(m_KeyClips, index);
+  }
+
+
+  void PlaySfx(List<AudioClip> list, int index)
+  {
+    var clip = list[index];
+    m_SfxPlayer.AttemptPlay(clip);
   }
 
 
@@ -78,7 +102,14 @@ public class KeyCollector : MonoBehaviour
     var doorColor = door.m_Color;
 
     if (m_KeyHolder.Has(doorColor))
-      door.AttemptOpen();
+      door.AttemptOpen(this);
+  }
+
+
+  public void OpenedDoor(TileColor doorColor)
+  {
+    var index = (int)doorColor;
+    PlaySfx(m_DoorClips, index);
   }
 
 
@@ -91,6 +122,12 @@ public class KeyCollector : MonoBehaviour
   public void OnReturned(HealthEventData eventData)
   {
     enabled = true;
+  }
+
+
+  void OnDestroy()
+  {
+    GlobalData.DoorSectionOpened -= OnDoorSectionOpened;
   }
 }
 

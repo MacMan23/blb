@@ -22,6 +22,7 @@ public class PlatformerHeroGoalSequence : MonoBehaviour
   public ParticleSystem m_CircleParticles;
   public Transform m_ScalePopNode;
   public Transform m_Iris;
+  public SfxPlayer m_SfxPlayer;
 
   Transform m_Transform;
   [HideInInspector]
@@ -45,6 +46,8 @@ public class PlatformerHeroGoalSequence : MonoBehaviour
 
   public void Begin()
   {
+    m_SfxPlayer.AttemptPlay();
+
     var quadInOut = new Ease(Ease.Quad.InOut);
     var spinEase = new Ease(Ease.Power.In, m_SpinExponent);
 

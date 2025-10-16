@@ -1,6 +1,4 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.Events;
 
 public class CoinCollector : MonoBehaviour
@@ -9,9 +7,18 @@ public class CoinCollector : MonoBehaviour
   public class Events
   {
     public CoinCollectorEvent Collected;
+    public CoinCollectorEvent OneUpThresholdReached;
   }
 
   public Events m_Events;
+
+  /// <summary>
+  /// Collect this many coins to earn a 1up!
+  /// </summary>
+  public int m_OneUpThreshold = 100;
+
+  private int m_Total = 0;
+  private int m_LastModulo = 0;
 
 
   private void OnCollisionEnter2D(Collision2D collision)
@@ -46,8 +53,9 @@ public class CoinCollector : MonoBehaviour
       return;
 
     var value = coin.m_Value;
+    m_Total += value;
 
-    GlobalData.DispatchCoinCollected(value);
+    GlobalData.DispatchCoinCollected(m_Total);
 
     var eventData = new CoinCollectorEventData()
     {
@@ -56,6 +64,13 @@ public class CoinCollector : MonoBehaviour
     };
 
     m_Events.Collected.Invoke(eventData);
+
+    var currentModulo = m_Total % m_OneUpThreshold;
+
+    if (value > 0 && currentModulo <= m_LastModulo)
+      m_Events.OneUpThresholdReached.Invoke(eventData);
+
+    m_LastModulo = currentModulo;
   }
 
 
@@ -79,4 +94,5 @@ public class CoinCollectorEventData
 {
   public Coin m_Coin;
   public int m_Value;
+  public int m_Total;
 }

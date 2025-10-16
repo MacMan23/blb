@@ -50,18 +50,20 @@ public class SwitchLogic : MonoBehaviour
   }
 
 
-  public void AttemptActivate()
+  public void AttemptActivate(SwitchActivator activator)
   {
     if (m_Activated)
       return;
 
-    Activate();
+    Activate(activator);
   }
 
 
-  void Activate()
+  void Activate(SwitchActivator activator)
   {
     m_Activated = true;
+
+    activator.ActivatedSwitch(m_ColorCode.m_TileColor);
 
     foreach (var door in m_Doors)
     {

@@ -99,6 +99,7 @@ public static class GlobalData
   public static event ParameterlessEvent FpsCapSwitched;
   public static event ParameterlessEvent EditingEnabled;
   public static event ParameterlessEvent EditingDisabled;
+  public static event ParameterlessEvent DoorSectionOpened;
 
   public static event PlayModeEvent PreToggleEffects;
   public static event PlayModeEvent PostToggleEffects;
@@ -322,6 +323,11 @@ public static class GlobalData
   public static void DispatchSwitchActivated(TileColor switchColor)
   {
     SwitchActivated?.Invoke(switchColor);
+  }
+
+  public static void DispatchDoorSectionOpened()
+  {
+    DoorSectionOpened?.Invoke();
   }
 
   /************************************************************************************/

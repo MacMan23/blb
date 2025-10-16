@@ -108,15 +108,18 @@ public class DoorLogic : MonoBehaviour
   }
 
 
-  public void AttemptOpen()
+  public void AttemptOpen(KeyCollector opener)
   {
-    if (!m_BeingOpenedByPropagation && !m_BeingOpenedByKey)
-      Open();
+    if (m_BeingOpenedByKey || m_BeingOpenedByPropagation) return;
+
+    Open(opener);
   }
 
 
-  void Open()
+  void Open(KeyCollector opener)
   {
+    opener.OpenedDoor(m_ColorCode.m_TileColor);
+
     SetBeingOpenedByKey();
     DestroyLinkedDoors();
   }
@@ -185,6 +188,8 @@ public class DoorLogic : MonoBehaviour
       m_BeingOpenedByKey = true;
       DeactivateBackground();
     }
+
+    GlobalData.DispatchDoorSectionOpened();
 
     DeactivateOutline();
   }

@@ -12,6 +12,9 @@ public class SwitchActivator : MonoBehaviour
 
   public Events m_Events;
 
+  public List<AudioClip> m_DoorClips;
+  public SfxPlayer m_SfxPlayer;
+
 
   private void OnCollisionEnter2D(Collision2D collision)
   {
@@ -35,7 +38,21 @@ public class SwitchActivator : MonoBehaviour
     if (@switch == null)
       return;
 
-    @switch.AttemptActivate();
+    @switch.AttemptActivate(this);
+  }
+
+
+  public void ActivatedSwitch(TileColor switchColor)
+  {
+    var index = (int)switchColor;
+    PlaySfx(index);
+  }
+  
+
+  void PlaySfx(int index)
+  {
+    var clip = m_DoorClips[index];
+    m_SfxPlayer.AttemptPlay(clip);
   }
 
 

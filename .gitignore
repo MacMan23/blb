@@ -28,6 +28,10 @@
 
 # Visual Studio cache directory
 .vs/
+# Same but for VS Code
+.vscode/
+# I guess this should be in here too but idk for sure
+.vsconfig/
 
 # Gradle cache directory
 .gradle/
@@ -38,6 +42,7 @@ ExportedObj/
 *.csproj
 *.unityproj
 *.sln
+*.slnx
 *.suo
 *.tmp
 *.user
@@ -74,5 +79,7 @@ crashlytics-build.properties
 [Aa]ssets/[Ss]treamingAssets/aa.meta
 [Aa]ssets/[Ss]treamingAssets/aa/*
 
-# End of https://www.gitignore.io/api/unity
-Basic Level Builder/.vsconfig
+# FamiTracker backups
+*.ftm.bak
+*.0cc.bak
+
