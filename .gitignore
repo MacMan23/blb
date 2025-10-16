@@ -31,7 +31,7 @@
 # Same but for VS Code
 .vscode/
 # I guess this should be in here too but idk for sure
-.vsconfig/
+*.vsconfig
 
 # Gradle cache directory
 .gradle/
