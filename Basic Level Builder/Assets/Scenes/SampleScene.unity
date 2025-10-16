@@ -1790,6 +1790,9 @@ MonoBehaviour:
   m_DefaultDirectoryName: Default Project
   m_TileGrid: {fileID: 2031376952}
   m_FileDirUtilities: {fileID: 128438548}
+  m_ThumbnailSize: {x: 100, y: 100}
+  m_ThumbnailTileAtlas: {fileID: 21300000, guid: 7e860478d976dbd44b12c1c72457b9c4,
+    type: 3}
   m_OverrideDialogAdder: {fileID: 128438542}
   m_SaveAsDialogAdder: {fileID: 128438543}
   m_ExportAsDialogAdder: {fileID: 128438546}
