@@ -11,7 +11,6 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using UnityEngine;
-using UnityEngine.Rendering;
 
 public class FileDirUtilities : MonoBehaviour
 {

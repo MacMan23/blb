@@ -26,6 +26,8 @@ public class UiHistoryTab : UiTab
   [SerializeField]
   private TMPro.TextMeshProUGUI m_VersionInfoText;
   [SerializeField]
+  private TMPro.TextMeshProUGUI m_VersionDeltasText;
+  [SerializeField]
   private Image m_VersionInfoThumbnail;
 
   [Header("Buttons")]
@@ -466,6 +468,7 @@ public class UiHistoryTab : UiTab
     if (m_Selection.Count == 0)
     {
       m_VersionInfoText.text = "<b>No version selected</b>\r\n";
+      m_VersionDeltasText.text = "";
 
       // Reenable buttons if they were gone before
       m_ExportButton.SetActive(false);
@@ -477,6 +480,7 @@ public class UiHistoryTab : UiTab
     {
       m_VersionInfoText.text = "<b>" + m_Selection[0].GetVersionName() + "</b>\r\n";
       m_VersionInfoText.text += "<color=#C6C6C6>" + m_Selection[0].GetVersionTimeStamp() + "</color>";
+      m_VersionDeltasText.text = m_Selection[0].GetDeltaDiffrences();
 
       m_VersionInfoThumbnail.sprite = m_Selection[0].GetThumbnail();
 
@@ -490,6 +494,7 @@ public class UiHistoryTab : UiTab
     {
       m_VersionInfoText.text = "<b>Multiple versions selected</b>\r\n";
       m_VersionInfoText.text += "<color=#C6C6C6>" + m_Selection[0].GetVersionName();
+      m_VersionDeltasText.text = "";
 
       m_VersionInfoThumbnail.sprite = m_Selection[^1].GetThumbnail();
 
