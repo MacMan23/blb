@@ -663,7 +663,9 @@ public class FileSystemInternal : MonoBehaviour
     // If we will be copying the mounted file over to a diffrent file
     bool copyFile = false;
 
-    bool hasDifferences = GetDifferences(out LevelData levelData, m_MountedFileInfo, m_TileGrid);
+    bool cameraDiff = m_PendingCameraPos != GetLastManualSaveData(m_MountedFileInfo.m_FileData).m_CameraPos;
+
+    bool hasDifferences = GetDifferences(out LevelData levelData, m_MountedFileInfo, m_TileGrid) || cameraDiff;
 
     levelData.m_Thumbnail = m_PendingThumbnail;
     levelData.m_CameraPos = m_PendingCameraPos;

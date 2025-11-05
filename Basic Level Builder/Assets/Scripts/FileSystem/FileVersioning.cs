@@ -476,7 +476,7 @@ public static class FileVersioning
     return lastVersion;
   }
 
-  // Finds the newest autosave from a manual save version
+  // Finds the newest manual save version
   // Returns 0 if no versions were found
   public static int GetLastManualSaveVersion(FileData fileData)
   {
@@ -487,5 +487,24 @@ public static class FileVersioning
         lastVersion = data.m_Version.m_ManualVersion;
     }
     return lastVersion;
+  }
+
+  // Finds the newest manual save data
+  // Returns null if no versions were found
+  public static LevelData GetLastManualSaveData(FileData fileData)
+  {
+    if (fileData.m_ManualSaves.Count == 0)
+      return null;
+    
+    int lastVersion = 0;
+    int index = -1;
+    foreach (var data in fileData.m_ManualSaves)
+    {
+      ++index;
+      if (data.m_Version.m_ManualVersion > lastVersion)
+        lastVersion = data.m_Version.m_ManualVersion;
+    }
+
+    return fileData.m_ManualSaves[index];
   }
 }
