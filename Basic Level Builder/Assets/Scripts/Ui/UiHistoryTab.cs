@@ -65,6 +65,8 @@ public class UiHistoryTab : UiTab
   {
     m_FullFilePath = fullFilePath;
     LoadHistoryItemList();
+    // Select the first item in the list
+    OnHistoryItemSelected(GetAllHistoryItems()[0]);
     UpdateVersionInfo();
   }
 

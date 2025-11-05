@@ -20,7 +20,7 @@ using static FileVersioning;
 public class FileSystemInternal : MonoBehaviour
 {
   readonly static public string s_DateTimeFormat = "h-mm-ss.ff tt, ddd d MMM yyyy";
-  readonly static public int s_MaxAutoSaveCount = 20;
+  readonly static public int s_MaxAutoSaveCount = 150;
   readonly static public int s_MaxManualSaveCount = 100;
   readonly static bool s_ShouldCompress = false;
   static string s_EditorVersion;
@@ -60,6 +60,7 @@ public class FileSystemInternal : MonoBehaviour
   protected List<FileVersion> m_PendingExportVersions = null;
 
   private string m_PendingThumbnail = "";
+  private Vector2Int m_PendingCameraPos;
 
   FileInfo m_MountedFileInfo;
 
@@ -139,12 +140,12 @@ public class FileSystemInternal : MonoBehaviour
     public FileVersion m_Version;
     public string m_Name;
     public uint m_Id;
+    public Vector2Int m_CameraPos;
     public string m_Thumbnail;
     public JsonDateTime m_TimeStamp;
     public List<TileGrid.Element> m_AddedTiles;
     public List<Vector2Int> m_RemovedTiles;
   }
-  #endregion
 
   public class ThumbnailTile
   {
@@ -176,6 +177,7 @@ public class FileSystemInternal : MonoBehaviour
       }
     }
   }
+  #endregion
 
   // Start is called before the first frame update
   void Start()
@@ -520,9 +522,7 @@ public class FileSystemInternal : MonoBehaviour
         {
           // If this is an auto save and if we did saved recently (by checking if any operations were performed after the last save)
           if (autosave && OperationSystem.s_OperationCounterPublic == 0)
-          {
             return;
-          }
 
           destFilePath = m_MountedFileInfo.m_SaveFilePath;
 
@@ -567,6 +567,9 @@ public class FileSystemInternal : MonoBehaviour
 
     // Copy the map data into a buffer to use for the saving thread.
     m_TileGrid.CopyGridBuffer();
+
+    // Store camera position to the nearest tile
+    m_PendingCameraPos = new Vector2Int((int)Camera.main.transform.position.x, (int)Camera.main.transform.position.y);
 
     // Gernerate the version thumbnail to be used in the thread
     // EncodeToPNG can only be used on main thread
@@ -664,6 +667,7 @@ public class FileSystemInternal : MonoBehaviour
     bool hasDifferences = GetDifferences(out LevelData levelData, m_MountedFileInfo, m_TileGrid);
 
     levelData.m_Thumbnail = m_PendingThumbnail;
+    levelData.m_CameraPos = m_PendingCameraPos;
 
     // If we are writting to our own file yet we have no changes, skip the save
     // Or we are writting to a temp file with no changes, ignore write
@@ -689,6 +693,7 @@ public class FileSystemInternal : MonoBehaviour
     {
       // first of all, if m_MaxAutosaveCount <= 0, then no autosaving
       // should occur at all
+      // TODO: do we still want to disable autsaves?
       if (s_MaxAutoSaveCount <= 0)
         return;
 
@@ -703,6 +708,7 @@ public class FileSystemInternal : MonoBehaviour
     {
       // now, if the manual count is at its limit, then we should
       // get rid of the oldest save
+      // TODO: Add warning pop up if first time.
       if (m_MountedFileInfo.m_FileData.m_ManualSaves.Count >= s_MaxManualSaveCount)
       {
         m_MountedFileInfo.m_FileData.m_ManualSaves.RemoveAt(0);
@@ -988,13 +994,13 @@ public class FileSystemInternal : MonoBehaviour
 
     try
     {
-      if (!FileDataExists(m_MountedFileInfo.m_FileData))
-        CreateFileInfo(out m_MountedFileInfo);
-
-      MountFile(fullFilePath, m_MountedFileInfo);
       LoadFromJson(File.ReadAllBytes(fullFilePath), version);
+      MountFile(fullFilePath, m_MountedFileInfo);
 
       m_loadedVersion = version ?? new(GetLastManualSaveVersion(m_MountedFileInfo.m_FileData), 0);
+
+      GetVersionLevelData(m_MountedFileInfo.m_FileData, m_loadedVersion, out LevelData level);
+      Camera.main.transform.position = new Vector3(level.m_CameraPos.x, level.m_CameraPos.y, Camera.main.transform.position.z);
     }
     catch (Exception e)
     {
@@ -1014,6 +1020,9 @@ public class FileSystemInternal : MonoBehaviour
     try
     {
       LoadFromJson(level.bytes);
+
+      GetVersionLevelData(m_MountedFileInfo.m_FileData, new(GetLastManualSaveVersion(m_MountedFileInfo.m_FileData), 0), out LevelData levelData);
+      Camera.main.transform.position = new Vector3(levelData.m_CameraPos.x, levelData.m_CameraPos.y, Camera.main.transform.position.z);
     }
     catch (Exception e)
     {

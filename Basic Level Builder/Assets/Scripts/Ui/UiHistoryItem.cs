@@ -44,7 +44,7 @@ public class UiHistoryItem : MonoBehaviour
   private bool m_IsExpanded = true;
   private float m_LastPressedTime = float.MinValue;
 
-  private static readonly float s_DoublePressTime = 0.3f;
+  private static readonly float s_DoublePressTime = 0.35f;
 
 
   [Serializable]
