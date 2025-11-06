@@ -40,6 +40,9 @@ public class UiHistoryTab : UiTab
   [SerializeField]
   private GameObject m_DeleteButton;
 
+  [SerializeField]
+  private ModalDialogAdder m_CodaAdder;
+
 
   private List<UiHistoryItem> m_Selection = new();
 
@@ -206,10 +209,30 @@ public class UiHistoryTab : UiTab
       FileSystem.Instance.ExportMultipleVersions(m_Selection[0].GetFilePath(), versions);
   }
 
+  public void DeleteSelectedVersionsCoda()
+  {
+    string prompt = "Are you sure you want to delete this version?";
+
+    if (m_Selection.Count > 1)
+      prompt = "Are you sure you want to delete these selected versions?";
+
+    m_CodaAdder.RequestDialogsAtCenterWithStrings(prompt);
+    UiConfirmDestructiveActionModalDialog.OnConfirmDestructiveAction += DeleteSelectedVersions;
+    UiConfirmDestructiveActionModalDialog.OnDenyDestructiveAction += CancleDelete;
+  }
+
+  public void CancleDelete()
+  {
+    UiConfirmDestructiveActionModalDialog.OnConfirmDestructiveAction -= DeleteSelectedVersions;
+    UiConfirmDestructiveActionModalDialog.OnDenyDestructiveAction -= CancleDelete;
+  }
+
   // TODO: If deleting last manual save ask if want to delete whole file.
   // Or remove delete button if there is only one version left
   public void DeleteSelectedVersions()
   {
+    CancleDelete();
+
     // This shouldn't happen as the button wouldn't be visable if no version are selected
     if (m_Selection.Count <= 0)
     {

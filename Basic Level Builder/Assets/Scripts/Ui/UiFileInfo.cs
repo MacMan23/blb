@@ -46,11 +46,13 @@ public class UiFileInfo : MonoBehaviour
   void OnEnable()
   {
     UiHistoryItem.OnCloseInfoWindow += CloseWindow;
+    
   }
 
   void OnDisable()
   {
     UiHistoryItem.OnCloseInfoWindow -= CloseWindow;
+    UiConfirmDestructiveActionModalDialog.OnConfirmDestructiveAction -= DeleteFile;
   }
 
   public void InitLoad(string fullFilePath)
@@ -111,11 +113,20 @@ public class UiFileInfo : MonoBehaviour
 
   public void DeleteFileCoda()
   {
-    m_CodaAdder.RequestDialogsAtCenter();
+    m_CodaAdder.RequestDialogsAtCenterWithStrings("Are you sure you want to delete this file?");
+    UiConfirmDestructiveActionModalDialog.OnConfirmDestructiveAction += DeleteFile;
+    UiConfirmDestructiveActionModalDialog.OnDenyDestructiveAction += CancleDelete;
+  }
+
+  public void CancleDelete()
+  {
+    UiConfirmDestructiveActionModalDialog.OnConfirmDestructiveAction -= DeleteFile;
+    UiConfirmDestructiveActionModalDialog.OnDenyDestructiveAction -= CancleDelete;
   }
 
   public void DeleteFile()
   {
+    CancleDelete();
     File.Delete(m_FullFilePath);
     FileSystem.Instance.RefreshFileList();
     CloseWindow();

@@ -8,6 +8,14 @@ public class UiConfirmDestructiveActionModalDialog : ModalDialog
   public delegate void DenyDestructiveAction();
   public static event DenyDestructiveAction OnDenyDestructiveAction;
 
+  public override void StringsSetup(string[] strings = null)
+  {
+    foreach (string s in strings)
+    {
+      m_PromptTxt.text = s;
+    }
+  }
+
   public override void Open()
   {
     var anchoredX = 0;
