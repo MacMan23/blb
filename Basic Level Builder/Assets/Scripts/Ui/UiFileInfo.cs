@@ -23,6 +23,8 @@ public class UiFileInfo : MonoBehaviour
   private Color m_MinimizedColor;
   [SerializeField]
   private Color m_MaximizedColor;
+  [SerializeField]
+  private ModalDialogAdder m_CodaAdder;
 
   private List<UiTab> m_Tabs = new();
 
@@ -105,6 +107,11 @@ public class UiFileInfo : MonoBehaviour
         tab.m_TabButton.GetComponent<Image>().color = m_MinimizedColor;
       }
     }
+  }
+
+  public void DeleteFileCoda()
+  {
+    m_CodaAdder.RequestDialogsAtCenter();
   }
 
   public void DeleteFile()

@@ -1,0 +1,41 @@
+﻿using UnityEngine;
+
+public class UiConfirmDestructiveActionModalDialog : ModalDialog
+{
+  public TMPro.TextMeshProUGUI m_PromptTxt;
+  public delegate void ConfirmDestructiveAction();
+  public static event ConfirmDestructiveAction OnConfirmDestructiveAction;
+  public delegate void DenyDestructiveAction();
+  public static event DenyDestructiveAction OnDenyDestructiveAction;
+
+  public override void Open()
+  {
+    var anchoredX = 0;
+    var anchoredY = 0;
+    var anchoredPosition = new Vector2(anchoredX, anchoredY);
+    m_RectTransform.anchoredPosition = anchoredPosition;
+
+    base.Open();
+  }
+
+
+  public override void Close()
+  {
+    base.Close();
+    Destroy(gameObject);
+  }
+
+
+  public void Confirm()
+  {
+    OnConfirmDestructiveAction?.Invoke();
+    Close();
+  }
+
+
+  public void Cancel()
+  {
+    OnDenyDestructiveAction?.Invoke();
+    Close();
+  }
+}
