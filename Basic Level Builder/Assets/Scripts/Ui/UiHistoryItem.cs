@@ -60,6 +60,7 @@ public class UiHistoryItem : MonoBehaviour
   private class ManualSaveInfo
   {
     public TMPro.TMP_InputField m_VersionInputName;
+    public TMPro.TextMeshProUGUI m_VersionName;
     public RectTransform m_Arrow;
   }
 
@@ -330,5 +331,17 @@ public class UiHistoryItem : MonoBehaviour
   public int CompareTo(UiHistoryItem other)
   {
     return GetVersion().CompareTo(other.GetVersion());
+  }
+
+  public void SetNameToEllipsis()
+  {
+    m_ManualSaveInfo.m_VersionInputName.textComponent.overflowMode = TMPro.TextOverflowModes.Ellipsis;
+    m_ManualSaveInfo.m_VersionName.overflowMode = TMPro.TextOverflowModes.Ellipsis;
+  }
+
+  public void SetNameToMask()
+  {
+    m_ManualSaveInfo.m_VersionInputName.textComponent.overflowMode = TMPro.TextOverflowModes.Masking;
+    m_ManualSaveInfo.m_VersionName.overflowMode = TMPro.TextOverflowModes.Masking;
   }
 }
