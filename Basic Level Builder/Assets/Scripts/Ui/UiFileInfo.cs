@@ -52,7 +52,6 @@ public class UiFileInfo : MonoBehaviour
   void OnDisable()
   {
     UiHistoryItem.OnCloseInfoWindow -= CloseWindow;
-    UiConfirmDestructiveActionModalDialog.OnConfirmDestructiveAction -= DeleteFile;
   }
 
   public void InitLoad(string fullFilePath)
