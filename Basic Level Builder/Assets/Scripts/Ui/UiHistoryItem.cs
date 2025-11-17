@@ -7,6 +7,7 @@ Copyright 2018-2025, DigiPen Institute of Technology
 
 using System;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using static FileVersioning;
 
@@ -64,6 +65,11 @@ public class UiHistoryItem : MonoBehaviour
     public RectTransform m_Arrow;
   }
 
+  private string GenerateManualSaveName()
+  {
+    return s_ManualSaveName + m_LevelData.m_Version.m_ManualVersion + " ID: " + m_LevelData.m_Id;
+  }
+
   public void Init(FileSystemInternal.LevelData levelData, string fullFilePath)
   {
     m_LevelData = levelData;
@@ -72,7 +78,7 @@ public class UiHistoryItem : MonoBehaviour
     if (string.IsNullOrEmpty(levelData.m_Name))
     {
       if (IsManualSave())
-        m_ManualSaveInfo.m_VersionInputName.text = s_ManualSaveName + levelData.m_Version.m_ManualVersion + " ID: " + levelData.m_Id;
+        m_ManualSaveInfo.m_VersionInputName.text = GenerateManualSaveName();
       else
         m_AutoSaveInfo.m_VersionName.text = "<i>" + s_AutoSaveName + levelData.m_Version.m_AutoVersion + " ID: " + levelData.m_Id;
     }
@@ -101,16 +107,32 @@ public class UiHistoryItem : MonoBehaviour
         );
 
     m_ThumbnailImage.sprite = sprite;
+
+    // Allow mouse pass though when clicking on the version name
+    if (IsManualSave())
+      m_ManualSaveInfo.m_VersionInputName.GetComponentInChildren<TMPro.TMP_SelectionCaret>(true).raycastTarget = false;
   }
 
   public void EditName()
   {
+    m_ManualSaveInfo.m_VersionInputName.GetComponentInChildren<TMPro.TMP_SelectionCaret>(true).raycastTarget = true;
     m_ManualSaveInfo.m_VersionInputName.ActivateInputField();
   }
 
   public void SetName()
   {
     FileSystem.Instance.SetVersionName(m_FullFilePath, m_LevelData.m_Version, m_ManualSaveInfo.m_VersionInputName.text);
+
+    // If we deleted the version name, reset it back to the generated name
+    if (string.IsNullOrEmpty(m_ManualSaveInfo.m_VersionInputName.text))
+      m_ManualSaveInfo.m_VersionInputName.text = GenerateManualSaveName();
+
+    // Deletect all ui so that the input field will be deselected and update its text
+    var eventSystem = EventSystem.current;
+    if (!eventSystem.alreadySelecting) eventSystem.SetSelectedGameObject(null);
+
+    // Call onselected to get the history tab to update the version preview ui
+    OnSelected.Invoke(this);
   }
 
   public bool IsManualSave()
@@ -135,16 +157,9 @@ public class UiHistoryItem : MonoBehaviour
 
   public string GetVersionName()
   {
-    string name = m_LevelData.m_Name;
-    if (string.IsNullOrEmpty(name))
-    {
-      if (IsManualSave())
-        name = s_ManualSaveName + m_LevelData.m_Version.m_ManualVersion;
-      else
-        name = "Br : " + m_LevelData.m_Version.m_ManualVersion + " " + s_AutoSaveName + m_LevelData.m_Version.m_AutoVersion;
-    }
-
-    return name;
+    return IsManualSave()
+        ? m_ManualSaveInfo.m_VersionInputName.text
+        : m_AutoSaveInfo.m_VersionName.text;
   }
 
   public Sprite GetThumbnail()
@@ -333,13 +348,19 @@ public class UiHistoryItem : MonoBehaviour
     return GetVersion().CompareTo(other.GetVersion());
   }
 
-  public void SetNameToEllipsis()
+  public void OnInputFieldDeselect()
   {
+    // Move text position back to the left
+    m_ManualSaveInfo.m_VersionInputName.textComponent.rectTransform.localPosition = Vector3.zero;
+    m_ManualSaveInfo.m_VersionInputName.caretPosition = 0;
+    // Re-disable mouse event blocking
+    m_ManualSaveInfo.m_VersionInputName.GetComponentInChildren<TMPro.TMP_SelectionCaret>(true).raycastTarget = false;
+
     m_ManualSaveInfo.m_VersionInputName.textComponent.overflowMode = TMPro.TextOverflowModes.Ellipsis;
     m_ManualSaveInfo.m_VersionName.overflowMode = TMPro.TextOverflowModes.Ellipsis;
   }
 
-  public void SetNameToMask()
+  public void OnInputFieldSelect()
   {
     m_ManualSaveInfo.m_VersionInputName.textComponent.overflowMode = TMPro.TextOverflowModes.Masking;
     m_ManualSaveInfo.m_VersionName.overflowMode = TMPro.TextOverflowModes.Masking;
