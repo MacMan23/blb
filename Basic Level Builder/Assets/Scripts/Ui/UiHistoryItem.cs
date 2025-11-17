@@ -344,4 +344,9 @@ public class UiHistoryItem : MonoBehaviour
     m_ManualSaveInfo.m_VersionInputName.textComponent.overflowMode = TMPro.TextOverflowModes.Masking;
     m_ManualSaveInfo.m_VersionName.overflowMode = TMPro.TextOverflowModes.Masking;
   }
+
+  public void UpdateInputFieldText(string text)
+  {
+    m_ManualSaveInfo.m_VersionName.text = text + ".";
+  }
 }

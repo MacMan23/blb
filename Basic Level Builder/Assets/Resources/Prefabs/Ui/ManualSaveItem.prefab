@@ -391,7 +391,7 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 0}
   m_TextViewport: {fileID: 2824984352550016610}
   m_TextComponent: {fileID: 2613321315953694420}
-  m_Placeholder: {fileID: 2064976944296693235}
+  m_Placeholder: {fileID: 0}
   m_VerticalScrollbar: {fileID: 0}
   m_VerticalScrollbarEventHandler: {fileID: 0}
   m_LayoutGroup: {fileID: 0}
@@ -464,9 +464,9 @@ MonoBehaviour:
   m_OnValueChanged:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 1231224728125522267}
-        m_TargetAssemblyTypeName: TMPro.TMP_Text, Unity.TextMeshPro
-        m_MethodName: set_text
+      - m_Target: {fileID: 1787404898439501975}
+        m_TargetAssemblyTypeName: UiHistoryItem, Assembly-CSharp
+        m_MethodName: UpdateInputFieldText
         m_Mode: 0
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -959,7 +959,7 @@ MonoBehaviour:
   m_charWidthMaxAdj: 0
   m_enableWordWrapping: 0
   m_wordWrappingRatios: 0.4
-  m_overflowMode: 2
+  m_overflowMode: 1
   m_linkedTextComponent: {fileID: 0}
   parentLinkedComponent: {fileID: 0}
   m_enableKerning: 1
@@ -1296,12 +1296,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Padding:
-    m_Left: 0
+    m_Left: 2
     m_Right: 0
     m_Top: 0
     m_Bottom: 0
   m_ChildAlignment: 3
-  m_Spacing: 0
+  m_Spacing: -6
   m_ChildForceExpandWidth: 0
   m_ChildForceExpandHeight: 1
   m_ChildControlWidth: 1
@@ -1782,11 +1782,11 @@ GameObject:
   m_Component:
   - component: {fileID: 43681957098594905}
   - component: {fileID: 6310916903646479168}
-  - component: {fileID: 2064976944296693235}
   - component: {fileID: 8075506596820557687}
   - component: {fileID: 6429908643262624419}
   - component: {fileID: 1787404898439501975}
   - component: {fileID: 4674556762760998351}
+  - component: {fileID: 3074096527037307292}
   m_Layer: 5
   m_Name: ManualSaveItem
   m_TagString: Untagged
@@ -1824,33 +1824,6 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7692958551733649531}
   m_CullTransparentMesh: 1
---- !u!114 &2064976944296693235
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7692958551733649531}
-  m_Enabled: 0
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1344c3c82d62a2a41a3576d8abb8e3ea, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_Material: {fileID: 0}
-  m_Color: {r: 0.29411766, g: 0.29411766, b: 0.29411766, a: 1}
-  m_RaycastTarget: 1
-  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
-  m_Maskable: 1
-  m_OnCullStateChanged:
-    m_PersistentCalls:
-      m_Calls: []
-  m_Texture: {fileID: 0}
-  m_UVRect:
-    serializedVersion: 2
-    x: 0
-    y: 0
-    width: 1
-    height: 1
 --- !u!114 &8075506596820557687
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1911,7 +1884,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_ThumbnailImage: {fileID: 7308162937835109380}
   m_VersionData: {fileID: 86933384302364015}
-  m_SelectBG: {fileID: 2064976944296693235}
+  m_SelectBG: {fileID: 3074096527037307292}
   m_AutoSaveInfo:
     m_VersionName: {fileID: 0}
     m_BranchCap: {fileID: 0}
@@ -1961,7 +1934,7 @@ MonoBehaviour:
     m_SelectedTrigger: Selected
     m_DisabledTrigger: Disabled
   m_Interactable: 1
-  m_TargetGraphic: {fileID: 2064976944296693235}
+  m_TargetGraphic: {fileID: 3074096527037307292}
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
@@ -1977,6 +1950,33 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
+--- !u!114 &3074096527037307292
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7692958551733649531}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1344c3c82d62a2a41a3576d8abb8e3ea, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_Material: {fileID: 0}
+  m_Color: {r: 0.29411766, g: 0.29411766, b: 0.29411766, a: 1}
+  m_RaycastTarget: 1
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_Texture: {fileID: 0}
+  m_UVRect:
+    serializedVersion: 2
+    x: 0
+    y: 0
+    width: 1
+    height: 1
 --- !u!1 &8191357022961727556
 GameObject:
   m_ObjectHideFlags: 0
