@@ -93,6 +93,20 @@ public static class FileVersioning
     public int m_AutoVersion;
   }
 
+  public static bool IsCameraDifferent(FileData fileData, FileVersion version)
+  {
+    // If this is the first manual save the camera has to be "different"
+    if (version.m_ManualVersion == 1 && version.m_AutoVersion == 0)
+      return true;
+    
+    GetVersionLevelData(fileData, version, out LevelData targetData);
+
+    int v = version.m_ManualVersion - (version.IsManual() ? 1 : 0);
+    GetVersionLevelData(fileData, new FileVersion(v, 0), out LevelData previousData);
+
+    return targetData.m_CameraPos != previousData.m_CameraPos;
+  }
+
   // Make sure m_TileGrid.CopyGridBuffer is called before hand
   public static bool GetDifferences(out LevelData differences, FileInfo fileInfo, TileGrid tileGrid, FileVersion? version = null)
   {

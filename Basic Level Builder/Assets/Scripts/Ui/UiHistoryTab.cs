@@ -416,6 +416,12 @@ public class UiHistoryTab : UiTab
     return items;
   }
 
+  private bool IsCameraDifferent(FileVersion version)
+  {
+    FileSystem.Instance.GetFileInfoFromFullFilePath(m_FullFilePath, out FileSystemInternal.FileInfo fileInfo);
+    return FileVersioning.IsCameraDifferent(fileInfo.m_FileData, version);
+  }
+
   private void ClearSelection()
   {
     foreach (var item in GetAllHistoryItems())
@@ -495,7 +501,7 @@ public class UiHistoryTab : UiTab
     item.SetColorAndAutosAsUnselected(manualSelected);
   }
 
-  private string GetDeltaDifferencesString(string addedTiles, string removedTiles, bool IsCameraUpdated = true)
+  private string GetDeltaDifferencesString(string addedTiles, string removedTiles, bool IsCameraUpdated)
   {
     string diff;
 
@@ -515,7 +521,7 @@ public class UiHistoryTab : UiTab
     if (m_Selection.Count == 0)
     {
       m_VersionInfoText.text = "<b>No version selected</b>\r\n";
-      m_VersionDeltasText.text = GetDeltaDifferencesString("--", "--");
+      m_VersionDeltasText.text = GetDeltaDifferencesString("--", "--", false);
 
       m_VersionInfoThumbnail.sprite = m_MissingThumbnail;
 
@@ -529,7 +535,11 @@ public class UiHistoryTab : UiTab
     {
       m_VersionInfoText.text = "<b>" + m_Selection[0].GetVersionName() + "</b>\r\n";
       m_VersionInfoText.text += "<color=#C6C6C6>" + m_Selection[0].GetVersionTimeStamp() + "</color>";
-      m_VersionDeltasText.text = GetDeltaDifferencesString(m_Selection[0].GetAddedTilesCount().ToString(), m_Selection[0].GetRemovedTilesCount().ToString());
+
+      m_VersionDeltasText.text = GetDeltaDifferencesString(
+        m_Selection[0].GetAddedTilesCount().ToString(), 
+        m_Selection[0].GetRemovedTilesCount().ToString(), 
+        IsCameraDifferent(m_Selection[0].GetVersion()));
 
       m_VersionInfoThumbnail.sprite = m_Selection[0].GetThumbnail();
 
@@ -546,14 +556,17 @@ public class UiHistoryTab : UiTab
 
       int addedTiles = 0;
       int removedTiles = 0;
+      bool cameraChanged = false;
 
       foreach (var item in m_Selection)
       {
         addedTiles += item.GetAddedTilesCount();
         removedTiles += item.GetRemovedTilesCount();
+        if (cameraChanged)
+          cameraChanged = IsCameraDifferent(item.GetVersion());
       }
 
-      m_VersionDeltasText.text = GetDeltaDifferencesString(addedTiles.ToString(), removedTiles.ToString(), false);
+      m_VersionDeltasText.text = GetDeltaDifferencesString(addedTiles.ToString(), removedTiles.ToString(), cameraChanged);
 
       m_VersionInfoThumbnail.sprite = m_Selection[^1].GetThumbnail();
 
