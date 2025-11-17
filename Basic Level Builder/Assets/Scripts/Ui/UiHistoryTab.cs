@@ -508,7 +508,7 @@ public class UiHistoryTab : UiTab
     {
       m_VersionInfoText.text = "<b>" + m_Selection[0].GetVersionName() + "</b>\r\n";
       m_VersionInfoText.text += "<color=#C6C6C6>" + m_Selection[0].GetVersionTimeStamp() + "</color>";
-      m_VersionDeltasText.text = m_Selection[0].GetDeltaDiffrences();
+      m_VersionDeltasText.text = m_Selection[0].GetDeltaDifferences();
 
       m_VersionInfoThumbnail.sprite = m_Selection[0].GetThumbnail();
 

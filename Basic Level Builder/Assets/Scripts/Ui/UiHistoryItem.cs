@@ -172,7 +172,7 @@ public class UiHistoryItem : MonoBehaviour
     return ((DateTime)m_LevelData.m_TimeStamp).ToString("M/d/yy h:mm:sstt").ToLower();
   }
 
-  public string GetDeltaDiffrences()
+  public string GetDeltaDifferences()
   {
     string diff;
 
