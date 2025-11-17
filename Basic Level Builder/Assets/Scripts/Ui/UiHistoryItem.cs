@@ -172,18 +172,14 @@ public class UiHistoryItem : MonoBehaviour
     return ((DateTime)m_LevelData.m_TimeStamp).ToString("M/d/yy h:mm:sstt").ToLower();
   }
 
-  public string GetDeltaDifferences()
+  public int GetAddedTilesCount()
   {
-    string diff;
+    return m_LevelData.m_AddedTiles.Count;
+  }
 
-    // Check Tiles
-    diff = m_LevelData.m_AddedTiles.Count + " Tiles Added" + Environment.NewLine;
-    diff += m_LevelData.m_RemovedTiles.Count + " Tiles Removed" + Environment.NewLine;
-
-    // Camera is always updated for each version
-    diff += "Camera Position Updated";
-
-    return diff;
+  public int GetRemovedTilesCount()
+  {
+    return m_LevelData.m_RemovedTiles.Count;
   }
 
   // Sets this autosave as the end cap to the autosave list

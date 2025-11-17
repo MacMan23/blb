@@ -59,7 +59,7 @@ public class FileSystemInternal : MonoBehaviour
   protected List<FileVersion> m_PendingExportVersions = null;
 
   private string m_PendingThumbnail = "";
-  private Vector2Int m_PendingCameraPos;
+  private Vector2 m_PendingCameraPos;
 
   FileInfo m_MountedFileInfo;
 
@@ -139,7 +139,7 @@ public class FileSystemInternal : MonoBehaviour
     public FileVersion m_Version;
     public string m_Name;
     public uint m_Id;
-    public Vector2Int m_CameraPos;
+    public Vector2 m_CameraPos;
     public string m_Thumbnail;
     public JsonDateTime m_TimeStamp;
     public List<TileGrid.Element> m_AddedTiles;
@@ -568,7 +568,7 @@ public class FileSystemInternal : MonoBehaviour
     m_TileGrid.CopyGridBuffer();
 
     // Store camera position to the nearest tile
-    m_PendingCameraPos = new Vector2Int((int)Camera.main.transform.position.x, (int)Camera.main.transform.position.y);
+    m_PendingCameraPos = new Vector2(Camera.main.transform.position.x, Camera.main.transform.position.y);
 
     // Gernerate the version thumbnail to be used in the thread
     // EncodeToPNG can only be used on main thread

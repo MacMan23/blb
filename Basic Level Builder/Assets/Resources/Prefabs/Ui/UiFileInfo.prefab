@@ -5736,6 +5736,7 @@ MonoBehaviour:
     type: 3}
   m_AutoSaveItemPrefab: {fileID: 5117128532516939510, guid: 4f848be52bb135c48bee4573e10ed0e5,
     type: 3}
+  m_MissingThumbnail: {fileID: 21300000, guid: c134c7dc5476e8341a7359d52300246f, type: 3}
   m_Content: {fileID: 8628277483756882403}
   m_VersionInfoText: {fileID: 2064626419696782994}
   m_VersionDeltasText: {fileID: 2722713138910145384}

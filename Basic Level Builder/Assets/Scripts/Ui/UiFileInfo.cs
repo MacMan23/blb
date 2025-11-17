@@ -112,7 +112,7 @@ public class UiFileInfo : MonoBehaviour
 
   public void DeleteFileCoda()
   {
-    m_CodaAdder.RequestDialogsAtCenterWithStrings("Are you sure you want to delete this file?");
+    m_CodaAdder.RequestDialogsAtCenterWithStrings($"Are you sure you want to delete this file?{System.Environment.NewLine}This can not be undone.");
     UiConfirmDestructiveActionModalDialog.OnConfirmDestructiveAction += DeleteFile;
     UiConfirmDestructiveActionModalDialog.OnDenyDestructiveAction += CancelDelete;
   }

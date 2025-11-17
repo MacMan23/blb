@@ -19,6 +19,8 @@ public class UiHistoryTab : UiTab
   private UiHistoryItem m_ManualSaveItemPrefab;
   [SerializeField]
   private UiHistoryItem m_AutoSaveItemPrefab;
+  [SerializeField]
+  private Sprite m_MissingThumbnail;
 
   [Header("Visuals")]
   [SerializeField]
@@ -211,10 +213,12 @@ public class UiHistoryTab : UiTab
 
   public void DeleteSelectedVersionsCoda()
   {
-    string prompt = "Are you sure you want to delete this version?";
+    string target = m_Selection.Count > 1
+    ? "these selected versions"
+    : "this version";
 
-    if (m_Selection.Count > 1)
-      prompt = "Are you sure you want to delete these selected versions?";
+    string prompt = $"Are you sure you want to delete {target}?{Environment.NewLine}This can not be undone.";
+
 
     m_CodaAdder.RequestDialogsAtCenterWithStrings(prompt);
     UiConfirmDestructiveActionModalDialog.OnConfirmDestructiveAction += DeleteSelectedVersions;
@@ -491,12 +495,29 @@ public class UiHistoryTab : UiTab
     item.SetColorAndAutosAsUnselected(manualSelected);
   }
 
+  private string GetDeltaDifferencesString(string addedTiles, string removedTiles, bool IsCameraUpdated = true)
+  {
+    string diff;
+
+    // Check Tiles
+    diff = addedTiles + " Tiles Added";
+    diff += Environment.NewLine + removedTiles + " Tiles Removed";
+
+    // Camera is always updated for each version
+    if (IsCameraUpdated)
+      diff += Environment.NewLine + "Camera Position Updated";
+
+    return diff;
+  }
+
   private void UpdateVersionInfo()
   {
     if (m_Selection.Count == 0)
     {
       m_VersionInfoText.text = "<b>No version selected</b>\r\n";
-      m_VersionDeltasText.text = "";
+      m_VersionDeltasText.text = GetDeltaDifferencesString("--", "--");
+
+      m_VersionInfoThumbnail.sprite = m_MissingThumbnail;
 
       // Reenable buttons if they were gone before
       m_ExportButton.SetActive(false);
@@ -508,7 +529,7 @@ public class UiHistoryTab : UiTab
     {
       m_VersionInfoText.text = "<b>" + m_Selection[0].GetVersionName() + "</b>\r\n";
       m_VersionInfoText.text += "<color=#C6C6C6>" + m_Selection[0].GetVersionTimeStamp() + "</color>";
-      m_VersionDeltasText.text = m_Selection[0].GetDeltaDifferences();
+      m_VersionDeltasText.text = GetDeltaDifferencesString(m_Selection[0].GetAddedTilesCount().ToString(), m_Selection[0].GetRemovedTilesCount().ToString());
 
       m_VersionInfoThumbnail.sprite = m_Selection[0].GetThumbnail();
 
@@ -522,7 +543,17 @@ public class UiHistoryTab : UiTab
     {
       m_VersionInfoText.text = "<b>Multiple versions selected</b>\r\n";
       m_VersionInfoText.text += "<color=#C6C6C6>" + m_Selection[0].GetVersionName();
-      m_VersionDeltasText.text = "";
+
+      int addedTiles = 0;
+      int removedTiles = 0;
+
+      foreach (var item in m_Selection)
+      {
+        addedTiles += item.GetAddedTilesCount();
+        removedTiles += item.GetRemovedTilesCount();
+      }
+
+      m_VersionDeltasText.text = GetDeltaDifferencesString(addedTiles.ToString(), removedTiles.ToString(), false);
 
       m_VersionInfoThumbnail.sprite = m_Selection[^1].GetThumbnail();
 
