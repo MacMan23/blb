@@ -218,20 +218,25 @@ public class UiHistoryTab : UiTab
 
     m_CodaAdder.RequestDialogsAtCenterWithStrings(prompt);
     UiConfirmDestructiveActionModalDialog.OnConfirmDestructiveAction += DeleteSelectedVersions;
-    UiConfirmDestructiveActionModalDialog.OnDenyDestructiveAction += CancleDelete;
+    UiConfirmDestructiveActionModalDialog.OnDenyDestructiveAction += CancelDelete;
   }
 
-  public void CancleDelete()
+  public void CancelDelete()
+  {
+    UnsubFromCoda();
+  }
+
+  public void UnsubFromCoda()
   {
     UiConfirmDestructiveActionModalDialog.OnConfirmDestructiveAction -= DeleteSelectedVersions;
-    UiConfirmDestructiveActionModalDialog.OnDenyDestructiveAction -= CancleDelete;
+    UiConfirmDestructiveActionModalDialog.OnDenyDestructiveAction -= CancelDelete;
   }
 
   // TODO: If deleting last manual save ask if want to delete whole file.
   // Or remove delete button if there is only one version left
   public void DeleteSelectedVersions()
   {
-    CancleDelete();
+    UnsubFromCoda();
 
     // This shouldn't happen as the button wouldn't be visable if no version are selected
     if (m_Selection.Count <= 0)

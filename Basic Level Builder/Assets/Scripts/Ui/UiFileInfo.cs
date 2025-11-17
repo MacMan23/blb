@@ -114,18 +114,23 @@ public class UiFileInfo : MonoBehaviour
   {
     m_CodaAdder.RequestDialogsAtCenterWithStrings("Are you sure you want to delete this file?");
     UiConfirmDestructiveActionModalDialog.OnConfirmDestructiveAction += DeleteFile;
-    UiConfirmDestructiveActionModalDialog.OnDenyDestructiveAction += CancleDelete;
+    UiConfirmDestructiveActionModalDialog.OnDenyDestructiveAction += CancelDelete;
   }
 
-  public void CancleDelete()
+  public void CancelDelete()
+  {
+    UnsubFromCoda();
+  }
+
+  public void UnsubFromCoda()
   {
     UiConfirmDestructiveActionModalDialog.OnConfirmDestructiveAction -= DeleteFile;
-    UiConfirmDestructiveActionModalDialog.OnDenyDestructiveAction -= CancleDelete;
+    UiConfirmDestructiveActionModalDialog.OnDenyDestructiveAction -= CancelDelete;
   }
 
   public void DeleteFile()
   {
-    CancleDelete();
+    UnsubFromCoda();
     File.Delete(m_FullFilePath);
     FileSystem.Instance.RefreshFileList();
     CloseWindow();
