@@ -16,7 +16,7 @@ public class FileDirUtilities : MonoBehaviour
 {
   readonly static public string s_RootDirectoryName = "Basic Level Builder";
   readonly static public string s_FilenameExtension = ".blb";
-  readonly static public string s_TempFilePrefix = "temp_file_";
+  readonly static public string s_TempFilePrefix = "backup_file_";
 
   public UiSaveFileItem m_FileItemPrefab;
   public UiListView m_SaveList;
@@ -78,6 +78,42 @@ public class FileDirUtilities : MonoBehaviour
     m_CurrentDirectoryPath = newDirectoryPath;
   }
 
+  public string[] GetTempFiles()
+  {
+    if (GlobalData.AreEffectsUnderway())
+      return null;
+
+    if (!Directory.Exists(m_CurrentDirectoryPath))
+      return null;
+
+    List<string> results = new();
+
+    try
+    {
+      var filePaths = Directory.GetFiles(m_CurrentDirectoryPath);
+      var validFilePaths = filePaths.Where(path => Path.HasExtension(path)).ToArray();
+
+      if (validFilePaths.Length == 0)
+        return null;
+
+      SortByDateModified(validFilePaths);
+
+      foreach (var fullFilePath in validFilePaths)
+      {
+        // Skip over temp files
+        if (IsTempFile(fullFilePath))
+          results.Add(fullFilePath);
+      }
+    }
+    catch (Exception e)
+    {
+      // this probably can't happen, but....
+      StatusBar.Print($"Error getting files in directory. {e.Message} ({e.GetType()})");
+    }
+
+    return results.ToArray();
+  }
+
   public string GetCurrentDirectoryPath()
   {
     return m_CurrentDirectoryPath;
@@ -111,6 +147,10 @@ public class FileDirUtilities : MonoBehaviour
 
     foreach (var fullFilePath in fullFilePaths)
     {
+      // Skip over temp files
+      if (IsTempFile(fullFilePath))
+        continue;
+
       // Path.GetFileNameWithoutExtension can only throw ArgumentException
       // for the path having invalid characters, and AddHelper will only be
       // called after ValidateDirectoryName has cleared the path
@@ -131,6 +171,19 @@ public class FileDirUtilities : MonoBehaviour
     var rt = listItem.GetComponent<RectTransform>();
 
     return rt;
+  }
+
+  private bool IsTempFile(string fullFilePath)
+  {
+    var line = File.ReadLines(fullFilePath);
+
+    // We must have at least two lines. One for the header and one for the data
+    if (line.Count() < 2) return false;
+
+    FileSystemInternal.FileHeader header = new();
+    JsonUtility.FromJsonOverwrite(line.First(), header);
+
+    return header.m_IsTempFile;
   }
 
   private bool ValidateDirectoryName(string directoryName)

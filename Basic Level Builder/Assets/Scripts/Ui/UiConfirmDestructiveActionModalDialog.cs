@@ -1,4 +1,11 @@
-﻿using UnityEngine;
+﻿/***************************************************
+Authors:        Brenden Epp
+Last Updated:   11/17/2025
+
+Copyright 2018-2025, DigiPen Institute of Technology
+***************************************************/
+
+using UnityEngine;
 
 public class UiConfirmDestructiveActionModalDialog : ModalDialog
 {

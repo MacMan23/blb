@@ -49,10 +49,8 @@ public class FileSystemInternal : MonoBehaviour
   protected ModalDialogAdder m_SaveAsDialogAdder;
   [SerializeField]
   protected ModalDialogAdder m_ExportAsDialogAdder;
-
-  // TODO Remove after thumbnail loading is done
   [SerializeField]
-  private List<Texture2D> m_TempThumbnailImages;
+  private ModalDialogAdder m_RestoreBackupDialogAdder;
 
   protected string m_PendingSaveFullFilePath = "";
   protected FileData m_PendingExportFileData = null;
@@ -95,7 +93,6 @@ public class FileSystemInternal : MonoBehaviour
 
   public struct FileInfo
   {
-    public bool m_IsTempFile;
     public string m_SaveFilePath;
     public FileData m_FileData;
     public FileHeader m_FileHeader;
@@ -104,12 +101,14 @@ public class FileSystemInternal : MonoBehaviour
   [Serializable]
   public class FileHeader
   {
-    public FileHeader(string ver = "", bool shouldCompress = false)
+    public FileHeader(string ver = "", bool shouldCompress = false, bool isTempFile = false)
     {
       m_BlbVersion = ver;
       m_IsDataCompressed = shouldCompress;
+      m_IsTempFile = isTempFile;
     }
     public string m_BlbVersion;
+    public bool m_IsTempFile = false;
     public bool m_IsDataCompressed = false;
   }
 
@@ -186,9 +185,23 @@ public class FileSystemInternal : MonoBehaviour
 
     m_FileDirUtilities.SetDirectoryName(m_DefaultDirectoryName);
 
+    // Thumbnail generation init
     var tileHeight = (int)m_ThumbnailTileAtlas.rect.height;
     m_ThumbnailTileSize = new Vector2Int(tileHeight, tileHeight);
     GenerateThumbnailTiles();
+
+    Invoke(nameof(CheckForTempFiles), 0.2f);
+  }
+
+  private void CheckForTempFiles()
+  {
+    string[] tempFiles = m_FileDirUtilities.GetTempFiles();
+    if (tempFiles.Length > 0)
+    {
+      // We will only ask to restore the newst file
+      // If there are more we will ask about them on the next open
+      m_RestoreBackupDialogAdder.RequestDialogsAtCenterWithStrings(tempFiles[0]);
+    }
   }
 
   void Update()
@@ -247,7 +260,7 @@ public class FileSystemInternal : MonoBehaviour
     CreateFileInfo(out m_MountedFileInfo);
 
     string destFilePath = m_FileDirUtilities.CreateTempFileName();
-    m_MountedFileInfo.m_IsTempFile = true;
+    m_MountedFileInfo.m_FileHeader.m_IsTempFile = true;
     m_MountedFileInfo.m_FileData.m_ManualSaves.Add(new LevelData());
     m_MountedFileInfo.m_FileData.m_ManualSaves[0].m_TimeStamp = DateTime.Now;
     // Mount temp file so we can check when the full file path isn't the temp file
@@ -511,7 +524,7 @@ public class FileSystemInternal : MonoBehaviour
       if (IsFileMounted())
       {
         // If we are doing a save, but we only have a temp file
-        if (m_MountedFileInfo.m_IsTempFile && !autosave)
+        if (m_MountedFileInfo.m_FileHeader.m_IsTempFile && !autosave)
         {
           // request a name for a new file to save to
           m_SaveAsDialogAdder.RequestDialogsAtCenterWithStrings();
@@ -860,28 +873,27 @@ public class FileSystemInternal : MonoBehaviour
   protected void WriteDataToFile(string destFilePath, FileInfo sourceFileInfo, bool shouldMountSave,
     bool isOverwriting, DateTime startTime, bool isAutosave, bool shouldCopyFile, bool shouldPrintElapsedTime = true)
   {
+    // Check if we are manaualy saving a temp file
+    bool isTempBeingManualSaved = sourceFileInfo.m_FileHeader.m_IsTempFile && !destFilePath.Equals(m_MountedFileInfo.m_SaveFilePath);
+    // If so mark is as no longer a temp file and then save it
+    if (isTempBeingManualSaved)
+      sourceFileInfo.m_FileHeader.m_IsTempFile = false;
+
+    // Save the file
     if (shouldCopyFile)
-    {
       CopyFile(destFilePath, sourceFileInfo);
-    }
     else
-    {
       WriteDataToFile(destFilePath, sourceFileInfo);
-    }
 
     // If we did a manual save with a temp file, we no longer need the temp file.
-    if (sourceFileInfo.m_IsTempFile && !destFilePath.Equals(m_MountedFileInfo.m_SaveFilePath))
-    {
+    if (isTempBeingManualSaved)
       File.Delete(sourceFileInfo.m_SaveFilePath);
-      sourceFileInfo.m_IsTempFile = false;
-    }
 
     // If we aren't saving to a temp file
-    if (!sourceFileInfo.m_IsTempFile)
-    {
+    if (!sourceFileInfo.m_FileHeader.m_IsTempFile)
       UpdateFileToItemList(destFilePath, isOverwriting);
-    }
 
+    // Sync files with web
     if (Application.platform == RuntimePlatform.WebGLPlayer)
       SyncFiles();
 

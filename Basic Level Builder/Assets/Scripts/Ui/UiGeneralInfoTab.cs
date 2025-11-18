@@ -73,21 +73,7 @@ public class UiGeneralInfoTab : UiTab
       return;
     }
 
-    byte[] bytes = Convert.FromBase64String(levelData.m_Thumbnail);
-    Texture2D tex = new(0, 0) // No real reason for the width/height values in the constructor, they will be overwritten anyways in LoadImage
-    {
-      filterMode = FilterMode.Point
-    };
-
-    tex.LoadImage(bytes);
-
-    Sprite sprite = Sprite.Create(
-            tex,
-            new Rect(0, 0, tex.width, tex.height),
-            new Vector2(0.5f, 0.5f) // pivot in the center
-        );
-    // Set the file thumbnail
-    m_FileThumbnail.sprite = sprite;
+    m_FileThumbnail.sprite = FileVersioning.GetThumbnailSprite(levelData);
 
     // Set text for the latest manial saves timestamp (to show where/when the thumbnail comes from)
     timeStamp = ((DateTime)levelData.m_TimeStamp).ToString("M/d/yy h:mm:sstt").ToLower();
