@@ -174,14 +174,22 @@ public class FileDirUtilities : MonoBehaviour
   }
 
   private bool IsTempFile(string fullFilePath)
-  {
-    var line = File.ReadLines(fullFilePath);
+  {    
+    var lines = File.ReadLines(fullFilePath);
 
     // We must have at least two lines. One for the header and one for the data
-    if (line.Count() < 2) return false;
+    if (lines.Count() == 2) return false;
 
-    FileSystemInternal.FileHeader header = new();
-    JsonUtility.FromJsonOverwrite(line.First(), header);
+    FileSystemInternal.FileHeader header;
+    header = JsonUtility.FromJson<FileSystemInternal.FileHeader>(lines.First());
+
+    // If the save file was not read properly
+    if (header == null)
+    {
+      string errorStr = $"Error reading save file {Path.GetFileName(fullFilePath)}. It may have been made with a different BLB version or is corrupted.";
+      Debug.Log(errorStr);
+      return false;
+    }
 
     return header.m_IsTempFile;
   }

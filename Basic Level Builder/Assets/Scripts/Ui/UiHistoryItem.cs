@@ -118,7 +118,7 @@ public class UiHistoryItem : MonoBehaviour
     if (!eventSystem.alreadySelecting) eventSystem.SetSelectedGameObject(null);
 
     // Call onselected to get the history tab to update the version preview ui
-    OnSelected.Invoke(this);
+    OnSelected?.Invoke(this);
   }
 
   public bool IsManualSave()

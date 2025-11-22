@@ -22,7 +22,7 @@ public class FileSystemInternal : MonoBehaviour
   readonly static public int s_MaxAutoSaveCount = 150;
   readonly static public int s_MaxManualSaveCount = 100;
   readonly static bool s_ShouldCompress = false;
-  static string s_EditorVersion;
+  static Version s_EditorVersion; // major, minor, build, and revision number
 
   public string m_DefaultDirectoryName = "Default Project";
   public TileGrid m_TileGrid;
@@ -180,7 +180,7 @@ public class FileSystemInternal : MonoBehaviour
   // Start is called before the first frame update
   void Start()
   {
-    s_EditorVersion = Application.version;
+    s_EditorVersion = new(Application.version);
     m_ModalDialogMaster = FindObjectOfType<ModalDialogMaster>();
 
     m_FileDirUtilities.SetDirectoryName(m_DefaultDirectoryName);
@@ -275,7 +275,7 @@ public class FileSystemInternal : MonoBehaviour
     fileInfo = new()
     {
       m_SaveFilePath = filePath,
-      m_FileHeader = new(s_EditorVersion, s_ShouldCompress),
+      m_FileHeader = new(s_EditorVersion.ToString(), s_ShouldCompress),
       m_FileData = new()
     };
   }
@@ -1077,15 +1077,15 @@ public class FileSystemInternal : MonoBehaviour
       throw new FormatException("Header and/or level data cannot be found", e);
     }
 
-    JsonUtility.FromJsonOverwrite(System.Text.Encoding.Default.GetString(headerBytes), fileInfo.m_FileHeader);
+    fileInfo.m_FileHeader = JsonUtility.FromJson<FileHeader>(System.Text.Encoding.Default.GetString(headerBytes));
 
-    // If the save file was made with a diffrent version
-    if (!fileInfo.m_FileHeader.m_BlbVersion.Equals(s_EditorVersion))
+    // If the save file was not read properly
+    if (fileInfo.m_FileHeader == null)
     {
-      string errorStr = $"Save file {Path.GetFileName(fileInfo.m_SaveFilePath)} was made with a different BLB version. There may be possible errors.";
+      string errorStr = $"Error reading save file {Path.GetFileName(fileInfo.m_SaveFilePath)}. It may have been made with a different BLB version or is corrupted.";
       Debug.Log(errorStr);
       m_MainThreadDispatcher.Enqueue(() => StatusBar.Print(errorStr));
-      // TODO, should we return or keep going? Do we want to run a file with a diff version?
+      throw new FormatException(errorStr);
     }
 
     string data;
@@ -1096,7 +1096,16 @@ public class FileSystemInternal : MonoBehaviour
     else
       data = System.Text.Encoding.Default.GetString(dataBytes);
 
-    JsonUtility.FromJsonOverwrite(data, fileInfo.m_FileData);
+    fileInfo.m_FileData = JsonUtility.FromJson<FileData>(data);
+
+    // If the save file was not read properly
+    if (fileInfo.m_FileData == null)
+    {
+      string errorStr = $"Error reading save file {Path.GetFileName(fileInfo.m_SaveFilePath)}. The file data may be corrupted.";
+      Debug.Log(errorStr);
+      m_MainThreadDispatcher.Enqueue(() => StatusBar.Print(errorStr));
+      throw new FormatException(errorStr);
+    }
   }
 
   /// <summary>
