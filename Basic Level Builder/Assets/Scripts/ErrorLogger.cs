@@ -15,7 +15,7 @@ public class ErrorLogger : MonoBehaviour
   void OnEnable()
   {
     // Define the log file path in a persistent location
-    logFilePath = Path.Combine(Application.persistentDataPath, "ErrorLog.txt");
+    logFilePath = Path.Combine(Application.dataPath, "..", "ErrorLog.txt");
 
     // Subscribe to the log message event
     Application.logMessageReceived += HandleLog;
