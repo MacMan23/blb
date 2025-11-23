@@ -1157,6 +1157,24 @@ public class FileSystemInternal : MonoBehaviour
 
   protected void SaveAfterDeletion(FileInfo fileInfo, string versionDescription)
   {
+    // If we have deleted all the files data, delete the whole file
+    if (fileInfo.m_FileData.m_ManualSaves.Count == 0)
+    {
+      try
+      {
+        File.Delete(fileInfo.m_SaveFilePath);
+      }
+      catch (Exception e)
+      {
+        throw new Exception($"Failed to delete save file {fileInfo.m_SaveFilePath}\nException {e.Message}, {e.GetType()}");
+      }
+      UnmountFile();
+      m_FileDirUtilities.UpdateFilesList();
+      StatusBar.Print($"Sucessfuly deleted {Path.GetFileName(fileInfo.m_SaveFilePath)}");
+      return;
+    }
+    
+    // Write new file data to file
     try
     {
       // If deleting from our own loaded file
@@ -1171,12 +1189,11 @@ public class FileSystemInternal : MonoBehaviour
     catch (Exception e)
     {
       throw new Exception($"Failed to save file after deleting {versionDescription}\nException {e.Message}, {e.GetType()}");
-
     }
 
     m_FileDirUtilities.MoveFileItemToTop(fileInfo.m_SaveFilePath);
 
-    StatusBar.Print($"Sucessfuly deleted {versionDescription} from {fileInfo.m_SaveFilePath}");
+    StatusBar.Print($"Sucessfuly deleted {versionDescription} from {Path.GetFileName(fileInfo.m_SaveFilePath)}");
   }
 
   /// <summary>
@@ -1220,19 +1237,3 @@ public class FileSystemInternal : MonoBehaviour
     }
   }
 }
-
-// TODO, Star on file name to show unsaved changes.
-
-// These three are the same:
-// TODO, game exit or file load "Are you sure" when there are unsaved changes or no file is mounted
-// TODO, add are you sure, if you load a level with unsaved changes.
-// TODO, When closeing app, ask to save if there are unsaved changes.
-// If no, delete temp file on close
-// OOOR we could just autosave to the latest manual
-
-
-// __Needs UI__
-// Unsaved changes prompt
-// Warning about max manual saves reached
-
-// TODO: Be able to delete a file from the save files bar.

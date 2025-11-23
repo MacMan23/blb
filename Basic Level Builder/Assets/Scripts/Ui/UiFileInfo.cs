@@ -133,6 +133,7 @@ public class UiFileInfo : MonoBehaviour
     UnsubFromCoda();
     File.Delete(m_FullFilePath);
     FileSystem.Instance.RefreshFileList();
+    StatusBar.Print($"Sucessfuly deleted {Path.GetFileName(m_FullFilePath)}");
     CloseWindow();
   }
 }

@@ -126,6 +126,7 @@ public class FileSystem : FileSystemInternal
 
   /// <summary>
   /// Removes a number od saved versions and saves the file
+  /// Deletes file if there is no more manual saves left
   /// </summary>
   /// <param name="fileInfo">The file info containing the save.</param>
   /// <param name="versions">A list of versions to delete.</param>
@@ -143,6 +144,7 @@ public class FileSystem : FileSystemInternal
 
   /// <summary>
   /// Removes one saved version and saves the file
+  /// Deletes file if there is no more manual saves left
   /// </summary>
   /// <param name="fileInfo">The file info containing the save.</param>
   /// <param name="version">The version of the save to delete.</param>
@@ -216,6 +218,6 @@ public class FileSystem : FileSystemInternal
 
   public void RefreshFileList()
   {
-    m_FileDirUtilities.SetDirectoryName(m_DefaultDirectoryName);
+    m_FileDirUtilities.UpdateFilesList();
   }
 }

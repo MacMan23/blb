@@ -38,44 +38,47 @@ public class FileDirUtilities : MonoBehaviour
     // this will never throw as long as s_RootDirectoryName is valid
     var newDirectoryPath = Path.Combine(documentsPath, s_RootDirectoryName, name);
 
-    if (Directory.Exists(newDirectoryPath))
-    {
-      try
-      {
-        var filePaths = Directory.GetFiles(newDirectoryPath);
-        var validFilePaths = filePaths.Where(path => Path.HasExtension(path)).ToArray();
-
-        if (filePaths.Length == 0)
-        {
-          // modal: pointing to an existing empty folder
-        }
-        else if (validFilePaths.Length == 0)
-        {
-          // modal: this folder doesn't have any BLB level files in it
-        }
-        else
-        {
-          // modal: pointing to an existing folder with stuff in it
-          m_SaveList.Clear();
-          SortByDateModified(validFilePaths);
-
-          // at this point, filePaths is already sorted chronologically
-          AddFileItemsForFiles(validFilePaths);
-        }
-      }
-      catch (Exception e)
-      {
-        // this probably can't happen, but....
-        StatusBar.Print($"Error getting files in directory. {e.Message} ({e.GetType()})");
-      }
-    }
-    else
-    {
-      // get down with your bad self
-      Directory.CreateDirectory(newDirectoryPath);
-    }
-
     m_CurrentDirectoryPath = newDirectoryPath;
+
+    UpdateFilesList();
+  }
+
+  public void UpdateFilesList()
+  {
+    if (GlobalData.AreEffectsUnderway())
+      return;
+
+    if (!Directory.Exists(m_CurrentDirectoryPath))
+      Directory.CreateDirectory(m_CurrentDirectoryPath);
+
+    try
+    {
+      var filePaths = Directory.GetFiles(m_CurrentDirectoryPath);
+      var validFilePaths = filePaths.Where(path => Path.HasExtension(path)).ToArray();
+
+      if (filePaths.Length == 0)
+      {
+        // modal: pointing to an existing empty folder
+      }
+      else if (validFilePaths.Length == 0)
+      {
+        // modal: this folder doesn't have any BLB level files in it
+      }
+      else
+      {
+        // modal: pointing to an existing folder with stuff in it
+        m_SaveList.Clear();
+        SortByDateModified(validFilePaths);
+
+        // at this point, filePaths is already sorted chronologically
+        AddFileItemsForFiles(validFilePaths);
+      }
+    }
+    catch (Exception e)
+    {
+      // this probably can't happen, but....
+      StatusBar.Print($"Error getting files in directory. {e.Message} ({e.GetType()})");
+    }
   }
 
   public string[] GetTempFiles()

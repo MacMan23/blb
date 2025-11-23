@@ -213,15 +213,39 @@ public class UiHistoryTab : UiTab
 
   public void DeleteSelectedVersionsCoda()
   {
-    string target = m_Selection.Count > 1
-    ? "these selected versions"
-    : "this version";
+    FileSystem.Instance.GetFileInfoFromFullFilePath(m_FullFilePath, out FileSystemInternal.FileInfo fileInfo);
+    int manualsSelected = 0;
+    foreach (var item in m_Selection)
+    {
+      if (item.GetVersion().IsManual())
+        manualsSelected++;
+    }
+    bool shouldDeleteFile = fileInfo.m_FileData.m_ManualSaves.Count == manualsSelected;
 
-    string prompt = $"Are you sure you want to delete {target}?{Environment.NewLine}This can not be undone.";
+    string prompt = "";
+
+    if (shouldDeleteFile)
+    {
+      prompt = $"You have selected all available versions." + Environment.NewLine +
+        "This action will remove the entire file and all associated data, which cannot undone." + Environment.NewLine +
+        "Are you sure you want to permanently delete this file?";
+    }
+    else
+    {
+      string target = m_Selection.Count > 1
+        ? "these selected versions"
+        : "this version";
+
+      prompt = $"Are you sure you want to delete {target}?{Environment.NewLine}This can not be undone.";
+    }
 
 
     m_CodaAdder.RequestDialogsAtCenterWithStrings(prompt);
-    UiConfirmDestructiveActionModalDialog.OnConfirmDestructiveAction += DeleteSelectedVersions;
+
+    if (shouldDeleteFile)
+      UiConfirmDestructiveActionModalDialog.OnConfirmDestructiveAction += DeleteFile;
+    else
+      UiConfirmDestructiveActionModalDialog.OnConfirmDestructiveAction += DeleteSelectedVersions;
     UiConfirmDestructiveActionModalDialog.OnDenyDestructiveAction += CancelDelete;
   }
 
@@ -234,6 +258,13 @@ public class UiHistoryTab : UiTab
   {
     UiConfirmDestructiveActionModalDialog.OnConfirmDestructiveAction -= DeleteSelectedVersions;
     UiConfirmDestructiveActionModalDialog.OnDenyDestructiveAction -= CancelDelete;
+  }
+
+  private void DeleteFile()
+  {
+    UiConfirmDestructiveActionModalDialog.OnConfirmDestructiveAction -= DeleteFile;
+    UiConfirmDestructiveActionModalDialog.OnDenyDestructiveAction -= CancelDelete;
+    FindObjectOfType<UiFileInfo>().DeleteFile();
   }
 
   // TODO: If deleting last manual save ask if want to delete whole file.
@@ -537,8 +568,8 @@ public class UiHistoryTab : UiTab
       m_VersionInfoText.text += "<color=#C6C6C6>" + m_Selection[0].GetVersionTimeStamp() + "</color>";
 
       m_VersionDeltasText.text = GetDeltaDifferencesString(
-        m_Selection[0].GetAddedTilesCount().ToString(), 
-        m_Selection[0].GetRemovedTilesCount().ToString(), 
+        m_Selection[0].GetAddedTilesCount().ToString(),
+        m_Selection[0].GetRemovedTilesCount().ToString(),
         IsCameraDifferent(m_Selection[0].GetVersion()));
 
       m_VersionInfoThumbnail.sprite = m_Selection[0].GetThumbnail();
