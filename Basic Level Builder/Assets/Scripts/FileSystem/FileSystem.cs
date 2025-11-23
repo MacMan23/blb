@@ -157,6 +157,11 @@ public class FileSystem : FileSystemInternal
     UpdateLoadedVersionIfDeleted(fileInfo, version);
   }
 
+  public void DeleteFile(string fullFilePath)
+  {
+    DeleteFileEx(fullFilePath);
+  }
+
   public void PromoteAutoSave(string fullFilePath, FileVersion version)
   {
     GetFileInfoFromFullFilePathEx(fullFilePath, out FileInfo fileInfo);

@@ -131,8 +131,7 @@ public class UiFileInfo : MonoBehaviour
   public void DeleteFile()
   {
     UnsubFromCoda();
-    File.Delete(m_FullFilePath);
-    FileSystem.Instance.RefreshFileList();
+    FileSystem.Instance.DeleteFile(m_FullFilePath);
     StatusBar.Print($"Sucessfuly deleted {Path.GetFileName(m_FullFilePath)}");
     CloseWindow();
   }

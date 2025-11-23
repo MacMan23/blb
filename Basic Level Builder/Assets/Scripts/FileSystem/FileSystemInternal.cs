@@ -1142,6 +1142,17 @@ public class FileSystemInternal : MonoBehaviour
     }
   }
 
+  public void DeleteFileEx(string fullFilePath)
+  {
+    File.Delete(fullFilePath);
+    
+    // If we deleted the file we have open, unmount it
+    if (m_MountedFileInfo.m_SaveFilePath == fullFilePath)
+      UnmountFile();
+
+    m_FileDirUtilities.UpdateFilesList();
+  }
+
   protected void UpdateLoadedVersionIfDeleted(FileInfo fileInfo, FileVersion version)
   {
     // If deleting from our own loaded file
