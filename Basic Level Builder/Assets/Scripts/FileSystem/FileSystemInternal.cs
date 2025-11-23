@@ -243,7 +243,7 @@ public class FileSystemInternal : MonoBehaviour
         Debug.LogWarning(errorString);
 
         UnmountFile();
-        Save(false, tempPath, false);
+        Save(false, tempPath, false, false);
 
         StatusBar.Print(errorString);
       }
@@ -258,7 +258,7 @@ public class FileSystemInternal : MonoBehaviour
     // Force autosave if we have changes.
     bool isAutoSave = true;
     bool shouldPrintElapsedTime = false;
-    Save(isAutoSave, null, shouldPrintElapsedTime);
+    Save(isAutoSave, null, false, shouldPrintElapsedTime);
   }
 
   private void CreateEmptyTempFile()
@@ -487,7 +487,7 @@ public class FileSystemInternal : MonoBehaviour
     return fileInfo;
   }
 
-  protected void Save(bool autosave, string saveAsFileName = null, bool shouldPrintElapsedTime = true)
+  protected void Save(bool autosave, string saveAsFileName = null, bool updateCameraPosButtonPressed = false, bool shouldPrintElapsedTime = true)
   {
     if (GlobalData.AreEffectsUnderway())
       return;
@@ -578,10 +578,10 @@ public class FileSystemInternal : MonoBehaviour
       }
     }
 
-    StartSavingThread(destFilePath, autosave, saveAsFileName != null, shouldPrintElapsedTime);
+    StartSavingThread(destFilePath, autosave, saveAsFileName != null, updateCameraPosButtonPressed, shouldPrintElapsedTime);
   }
 
-  protected void StartSavingThread(string destFilePath, bool autosave, bool isSaveAs = false, bool shouldPrintElapsedTime = true)
+  protected void StartSavingThread(string destFilePath, bool autosave, bool isSaveAs, bool updateCameraPosButtonPressed, bool shouldPrintElapsedTime)
   {
 
     // Copy the map data into a buffer to use for the saving thread.
@@ -595,7 +595,7 @@ public class FileSystemInternal : MonoBehaviour
     m_PendingThumbnail = GenerateThumbnail(m_TileGrid.GetGridBuffer());
 
     // Define parameters for the branched thread function
-    object[] parameters = { destFilePath, autosave, shouldPrintElapsedTime };
+    object[] parameters = { destFilePath, autosave, shouldPrintElapsedTime, updateCameraPosButtonPressed};
 
     // Create a new thread and pass the ParameterizedThreadStart delegate
     if (isSaveAs)
@@ -632,6 +632,7 @@ public class FileSystemInternal : MonoBehaviour
     levelData.m_TimeStamp = DateTime.Now;
     levelData.m_Version = new(1, 0);
     levelData.m_Thumbnail = m_PendingThumbnail;
+    levelData.m_CameraPos = m_PendingCameraPos;
 
     m_MountedFileInfo.m_FileData.m_ManualSaves.Add(levelData);
 
@@ -663,6 +664,7 @@ public class FileSystemInternal : MonoBehaviour
     string destFilePath = (string)parameters[0];
     bool autosave = (bool)parameters[1];
     bool shouldPrintElapsedTime = (bool)parameters[2];
+    bool updateCameraPosButtonPressed = (bool)parameters[3];
     bool overwriting = File.Exists(destFilePath);
     // TODO, Don't auto save if the diffences from the last auto save are the same. Ie no unsaved changes.
     #region Add level changes to level data
@@ -684,8 +686,18 @@ public class FileSystemInternal : MonoBehaviour
     bool copyFile = false;
 
     bool cameraDiff = m_PendingCameraPos != GetLastManualSaveData(m_MountedFileInfo.m_FileData).m_CameraPos;
+    bool saveDiffs = cameraDiff && updateCameraPosButtonPressed;
+    
+    // We can't update the camera pos if the camera is not different
+    if (updateCameraPosButtonPressed && !cameraDiff)
+    {
+      var errorString = "Skipped updating the camera position because the camera position has not changed";
+      m_MainThreadDispatcher.Enqueue(() => StatusBar.Print(errorString));
+      Debug.Log(errorString);
+      return;
+    }
 
-    bool hasDifferences = GetDifferences(out LevelData levelData, m_MountedFileInfo, m_TileGrid) || cameraDiff;
+    bool hasDifferences = GetDifferences(out LevelData levelData, m_MountedFileInfo, m_TileGrid) || saveDiffs;
 
     levelData.m_Thumbnail = m_PendingThumbnail;
     levelData.m_CameraPos = m_PendingCameraPos;

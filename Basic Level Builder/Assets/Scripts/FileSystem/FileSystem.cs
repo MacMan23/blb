@@ -44,6 +44,14 @@ public class FileSystem : FileSystemInternal
   /// <summary>
   /// Performs a manual save of the current level.
   /// </summary>
+  public void SaveCameraPosition()
+  {
+    Save(false, null, true);
+  }
+
+  /// <summary>
+  /// Performs a manual save of the current level.
+  /// </summary>
   public void ManualSave()
   {
     Save(false);
@@ -59,7 +67,7 @@ public class FileSystem : FileSystemInternal
 
   public void SaveAs(string name, bool shouldPrintElapsedTime = true)
   {
-    Save(false, name, shouldPrintElapsedTime);
+    Save(false, name, false, shouldPrintElapsedTime);
   }
 
   public void ExportMultipleVersions(string sourcePath, List<FileVersion> versions)
@@ -183,15 +191,17 @@ public class FileSystem : FileSystemInternal
     m_MainThreadDispatcher.Enqueue(action);
   }
 
-  // Functions for dialogs to call
-
   public void ConfirmOverwrite()
   {
     // Check if we were doing a SaveAs or an Export
     // If the Export data is empty, then we are doing a SaveAs
     if (m_PendingExportFileData == null)
     {
-      StartSavingThread(m_PendingSaveFullFilePath, false, true);
+      bool autosave = false;
+      bool isSaveAs = true;
+      bool updateCameraPosButtonPressed = false;
+      bool shouldPrintElapsedTime = true;
+      StartSavingThread(m_PendingSaveFullFilePath, autosave, isSaveAs, updateCameraPosButtonPressed, shouldPrintElapsedTime);
     }
     else
     {
