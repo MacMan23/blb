@@ -19,8 +19,12 @@ using static FileVersioning;
 public class FileSystemInternal : MonoBehaviour
 {
   readonly static public string s_DateTimeFormat = "h-mm-ss.ff tt, ddd d MMM yyyy";
-  readonly static public int s_MaxAutoSaveCount = 150;
-  readonly static public int s_MaxManualSaveCount = 100;
+  
+  // TODO: Auto and manual save max count removed in code. Find a reason to add back in and a number or remove entierly
+  // Search TODOMAXSAVES to find code section
+  //readonly static public int s_MaxAutoSaveCount = 150;
+  //readonly static public int s_MaxManualSaveCount = 100;
+  
   readonly static bool s_ShouldCompress = false;
   static Version s_EditorVersion; // major, minor, build, and revision number
 
@@ -705,6 +709,10 @@ public class FileSystemInternal : MonoBehaviour
       Debug.LogError("Damn, This should not happen. Check why file data doesn't exist here.");
     }
 
+    // Return to skip checking if we reached the max number of saves.
+    // Add back in later if a reason to keep is found
+    // TODOMAXSAVES (Quick find tag for later)
+#if false
     // If we are doing an auto check if we have to many
     if (autosave)
     {
@@ -731,6 +739,7 @@ public class FileSystemInternal : MonoBehaviour
         m_MountedFileInfo.m_FileData.m_ManualSaves.RemoveAt(0);
       }
     }
+#endif
 
     // TODO, check if the auto save has differences from the last auto save, if not, discard save,
     // TODO, check if manual save is the same as the last auto save, if so just move auto to manual
@@ -778,15 +787,8 @@ public class FileSystemInternal : MonoBehaviour
       // So just copy our file to the destination file
       copyFile = true;
     }
-    #endregion Add level changes to level data
+#endregion Add level changes to level data
 
-    // If we have reach the max manual saves for the first time, give a warning that we will start to delete saves.
-    if (m_MountedFileInfo.m_FileData.m_ManualSaves.Count > s_MaxManualSaveCount)
-    {
-      Debug.Log("You have reached the maximum number of saves. " +
-        "Any more saves on this save file will delete your oldest save to make room for you new saves.");
-      // TODO, give warning popup
-    }
     try
     {
       bool shouldMountSave = true;
