@@ -25,7 +25,7 @@ public class OperationSystem : MonoBehaviour
   public TileGrid m_TileGrid;
   public int m_UndoDepth = 64;
   public bool m_UseAutosaving = true;
-  public int m_AutosaveInterval = 4;
+  public int m_AutosaveInterval = 10;
 
 
   private void Awake()
