@@ -174,11 +174,20 @@ public class FileDirUtilities : MonoBehaviour
   }
 
   private bool IsTempFile(string fullFilePath)
-  {    
-    var lines = File.ReadLines(fullFilePath);
+  {
+    IEnumerable<string> lines = null;
+    try
+    {
+      lines = File.ReadLines(fullFilePath);
+    }
+    catch (Exception e)
+    {
+      string errorStr = $"Error reading save file {Path.GetFileName(fullFilePath)}. {e.Message} ({e.GetType()})";
+      Debug.Log(errorStr);
+    }
 
     // We must have at least two lines. One for the header and one for the data
-    if (lines.Count() == 2) return false;
+    if (lines.Count() != 2) return false;
 
     FileSystemInternal.FileHeader header;
     header = JsonUtility.FromJson<FileSystemInternal.FileHeader>(lines.First());

@@ -96,12 +96,20 @@ public static class FileVersioning
   public static bool IsCameraDifferent(FileData fileData, FileVersion version)
   {
     // If this is the first manual save the camera has to be "different"
-    if (version.m_ManualVersion == 1 && version.m_AutoVersion == 0)
+    if (version.m_ManualVersion <= 1 && version.m_AutoVersion == 0)
       return true;
     
     GetVersionLevelData(fileData, version, out LevelData targetData);
 
-    int v = version.m_ManualVersion - (version.IsManual() ? 1 : 0);
+    // Find the previous versions number
+    int v = 0;
+    // If we are a manual get the previouse manuals number, otherwise we will compare to this auto saves manual
+    if (version.IsManual())
+      v = GetPreviousManualVersion(fileData, version.m_ManualVersion);
+    // 0 means no prev version was found, so the camera is different by default
+    if (v == 0)
+      return true;
+    
     GetVersionLevelData(fileData, new FileVersion(v, 0), out LevelData previousData);
 
     return targetData.m_CameraPos != previousData.m_CameraPos;
@@ -475,6 +483,19 @@ public static class FileVersioning
     }
 
     throw new InvalidOperationException($"{version} can not found");
+  }
+
+  // Finds the newest autosave from a manual save version
+  // Returns 0 if no versions were found
+  public static int GetPreviousManualVersion(FileData fileData, int manualVersion)
+  {
+    int closestPrevVersion = 0;
+    foreach (var data in fileData.m_ManualSaves)
+    {
+      if (data.m_Version.m_ManualVersion > closestPrevVersion && data.m_Version.m_ManualVersion < manualVersion)
+        closestPrevVersion = data.m_Version.m_ManualVersion;
+    }
+    return closestPrevVersion;
   }
 
   // Finds the newest autosave from a manual save version

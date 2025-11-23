@@ -190,6 +190,8 @@ public class FileSystemInternal : MonoBehaviour
     m_ThumbnailTileSize = new Vector2Int(tileHeight, tileHeight);
     GenerateThumbnailTiles();
 
+    // Check for temp files 0.2 secs later, this is done because of race conditions
+    // ModalDialogMaster "Start" function is not initiated before this and thus is not properly set up
     Invoke(nameof(CheckForTempFiles), 0.2f);
   }
 
@@ -997,7 +999,7 @@ public class FileSystemInternal : MonoBehaviour
       throw new Exception($"File not found: {fullFilePath}");
     }
 
-    GetDataFromJson(File.ReadAllBytes(fullFilePath), fileInfo);
+    GetDataFromJson(File.ReadAllBytes(fullFilePath), ref fileInfo);
   }
 
   protected void LoadFromFullFilePathEx(string fullFilePath, FileVersion? version = null)
@@ -1050,7 +1052,7 @@ public class FileSystemInternal : MonoBehaviour
     if (!FileDataExists(m_MountedFileInfo.m_FileData))
       CreateFileInfo(out m_MountedFileInfo);
 
-    GetDataFromJson(json, m_MountedFileInfo);
+    GetDataFromJson(json, ref m_MountedFileInfo);
 
     m_TileGrid.LoadFromDictonary(GetGridDictionaryFromFileData(m_MountedFileInfo, version));
   }
@@ -1061,7 +1063,7 @@ public class FileSystemInternal : MonoBehaviour
   /// <param name="json">The JSON data as bytes.</param>
   /// <param name="fileInfo">The file info to populate.</param>
   /// <exception cref="FormatException">Thrown when the file format is invalid.</exception>
-  private void GetDataFromJson(byte[] json, FileInfo fileInfo)
+  private void GetDataFromJson(byte[] json, ref FileInfo fileInfo)
   {
     // Read the header first
     // The header is always uncompressed, and the data might be
