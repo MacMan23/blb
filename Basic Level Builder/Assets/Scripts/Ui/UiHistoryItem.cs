@@ -67,7 +67,7 @@ public class UiHistoryItem : MonoBehaviour
 
   private string GenerateManualSaveName()
   {
-    return s_ManualSaveName + m_LevelData.m_Version.m_ManualVersion + " ID: " + m_LevelData.m_Id;
+    return s_ManualSaveName + m_LevelData.m_Version.m_ManualVersion; //+ " ID: " + m_LevelData.m_Id;
   }
 
   public void Init(FileSystemInternal.LevelData levelData, string fullFilePath)
@@ -80,7 +80,7 @@ public class UiHistoryItem : MonoBehaviour
       if (IsManualSave())
         m_ManualSaveInfo.m_VersionInputName.text = GenerateManualSaveName();
       else
-        m_AutoSaveInfo.m_VersionName.text = "<i>" + s_AutoSaveName + levelData.m_Version.m_AutoVersion + " ID: " + levelData.m_Id;
+        m_AutoSaveInfo.m_VersionName.text = "<i>" + s_AutoSaveName + levelData.m_Version.m_AutoVersion; //+ " ID: " + levelData.m_Id;
     }
     else
     {
