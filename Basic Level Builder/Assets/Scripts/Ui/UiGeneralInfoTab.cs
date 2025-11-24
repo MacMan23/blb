@@ -50,9 +50,27 @@ public class UiGeneralInfoTab : UiTab
   {
     m_FullFilePath = fullFilePath;
 
-    FileSystemInternal.FileInfo fileInfo;
-
     // Get data
+    if (!ReadFile(out FileSystemInternal.FileInfo fileInfo))
+      return;
+
+    // Set text from file data
+    m_FileNameTxt.text = Path.GetFileNameWithoutExtension(fullFilePath);
+    m_FileNameInput.text = m_FileNameTxt.text;
+
+    UpdateLatestVersionPreview(fileInfo);
+  }
+
+  public override void OpenTab()
+  {
+    if (!ReadFile(out FileSystemInternal.FileInfo fileInfo))
+      return;
+    UpdateLatestVersionPreview(fileInfo);
+  }
+
+  // Returns false if an error occurec
+  private bool ReadFile(out FileSystemInternal.FileInfo fileInfo)
+  {
     try
     {
       FileSystem.Instance.GetFileInfoFromFullFilePath(m_FullFilePath, out fileInfo);
@@ -62,21 +80,21 @@ public class UiGeneralInfoTab : UiTab
       Debug.LogWarning($"Failed to get data from file path: {m_FullFilePath}. {e.Message}");
       StatusBar.Print($"Error: Could not load file history.");
       FindObjectOfType<UiFileInfo>().CloseWindow();
-      return;
+      fileInfo = new();
+      return false;
     }
+    return true;
+  }
 
-    // Set text from file data
-    m_FileNameTxt.text = Path.GetFileNameWithoutExtension(fullFilePath);
-    m_FileNameInput.text = m_FileNameTxt.text;
-
+  private void UpdateLatestVersionPreview(FileSystemInternal.FileInfo fileInfo)
+  {
     m_SaveNumberTxt.text = fileInfo.m_FileData.m_ManualSaves.Count + " Manual Saves    " + fileInfo.m_FileData.m_AutoSaves.Count + " Auto Saves";
     string timeStamp = File.GetCreationTime(m_FullFilePath).ToString("M/d/yy h:mm:sstt").ToLower();
     m_CreationDateTxt.text = $"<b>Created on:</b> <color=#C6C6C6>{timeStamp}</color>";
-
+    
     // Set the text description for the file
     m_DescriptionInputField.text = fileInfo.m_FileData.m_Description;
     m_DescriptionInputField.ForceLabelUpdate();
-
 
     // Get latest manual save and its thumbnail
     FileSystemInternal.LevelData levelData;
@@ -96,8 +114,15 @@ public class UiGeneralInfoTab : UiTab
     m_FileThumbnail.sprite = FileVersioning.GetThumbnailSprite(levelData);
 
     // Set text for the latest manial saves timestamp (to show where/when the thumbnail comes from)
+    string latestVersionName = levelData.m_Name;
+
+    if (string.IsNullOrEmpty(latestVersionName))
+    {
+      latestVersionName = "Version " + levelData.m_Version.m_ManualVersion;
+    }
+
     timeStamp = ((DateTime)levelData.m_TimeStamp).ToString("M/d/yy h:mm:sstt").ToLower();
-    m_LatestVersionTxt.text = $"<b>{levelData.m_Name}</b>\n<color=#C6C6C6>{timeStamp}</color>";
+    m_LatestVersionTxt.text = $"<b>{latestVersionName}</b>{Environment.NewLine}<color=#C6C6C6>{timeStamp}</color>";
   }
 
   public void SetFileDescription(string desc)

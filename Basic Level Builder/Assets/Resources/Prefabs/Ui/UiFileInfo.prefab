@@ -1019,7 +1019,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 0}
+  m_SizeDelta: {x: 0, y: 18.470953}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &3108358019446896032
 CanvasRenderer:
@@ -1045,9 +1045,9 @@ MonoBehaviour:
   m_MinWidth: -1
   m_MinHeight: -1
   m_PreferredWidth: -1
-  m_PreferredHeight: -1
+  m_PreferredHeight: 300.9
   m_FlexibleWidth: -1
-  m_FlexibleHeight: 1
+  m_FlexibleHeight: -1
   m_LayoutPriority: 1
 --- !u!1 &1955358156044552428
 GameObject:
@@ -3386,7 +3386,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: '<b>Version 2 (The one where things happen) llllllllllllllllllllllllllllllllllllllllllllllll</b>
+  m_text: '<b>Version 2 (The one where thingsllllllllllllllllllllllllllllllffllllllll</b>
 
     <color=#C6C6C6>11/11/11
     11:11pm</color>'
@@ -3428,7 +3428,7 @@ MonoBehaviour:
   m_textAlignment: 65535
   m_characterSpacing: 0
   m_wordSpacing: 0
-  m_lineSpacing: 0
+  m_lineSpacing: 20
   m_lineSpacingMax: 0
   m_paragraphSpacing: 0
   m_charWidthMaxAdj: 0
@@ -3651,7 +3651,7 @@ MonoBehaviour:
   m_PreferredWidth: -1
   m_PreferredHeight: -1
   m_FlexibleWidth: -1
-  m_FlexibleHeight: 6
+  m_FlexibleHeight: 20.7
   m_LayoutPriority: 1
 --- !u!1 &4846978063868920875
 GameObject:
@@ -3710,9 +3710,9 @@ MonoBehaviour:
   m_MinWidth: -1
   m_MinHeight: -1
   m_PreferredWidth: -1
-  m_PreferredHeight: -1
+  m_PreferredHeight: 43.7
   m_FlexibleWidth: -1
-  m_FlexibleHeight: 0.58
+  m_FlexibleHeight: -1
   m_LayoutPriority: 1
 --- !u!114 &3676907565926470964
 MonoBehaviour:
@@ -3736,7 +3736,7 @@ MonoBehaviour:
   m_ChildForceExpandWidth: 1
   m_ChildForceExpandHeight: 0
   m_ChildControlWidth: 1
-  m_ChildControlHeight: 1
+  m_ChildControlHeight: 0
   m_ChildScaleWidth: 0
   m_ChildScaleHeight: 0
   m_ReverseArrangement: 0
@@ -4281,9 +4281,9 @@ MonoBehaviour:
   m_MinWidth: -1
   m_MinHeight: -1
   m_PreferredWidth: -1
-  m_PreferredHeight: -1
+  m_PreferredHeight: 57.8
   m_FlexibleWidth: -1
-  m_FlexibleHeight: 1
+  m_FlexibleHeight: -1
   m_LayoutPriority: 1
 --- !u!1 &5497966927452256732
 GameObject:
@@ -6112,7 +6112,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 0}
+  m_SizeDelta: {x: 0, y: 27.90237}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &4627227968849828699
 MonoBehaviour:
@@ -6129,10 +6129,10 @@ MonoBehaviour:
   m_IgnoreLayout: 0
   m_MinWidth: -1
   m_MinHeight: -1
-  m_PreferredWidth: 161.99
-  m_PreferredHeight: -1
+  m_PreferredWidth: 160
+  m_PreferredHeight: 41.7
   m_FlexibleWidth: -1
-  m_FlexibleHeight: 0.3
+  m_FlexibleHeight: -1
   m_LayoutPriority: 1
 --- !u!114 &6492067052301056089
 MonoBehaviour:
@@ -6568,7 +6568,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 0}
+  m_SizeDelta: {x: 0, y: 16.7276}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &900593587220014572
 CanvasRenderer:
@@ -6594,9 +6594,9 @@ MonoBehaviour:
   m_MinWidth: -1
   m_MinHeight: -1
   m_PreferredWidth: -1
-  m_PreferredHeight: -1
+  m_PreferredHeight: 272.5
   m_FlexibleWidth: -1
-  m_FlexibleHeight: 1
+  m_FlexibleHeight: -1
   m_LayoutPriority: 1
 --- !u!1 &7683601667309888069
 GameObject:
