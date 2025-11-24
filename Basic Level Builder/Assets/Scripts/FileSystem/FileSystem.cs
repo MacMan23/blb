@@ -235,4 +235,9 @@ public class FileSystem : FileSystemInternal
   {
     m_FileDirUtilities.UpdateFilesList();
   }
+
+  public string RenameFile(string oldFilePath, string newFileName)
+  {
+    return m_FileDirUtilities.RenameFile(oldFilePath, newFileName);
+  }
 }

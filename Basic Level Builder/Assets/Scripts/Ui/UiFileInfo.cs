@@ -37,6 +37,25 @@ public class UiFileInfo : MonoBehaviour
       m_Tabs.Add(tab);
   }
 
+  private void OnApplicationFocus(bool focus)
+  {
+    if (focus && !File.Exists(m_FullFilePath))
+    {
+      var errorString = $"Error: File names \"{Path.GetFileName(m_FullFilePath)}\" could not be found.";
+      Debug.LogWarning(errorString);
+
+      StatusBar.Print("<color=#ffff00>" + errorString);
+
+      CloseWindow();
+      // Attempt to remove any open dialougs
+      ModalDialog[] dialogs = FindObjectsOfType<ModalDialog>();
+      foreach (var dialog in dialogs)
+      {
+        dialog.Close();
+      }
+    }
+  }
+
   void Start()
   {
     if (m_Tabs.Count > 0)
@@ -85,6 +104,11 @@ public class UiFileInfo : MonoBehaviour
     yield return new WaitForEndOfFrame();
 
     GlobalData.DecrementUiPopup();
+  }
+
+  public void SetTitleBarText(string text)
+  {
+    m_TitlebarText.text = text;
   }
 
   public void OpenTab(UiTab tabRef)

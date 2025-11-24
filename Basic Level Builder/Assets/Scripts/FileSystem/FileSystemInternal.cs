@@ -25,7 +25,7 @@ public class FileSystemInternal : MonoBehaviour
   //readonly static public int s_MaxAutoSaveCount = 150;
   //readonly static public int s_MaxManualSaveCount = 100;
   
-  readonly static bool s_ShouldCompress = false;
+  readonly static bool s_ShouldCompress = true;
   static Version s_EditorVersion; // major, minor, build, and revision number
 
   public string m_DefaultDirectoryName = "Default Project";
@@ -105,15 +105,15 @@ public class FileSystemInternal : MonoBehaviour
   [Serializable]
   public class FileHeader
   {
-    public FileHeader(string ver = "", bool shouldCompress = false, bool isTempFile = false)
+    public FileHeader(string ver = "", bool shouldCompress = true, bool isTempFile = false)
     {
       m_BlbVersion = ver;
       m_IsDataCompressed = shouldCompress;
       m_IsTempFile = isTempFile;
     }
     public string m_BlbVersion;
-    public bool m_IsTempFile = false;
     public bool m_IsDataCompressed = false;
+    public bool m_IsTempFile = false;
   }
 
   [Serializable]
@@ -282,7 +282,7 @@ public class FileSystemInternal : MonoBehaviour
     fileInfo = new()
     {
       m_SaveFilePath = filePath,
-      m_FileHeader = new(s_EditorVersion.ToString(), s_ShouldCompress),
+      m_FileHeader = new(s_EditorVersion.ToString(), s_ShouldCompress, false),
       m_FileData = new()
     };
   }
@@ -947,7 +947,7 @@ public class FileSystemInternal : MonoBehaviour
   {
     List<byte> data = new();
     data.AddRange(System.Text.Encoding.Default.GetBytes(JsonUtility.ToJson(sourceFileInfo.m_FileHeader) + "\n"));
-    if (s_ShouldCompress)
+    if (sourceFileInfo.m_FileHeader.m_IsDataCompressed)
       data.AddRange(StringCompression.Compress(JsonUtility.ToJson(sourceFileInfo.m_FileData)));
     else
       data.AddRange(System.Text.Encoding.Default.GetBytes(JsonUtility.ToJson(sourceFileInfo.m_FileData)));

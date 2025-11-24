@@ -206,6 +206,33 @@ public class FileDirUtilities : MonoBehaviour
     return header.m_IsTempFile;
   }
 
+  // Skips rename if the file already exists
+  // Returns new file path
+  public string RenameFile(string oldFilePath, string newFileName)
+  {
+    string newFilePath = CreateFilePath(newFileName);
+
+    if (File.Exists(newFilePath))
+    {
+      StatusBar.Print("<color=#ffff00>Entered file name already exists</color>");
+      return oldFilePath;
+    }
+
+    try
+    {
+      File.Move(oldFilePath, newFilePath);
+    }
+    catch (Exception e)
+    {
+      Debug.Log($"Error renaming save file {oldFilePath}. {e.Message} ({e.GetType()})");
+      StatusBar.Print($"<color=#ffff00>Error renaming save file {oldFilePath}</color>");
+      return oldFilePath;
+    }
+
+    UpdateFilesList();
+    return newFilePath;
+  }
+
   private bool ValidateDirectoryName(string directoryName)
   {
     if (string.IsNullOrEmpty(directoryName) || string.IsNullOrWhiteSpace(directoryName))
