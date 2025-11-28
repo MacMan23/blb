@@ -190,7 +190,7 @@ public class FileDirUtilities : MonoBehaviour
     }
 
     // We must have at least two lines. One for the header and one for the data
-    if (lines.Count() != 2) return false;
+    if (lines.Count() < 2) return false;
 
     FileSystemInternal.FileHeader header;
     header = JsonUtility.FromJson<FileSystemInternal.FileHeader>(lines.First());
