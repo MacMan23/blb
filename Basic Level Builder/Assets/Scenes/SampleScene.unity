@@ -1634,7 +1634,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 253, y: 0}
+  m_SizeDelta: {x: 350, y: 0}
   m_Pivot: {x: 1, y: 0.5}
 --- !u!114 &128438537
 MonoBehaviour:
@@ -1810,7 +1810,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1e4dd5f2446b5a241a34a2f70cf68e86, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_FileItemPrefab: {fileID: 1736586192198972156, guid: 304cd9fb1f0cec44b854d01b637e2ad1,
+  m_FileItemPrefab: {fileID: 7633456494379642736, guid: 304cd9fb1f0cec44b854d01b637e2ad1,
     type: 3}
   m_SaveList: {fileID: 253817712}
 --- !u!114 &128438549
@@ -37112,7 +37112,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0ae211041f415a949bc0d9b03c1b90c1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_HiddenX: 255
+  m_HiddenX: 350
   m_ShownX: 0
   m_Duration: 0.25
   m_Hidden: 1

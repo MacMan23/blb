@@ -78,7 +78,7 @@ public class UiGeneralInfoTab : UiTab
     catch (Exception e)
     {
       Debug.LogWarning($"Failed to get data from file path: {m_FullFilePath}. {e.Message}");
-      StatusBar.Print($"Error: Could not load file history.");
+      StatusBar.Print($"Error: Could not load file history for file \"{Path.GetFileName(m_FullFilePath)}\"");
       FindObjectOfType<UiFileInfo>().CloseWindow();
       fileInfo = new();
       return false;
@@ -98,15 +98,13 @@ public class UiGeneralInfoTab : UiTab
 
     // Get latest manual save and its thumbnail
     FileSystemInternal.LevelData levelData;
-    // Check if we have any manual saves first
+    // Check if we have any data to read
     if (fileInfo.m_FileData.m_ManualSaves.Count > 0)
       levelData = fileInfo.m_FileData.m_ManualSaves[^1];
-    else if (fileInfo.m_FileData.m_AutoSaves.Count > 0)
-      levelData = fileInfo.m_FileData.m_AutoSaves[^1];
     else
     {
       Debug.LogWarning($"No saves found in file \"{m_FullFilePath}\"");
-      StatusBar.Print($"Error: Could not load file history. No saves found in file \"{m_FullFilePath}\"");
+      StatusBar.Print($"Error: Could not load file history. No saves found in file \"{Path.GetFileName(m_FullFilePath)}\"");
       FindObjectOfType<UiFileInfo>().CloseWindow();
       return;
     }

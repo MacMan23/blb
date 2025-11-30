@@ -121,7 +121,7 @@ public class UiListView : MonoBehaviour
 
     foreach (var item in items)
     {
-      if (string.Compare(item.m_FullPath, fullPath, System.StringComparison.InvariantCultureIgnoreCase) == 0)
+      if (string.Compare(item.m_FullFilePath, fullPath, System.StringComparison.InvariantCultureIgnoreCase) == 0)
         return item;
     }
 
@@ -135,7 +135,7 @@ public class UiListView : MonoBehaviour
     List<RectTransform> removeItems = new();
     foreach (var item in items)
     {
-      if (!File.Exists(item.m_FullPath))
+      if (!File.Exists(item.m_FullFilePath))
         removeItems.Add(item.GetComponent<RectTransform>());
     }
 

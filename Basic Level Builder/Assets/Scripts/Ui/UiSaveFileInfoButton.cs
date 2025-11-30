@@ -30,7 +30,7 @@ public class UiSaveFileInfoButton : MonoBehaviour
     UiSaveFileItem parent = GetComponentInParent<UiSaveFileItem>();
     if (parent != null)
     {
-      infoBox.InitLoad(parent.m_FullPath);
+      infoBox.InitLoad(parent.m_FullFilePath);
       GlobalData.IncrementUiPopup();
     }
     else

@@ -18,7 +18,7 @@ public class FileDirUtilities : MonoBehaviour
   readonly static public string s_FilenameExtension = ".blb";
   readonly static public string s_TempFilePrefix = "backup_file_";
 
-  public UiSaveFileItem m_FileItemPrefab;
+  public GameObject m_FileItemPrefab;
   public UiListView m_SaveList;
 
   protected string m_CurrentDirectoryPath;
@@ -169,8 +169,8 @@ public class FileDirUtilities : MonoBehaviour
   private RectTransform AddHelper(string fullFilePath, string fileName)
   {
     var listItem = Instantiate(m_FileItemPrefab);
-
-    listItem.Setup(fullFilePath, fileName, File.GetLastWriteTime(fullFilePath).ToString("g"));
+    UiSaveFileItem fileItem = listItem.GetComponentInChildren<UiSaveFileItem>();
+    fileItem.Setup(fullFilePath, fileName, File.GetLastWriteTime(fullFilePath).ToString("g"));
     var rt = listItem.GetComponent<RectTransform>();
 
     return rt;

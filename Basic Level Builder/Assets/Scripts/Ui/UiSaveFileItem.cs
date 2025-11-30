@@ -5,38 +5,44 @@ Last Updated:   3/24/2025
 Copyright 2018-2025, DigiPen Institute of Technology
 ***************************************************/
 
+using System;
+using System.IO;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.UI;
 
 public class UiSaveFileItem : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 {
   public TextMeshProUGUI m_Text;
   public TextMeshProUGUI m_TimeStamp;
   public GameObject m_InfoButton;
-  public Color m_AutosaveColor = Color.white;
-  public Color m_ManualSaveColor = Color.yellow;
+  [SerializeField]
+  private Image m_FileThumbnail;
 
-  public float m_HiddenRectTransformWidth = 2.0f;
-  public float m_VisibleRectTransformWidth = 31.0f;
-
-  public string m_FullPath { get; private set; }
+  public string m_FullFilePath { get; private set; }
 
   private bool m_IsMouseHovering = false;
 
+  private void OnDestroy()
+  {
+    FileSystem.OnAnyFileSaved -= UpdateThumbnail;
+  }
 
   public void Setup(string fullPath, string fileName, string timeStamp)
   {
-    m_FullPath = fullPath;
+    m_FullFilePath = fullPath;
     m_Text.text = fileName;
     m_TimeStamp.text = timeStamp;
-    m_Text.color = fileName.StartsWith("Auto") ? m_AutosaveColor : m_ManualSaveColor;
+
+    FileSystem.OnAnyFileSaved += UpdateThumbnail;
+    UpdateThumbnail();
   }
 
 
   public void Load()
   {
-    FileSystem.Instance.LoadFromFullFilePath(m_FullPath);
+    FileSystem.Instance.LoadFromFullFilePath(m_FullFilePath);
   }
 
   public void OnPointerEnter(PointerEventData eventData)
@@ -83,19 +89,42 @@ public class UiSaveFileItem : MonoBehaviour, IPointerEnterHandler, IPointerExitH
 
   private void ShowInfoButton()
   {
-    // Scale text boxes to left a bit to make room for the info button
-    m_Text.rectTransform.offsetMax = new Vector2(-m_VisibleRectTransformWidth, m_Text.rectTransform.offsetMax.y);
-    m_TimeStamp.rectTransform.offsetMax = new Vector2(-m_VisibleRectTransformWidth, m_TimeStamp.rectTransform.offsetMax.y);
     // Show info button
     m_InfoButton.SetActive(true);
   }
 
   private void HideInfoButton()
   {
-    // Scale text boxes back to normal
-    m_Text.rectTransform.offsetMax = new Vector2(-m_HiddenRectTransformWidth, m_Text.rectTransform.offsetMax.y);
-    m_TimeStamp.rectTransform.offsetMax = new Vector2(-m_HiddenRectTransformWidth, m_TimeStamp.rectTransform.offsetMax.y);
     // Hide info button
     m_InfoButton.SetActive(false);
+  }
+
+  private void UpdateThumbnail()
+  {
+    FileSystemInternal.FileInfo fileInfo;
+    try
+    {
+      FileSystem.Instance.GetFileInfoFromFullFilePath(m_FullFilePath, out fileInfo);
+    }
+    catch (Exception e)
+    {
+      Debug.LogWarning($"Failed to get data from file path: {m_FullFilePath}. {e.Message}");
+      StatusBar.Print($"Error: Could not load file thumbnail for file \"{Path.GetFileName(m_FullFilePath)}\".");
+      return;
+    }
+
+    // Get latest manual save and its thumbnail
+    FileSystemInternal.LevelData levelData;
+    // Check if we have any data to read
+    if (fileInfo.m_FileData.m_ManualSaves.Count > 0)
+      levelData = fileInfo.m_FileData.m_ManualSaves[^1];
+    else
+    {
+      Debug.LogWarning($"No saves found in file \"{m_FullFilePath}\"");
+      StatusBar.Print($"Error: Could not load file. No saves found in file \"{Path.GetFileName(m_FullFilePath)}\"");
+      return;
+    }
+
+    m_FileThumbnail.sprite = FileVersioning.GetThumbnailSprite(levelData);
   }
 }

@@ -18,6 +18,9 @@ using static FileVersioning;
 
 public class FileSystemInternal : MonoBehaviour
 {
+  public delegate void AnyFileSaved();
+  public static event AnyFileSaved OnAnyFileSaved;
+
   readonly static public string s_DateTimeFormat = "h-mm-ss.ff tt, ddd d MMM yyyy";
   
   // TODO: Auto and manual save max count removed in code. Find a reason to add back in and a number or remove entierly
@@ -273,12 +276,15 @@ public class FileSystemInternal : MonoBehaviour
     // Mount temp file so we can check when the full file path isn't the temp file
     MountFile(destFilePath, m_MountedFileInfo);
   }
-
+  
   /// <summary>
   /// Creates new file data structures.
   /// </summary>
   private static void CreateFileInfo(out FileInfo fileInfo, string filePath = "")
   {
+    if (s_EditorVersion == null)
+      s_EditorVersion = new(Application.version);
+
     fileInfo = new()
     {
       m_SaveFilePath = filePath,
@@ -937,6 +943,9 @@ public class FileSystemInternal : MonoBehaviour
       );
 
     }
+
+    // Signal to any listeners
+    m_MainThreadDispatcher.Enqueue(() => OnAnyFileSaved?.Invoke());
   }
 
   /// <summary>
