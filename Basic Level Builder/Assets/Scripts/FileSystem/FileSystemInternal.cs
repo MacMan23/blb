@@ -311,6 +311,8 @@ public class FileSystemInternal : MonoBehaviour
   private void UnmountFile()
   {
     m_MountedFileInfo.m_SaveFilePath = "";
+    // Reset the loaded version to none
+    m_loadedVersion = new();
   }
 
   /// <summary>
@@ -1157,10 +1159,14 @@ public class FileSystemInternal : MonoBehaviour
   public void DeleteFileEx(string fullFilePath)
   {
     File.Delete(fullFilePath);
-    
+
     // If we deleted the file we have open, unmount it
     if (m_MountedFileInfo.m_SaveFilePath == fullFilePath)
+    {
       UnmountFile();
+      // Also clear all tiles so the users sees the level as fully deleted
+      m_TileGrid.ClearGrid();
+    }
 
     m_FileDirUtilities.UpdateFilesList();
   }
