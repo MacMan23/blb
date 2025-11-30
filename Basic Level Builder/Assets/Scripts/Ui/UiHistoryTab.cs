@@ -21,6 +21,10 @@ public class UiHistoryTab : UiTab
   private UiHistoryItem m_AutoSaveItemPrefab;
   [SerializeField]
   private Sprite m_MissingThumbnail;
+  [SerializeField]
+  private Sprite m_ExpandIcon;
+  [SerializeField]
+  private Sprite m_CollapseIcon;
 
   [Header("Visuals")]
   [SerializeField]
@@ -31,6 +35,10 @@ public class UiHistoryTab : UiTab
   private TMPro.TextMeshProUGUI m_VersionDeltasText;
   [SerializeField]
   private Image m_VersionInfoThumbnail;
+  [SerializeField]
+  private Image m_ExpandCollapseButtonImage;
+  [SerializeField]
+  private TMPro.TextMeshProUGUI m_ExpandCollapseButtonText;
 
   [Header("Buttons")]
   [SerializeField]
@@ -166,6 +174,10 @@ public class UiHistoryTab : UiTab
         item.ToggleExpand();
       }
     }
+
+    // Update expand/collapse button icon
+    m_ExpandCollapseButtonImage.sprite = shouldExpand ? m_ExpandIcon : m_CollapseIcon;
+    m_ExpandCollapseButtonText.text = shouldExpand ? "Expand All" : "Collapse All";
   }
 
   public void LoadSelectedVersion()
