@@ -176,8 +176,8 @@ public class UiHistoryTab : UiTab
     }
 
     // Update expand/collapse button icon
-    m_ExpandCollapseButtonImage.sprite = shouldExpand ? m_ExpandIcon : m_CollapseIcon;
-    m_ExpandCollapseButtonText.text = shouldExpand ? "Expand All" : "Collapse All";
+    m_ExpandCollapseButtonImage.sprite = shouldExpand ? m_CollapseIcon : m_ExpandIcon;
+    m_ExpandCollapseButtonText.text = shouldExpand ? "Collapse All" : "Expand All";
   }
 
   public void LoadSelectedVersion()
