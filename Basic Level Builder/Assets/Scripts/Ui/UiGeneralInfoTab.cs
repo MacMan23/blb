@@ -51,7 +51,7 @@ public class UiGeneralInfoTab : UiTab
     m_FullFilePath = fullFilePath;
 
     // Get data
-    if (!ReadFile(out FileSystemInternal.FileInfo fileInfo))
+    if (ReadFile(out FileSystemInternal.FileInfo fileInfo))
       return;
 
     // Set text from file data
@@ -63,12 +63,12 @@ public class UiGeneralInfoTab : UiTab
 
   public override void OpenTab()
   {
-    if (!ReadFile(out FileSystemInternal.FileInfo fileInfo))
+    if (ReadFile(out FileSystemInternal.FileInfo fileInfo))
       return;
     UpdateLatestVersionPreview(fileInfo);
   }
 
-  // Returns false if an error occurec
+  // Returns true if an error occured
   private bool ReadFile(out FileSystemInternal.FileInfo fileInfo)
   {
     try
@@ -81,9 +81,9 @@ public class UiGeneralInfoTab : UiTab
       StatusBar.Print($"Error: Could not load file history for file \"{Path.GetFileName(m_FullFilePath)}\"");
       FindObjectOfType<UiFileInfo>().CloseWindow();
       fileInfo = new();
-      return false;
+      return true;
     }
-    return true;
+    return false;
   }
 
   private void UpdateLatestVersionPreview(FileSystemInternal.FileInfo fileInfo)

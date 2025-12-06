@@ -30,7 +30,7 @@ public class ErrorLogger : MonoBehaviour
   void HandleLog(string logString, string stackTrace, LogType type)
   {
     // Only log errors and exceptions
-    if (type == LogType.Error || type == LogType.Exception)
+    if (type is LogType.Error or LogType.Exception or LogType.Warning)
     {
       // Format the log entry
       string logEntry = $"[{System.DateTime.Now}] [{type}] {logString}\n{stackTrace}\n";
