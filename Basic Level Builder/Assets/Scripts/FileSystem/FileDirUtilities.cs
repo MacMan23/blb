@@ -54,7 +54,7 @@ public class FileDirUtilities : MonoBehaviour
     try
     {
       var filePaths = Directory.GetFiles(m_CurrentDirectoryPath);
-      var validFilePaths = filePaths.Where(path => Path.HasExtension(path)).ToArray();
+      var validFilePaths = filePaths.Where(path => IsFileValid(path)).ToArray();
 
       if (filePaths.Length == 0)
       {
@@ -94,7 +94,7 @@ public class FileDirUtilities : MonoBehaviour
     try
     {
       var filePaths = Directory.GetFiles(m_CurrentDirectoryPath);
-      var validFilePaths = filePaths.Where(path => Path.HasExtension(path)).ToArray();
+      var validFilePaths = filePaths.Where(path => isValidExtension(path)).ToArray();
 
       if (validFilePaths.Length == 0)
         return null;
@@ -103,7 +103,6 @@ public class FileDirUtilities : MonoBehaviour
 
       foreach (var fullFilePath in validFilePaths)
       {
-        // Skip over temp files
         if (IsTempFile(fullFilePath))
           results.Add(fullFilePath);
       }
@@ -150,10 +149,6 @@ public class FileDirUtilities : MonoBehaviour
 
     foreach (var fullFilePath in fullFilePaths)
     {
-      // Skip over temp files
-      if (IsTempFile(fullFilePath))
-        continue;
-
       // Path.GetFileNameWithoutExtension can only throw ArgumentException
       // for the path having invalid characters, and AddHelper will only be
       // called after ValidateDirectoryName has cleared the path
@@ -176,6 +171,22 @@ public class FileDirUtilities : MonoBehaviour
     return rt;
   }
 
+  private bool IsFileValid(string fullFilePath)
+  {
+    if (!isValidExtension(fullFilePath))
+      return false;
+    if (!HasHeader(fullFilePath))
+      return false;
+    if (IsTempFile(fullFilePath))
+      return false;
+    return true;
+  }
+
+  private bool isValidExtension(string fullFilePath)
+  {
+    return fullFilePath.EndsWith(s_FilenameExtension);
+  }
+
   private bool IsTempFile(string fullFilePath)
   {
     IEnumerable<string> lines = null;
@@ -196,7 +207,7 @@ public class FileDirUtilities : MonoBehaviour
     header = JsonUtility.FromJson<FileSystemInternal.FileHeader>(lines.First());
 
     // If the save file was not read properly
-    if (header == null)
+    if (header.m_BlbVersion == null)
     {
       string errorStr = $"Error reading save file {Path.GetFileName(fullFilePath)}. It may have been made with a different BLB version or is corrupted.";
       Debug.Log(errorStr);
@@ -204,6 +215,28 @@ public class FileDirUtilities : MonoBehaviour
     }
 
     return header.m_IsTempFile;
+  }
+
+  private bool HasHeader(string fullFilePath)
+  {
+    IEnumerable<string> lines = null;
+    try
+    {
+      lines = File.ReadLines(fullFilePath);
+    }
+    catch (Exception e)
+    {
+      string errorStr = $"Error reading save file {Path.GetFileName(fullFilePath)}. {e.Message} ({e.GetType()})";
+      Debug.Log(errorStr);
+    }
+
+    // We must have at least two lines. One for the header and one for the data
+    if (lines.Count() < 2) return false;
+
+    FileSystemInternal.FileHeader header;
+    header = JsonUtility.FromJson<FileSystemInternal.FileHeader>(lines.First());
+
+    return header.m_BlbVersion != null;
   }
 
   // Skips rename if the file already exists
