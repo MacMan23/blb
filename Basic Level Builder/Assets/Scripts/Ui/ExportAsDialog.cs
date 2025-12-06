@@ -9,10 +9,10 @@ public class ExportAsDialog : PromptFileNameDialog
 {
   public override void Confirm()
   {
-    if (!IsValidName())
+    if (!FileDirUtilities.IsFileNameValid(m_InputField.text))
       return;
 
     Close();
-    FileSystem.Instance.TryStartExportSavingThread(m_CurrentValidName);
+    FileSystem.Instance.TryStartExportSavingThread(m_InputField.text);
   }
 }

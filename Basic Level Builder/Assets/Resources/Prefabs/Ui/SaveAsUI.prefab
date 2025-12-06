@@ -267,6 +267,37 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4430458193552673618, guid: f25f1bfac7889e54a8c1a80b2b652d3c,
         type: 3}
+      propertyPath: m_InputType
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4430458193552673618, guid: f25f1bfac7889e54a8c1a80b2b652d3c,
+        type: 3}
+      propertyPath: m_RegexValue
+      value: '[^<>:"\\\|?*\x00-\x1F]'
+      objectReference: {fileID: 0}
+    - target: {fileID: 4430458193552673618, guid: f25f1bfac7889e54a8c1a80b2b652d3c,
+        type: 3}
+      propertyPath: m_ContentType
+      value: 9
+      objectReference: {fileID: 0}
+    - target: {fileID: 4430458193552673618, guid: f25f1bfac7889e54a8c1a80b2b652d3c,
+        type: 3}
+      propertyPath: m_KeyboardType
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4430458193552673618, guid: f25f1bfac7889e54a8c1a80b2b652d3c,
+        type: 3}
+      propertyPath: m_InputValidator
+      value: 
+      objectReference: {fileID: 11400000, guid: 4aea8f42eaac5404da1200b589d3a73d,
+        type: 2}
+    - target: {fileID: 4430458193552673618, guid: f25f1bfac7889e54a8c1a80b2b652d3c,
+        type: 3}
+      propertyPath: m_CharacterValidation
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 4430458193552673618, guid: f25f1bfac7889e54a8c1a80b2b652d3c,
+        type: 3}
       propertyPath: m_OnValueChanged.m_PersistentCalls.m_Calls.Array.data[0].m_Target
       value: 
       objectReference: {fileID: 4955579706313917909}

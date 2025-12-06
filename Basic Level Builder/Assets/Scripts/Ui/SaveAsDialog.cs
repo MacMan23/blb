@@ -9,10 +9,10 @@ public class SaveAsDialog : PromptFileNameDialog
 {
   public override void Confirm()
   {
-    if (!IsValidName())
+    if (!FileDirUtilities.IsFileNameValid(m_InputField.text))
       return;
 
     Close();
-    FileSystem.Instance.SaveAs(m_CurrentValidName);
+    FileSystem.Instance.SaveAs(m_InputField.text);
   }
 }

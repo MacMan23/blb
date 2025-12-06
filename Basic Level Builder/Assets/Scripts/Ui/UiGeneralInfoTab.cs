@@ -35,17 +35,6 @@ public class UiGeneralInfoTab : UiTab
 
   private string m_FullFilePath;
 
-  public static char[] s_InvalidFileNameChars = Path.GetInvalidFileNameChars();
-  public static string s_InvalidCharsString;
-  protected string m_CurrentValidName = string.Empty;
-
-  private void Awake()
-  {
-    var printableInvalidChars = s_InvalidFileNameChars.Where(invalidChar =>
-      !char.IsControl(invalidChar)).ToArray();
-    s_InvalidCharsString = string.Join(" ", printableInvalidChars);
-  }
-
   public override void InitLoad(string fullFilePath)
   {
     m_FullFilePath = fullFilePath;
@@ -156,52 +145,23 @@ public class UiGeneralInfoTab : UiTab
 
   public void OnInputFieldValueChanged(string value)
   {
-    var invalidChars = s_InvalidFileNameChars;
-
-    if (value.IndexOfAny(invalidChars) >= 0)
-    {
-      var message = $"<color=#ffff00>The string <b>{value}</b> contains " +
-        $"one or more invalid characters: <b>{s_InvalidCharsString}</b></color>";
-      StatusBar.Print(message);
-
-      m_FileNameInput.text = m_CurrentValidName;
-    }
-    else
-    {
-      m_CurrentValidName = value;
-    }
-
-    m_FileNameTxt.text = m_CurrentValidName + ".";
+    m_FileNameTxt.text = value + ".";
   }
 
   public void SetName()
   {
-    if (!IsValidName())
+    if (!FileDirUtilities.IsFileNameValid(m_FileNameInput.text))
     {
       m_FileNameInput.text = Path.GetFileNameWithoutExtension(m_FullFilePath);
       return;
     }
 
     // Set name
-    m_FullFilePath = FileSystem.Instance.RenameFile(m_FullFilePath, m_CurrentValidName);
-    m_FileInfo.SetTitleBarText(m_CurrentValidName);
+    m_FullFilePath = FileSystem.Instance.RenameFile(m_FullFilePath, m_FileNameInput.text);
+    m_FileInfo.SetTitleBarText(m_FileNameInput.text);
 
     // Deletect all ui so that the input field will be deselected and update its text
     var eventSystem = EventSystem.current;
     if (!eventSystem.alreadySelecting) eventSystem.SetSelectedGameObject(null);
-  }
-
-  protected bool IsValidName()
-  {
-    var emptyName = m_CurrentValidName == string.Empty;
-    var whiteSpaceName = string.IsNullOrWhiteSpace(m_CurrentValidName);
-
-    if (emptyName || whiteSpaceName)
-    {
-      StatusBar.Print("<color=#ffff00>Entered file name is invalid.</color>");
-
-      return false;
-    }
-    return true;
   }
 }

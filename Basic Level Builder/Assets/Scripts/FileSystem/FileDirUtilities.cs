@@ -121,6 +121,20 @@ public class FileDirUtilities : MonoBehaviour
     return m_CurrentDirectoryPath;
   }
 
+  public static bool IsFileNameValid(string name)
+  {
+    var emptyName = name == string.Empty;
+    var whiteSpaceName = string.IsNullOrWhiteSpace(name);
+    
+    if (emptyName || whiteSpaceName)
+    {
+      StatusBar.Print("<color=#ffff00>Entered file name is invalid.</color>");
+
+      return false;
+    }
+    return true;
+  }
+
   public void MoveFileItemToTop(string fullFilePath)
   {
     var item = m_SaveList.GetItemByFullFilePath(fullFilePath);
