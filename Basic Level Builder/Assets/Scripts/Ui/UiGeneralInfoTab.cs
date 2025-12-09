@@ -157,8 +157,17 @@ public class UiGeneralInfoTab : UiTab
     }
 
     // Set name
-    m_FullFilePath = FileSystem.Instance.RenameFile(m_FullFilePath, m_FileNameInput.text);
-    m_FileInfo.SetTitleBarText(m_FileNameInput.text);
+    string newFullFilePath = FileSystem.Instance.RenameFile(m_FullFilePath, m_FileNameInput.text);
+    // Check to see if rename was valid, as RenameFile returns old file path if can't rename
+    if (newFullFilePath != m_FullFilePath)
+    {
+      m_FullFilePath = newFullFilePath;
+      m_FileInfo.SetTitleBarText(m_FileNameInput.text);
+    }
+    else
+    {
+      m_FileNameInput.text = Path.GetFileNameWithoutExtension(m_FullFilePath);
+    }
 
     // Deletect all ui so that the input field will be deselected and update its text
     var eventSystem = EventSystem.current;
