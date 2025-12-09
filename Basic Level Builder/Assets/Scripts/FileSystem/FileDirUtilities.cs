@@ -11,6 +11,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using UnityEngine;
+using System.Runtime.InteropServices;
 
 public class FileDirUtilities : MonoBehaviour
 {
@@ -22,6 +23,16 @@ public class FileDirUtilities : MonoBehaviour
   public UiListView m_SaveList;
 
   protected string m_CurrentDirectoryPath;
+  private System.IntPtr m_windowPtr;
+
+  private void Awake()
+  {
+    m_windowPtr = FindWindow(null, Application.productName);
+    if (m_windowPtr == System.IntPtr.Zero)
+    {
+      Debug.Log($"Error finding application window");
+    }
+  }
 
   public void SetDirectoryName(string name)
   {
@@ -121,11 +132,28 @@ public class FileDirUtilities : MonoBehaviour
     return m_CurrentDirectoryPath;
   }
 
+  [DllImport("user32.dll", EntryPoint = "SetWindowText")]
+  public static extern bool SetWindowText(System.IntPtr hwnd, string lpString);
+  [DllImport("user32.dll", EntryPoint = "FindWindow")]
+  public static extern System.IntPtr FindWindow(string className, string windowName);
+
+  public void SetTitleBarFileName(string filePath)
+  {
+    // If the window is found, set the new title
+    if (m_windowPtr != System.IntPtr.Zero)
+    {
+      if (string.IsNullOrEmpty(filePath))
+        SetWindowText(m_windowPtr, Application.productName);
+      else
+        SetWindowText(m_windowPtr, Application.productName + " - " + Path.GetFileNameWithoutExtension(filePath));
+    }
+  }
+
   public static bool IsFileNameValid(string name)
   {
     var emptyName = name == string.Empty;
     var whiteSpaceName = string.IsNullOrWhiteSpace(name);
-    
+
     if (emptyName || whiteSpaceName)
     {
       StatusBar.Print("<color=#ffff00>Entered file name is invalid.</color>");

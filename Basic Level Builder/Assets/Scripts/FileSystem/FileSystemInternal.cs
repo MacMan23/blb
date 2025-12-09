@@ -319,6 +319,7 @@ public class FileSystemInternal : MonoBehaviour
     m_MountedFileInfo.m_SaveFilePath = "";
     // Reset the loaded version to none
     m_loadedVersion = new();
+    m_FileDirUtilities.SetTitleBarFileName(null);
   }
 
   /// <summary>
@@ -329,6 +330,7 @@ public class FileSystemInternal : MonoBehaviour
   {
     m_MountedFileInfo = fileInfo;
     m_MountedFileInfo.m_SaveFilePath = filePath;
+    m_FileDirUtilities.SetTitleBarFileName(filePath);
   }
 
   private bool FileExists(string filePath)
@@ -339,6 +341,16 @@ public class FileSystemInternal : MonoBehaviour
   private bool IsFileMounted()
   {
     return !String.IsNullOrEmpty(m_MountedFileInfo.m_SaveFilePath);
+  }
+
+  protected bool IsFileMounted(string filePath)
+  {
+    return m_MountedFileInfo.m_SaveFilePath == filePath;
+  }
+
+  protected void RenameMountedFile(string newFilePath)
+  {
+    m_MountedFileInfo.m_SaveFilePath = newFilePath;
   }
 
   private void OnDroppedFiles(List<string> paths, POINT dropPoint)

@@ -273,7 +273,7 @@ PrefabInstance:
     - target: {fileID: 4430458193552673618, guid: f25f1bfac7889e54a8c1a80b2b652d3c,
         type: 3}
       propertyPath: m_RegexValue
-      value: '[^<>:"\\\|?*\x00-\x1F]'
+      value: '[^<>:"\\\|\/?*\x00-\x1F]'
       objectReference: {fileID: 0}
     - target: {fileID: 4430458193552673618, guid: f25f1bfac7889e54a8c1a80b2b652d3c,
         type: 3}
@@ -289,8 +289,7 @@ PrefabInstance:
         type: 3}
       propertyPath: m_InputValidator
       value: 
-      objectReference: {fileID: 11400000, guid: 4aea8f42eaac5404da1200b589d3a73d,
-        type: 2}
+      objectReference: {fileID: 0}
     - target: {fileID: 4430458193552673618, guid: f25f1bfac7889e54a8c1a80b2b652d3c,
         type: 3}
       propertyPath: m_CharacterValidation

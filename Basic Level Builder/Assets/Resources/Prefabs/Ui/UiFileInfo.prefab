@@ -1696,7 +1696,7 @@ MonoBehaviour:
   m_HideMobileInput: 0
   m_HideSoftKeyboard: 0
   m_CharacterValidation: 6
-  m_RegexValue: '[^<>:"\\\|?*\x00-\x1F]'
+  m_RegexValue: '[^<>:"\\\|\/?*\x00-\x1F]'
   m_GlobalPointSize: 24
   m_CharacterLimit: 100
   m_OnEndEdit:
