@@ -322,7 +322,7 @@ public class UiHistoryItem : MonoBehaviour
   {
     if (!IsManualSave()) return;
 
-    m_ManualSaveInfo.m_Arrow.gameObject.SetActive(state);
+    m_ManualSaveInfo.m_Arrow.parent.gameObject.SetActive(state);
   }
 
   public int CompareTo(UiHistoryItem other)
