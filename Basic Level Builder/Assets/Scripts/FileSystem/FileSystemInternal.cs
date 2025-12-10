@@ -705,11 +705,11 @@ public class FileSystemInternal : MonoBehaviour
     // If we will be copying the mounted file over to a diffrent file
     bool copyFile = false;
 
-    bool cameraDiff = m_PendingCameraPos != GetLastManualSaveData(m_MountedFileInfo.m_FileData).m_CameraPos;
-    bool saveDiffs = cameraDiff && updateCameraPosButtonPressed;
+    bool isCameraDifferent = m_PendingCameraPos != GetLastManualSaveData(m_MountedFileInfo.m_FileData).m_CameraPos;
+    bool saveDiffs = isCameraDifferent && updateCameraPosButtonPressed;
     
     // We can't update the camera pos if the camera is not different
-    if (updateCameraPosButtonPressed && !cameraDiff)
+    if (updateCameraPosButtonPressed && !isCameraDifferent)
     {
       var errorString = "Skipped updating the camera position because the camera position has not changed";
       m_MainThreadDispatcher.Enqueue(() => StatusBar.Print(errorString));

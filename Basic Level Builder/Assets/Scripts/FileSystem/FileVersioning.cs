@@ -102,13 +102,20 @@ public static class FileVersioning
     GetVersionLevelData(fileData, version, out LevelData targetData);
 
     // Find the previous versions number
-    int v = 0;
+    int v;
     // If we are a manual get the previouse manuals number, otherwise we will compare to this auto saves manual
     if (version.IsManual())
+    {
       v = GetPreviousManualVersion(fileData, version.m_ManualVersion);
-    // 0 means no prev version was found, so the camera is different by default
-    if (v == 0)
-      return true;
+      // 0 means no prev version was found, so the camera is different by default
+      if (v == 0)
+        return true;
+    }
+    else
+    {
+      // If we are an auto, just compare againt the manual we are branched off of
+      v = version.m_ManualVersion;
+    }
     
     GetVersionLevelData(fileData, new FileVersion(v, 0), out LevelData previousData);
 
