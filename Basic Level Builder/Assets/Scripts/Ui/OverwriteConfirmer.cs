@@ -20,6 +20,13 @@ public class OverwriteConfirmer : ModalDialog
     m_FS = FindObjectOfType<FileSystem>();
   }
 
+  private void Update()
+  {
+    if (Input.GetButtonDown("Cancel"))
+    {
+      Cancel();
+    }
+  }
 
   public override void Open()
   {

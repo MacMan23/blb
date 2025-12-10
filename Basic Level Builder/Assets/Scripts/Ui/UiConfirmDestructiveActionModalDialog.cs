@@ -6,6 +6,7 @@ Copyright 2018-2025, DigiPen Institute of Technology
 ***************************************************/
 
 using UnityEngine;
+using UnityEngine.UIElements;
 
 public class UiConfirmDestructiveActionModalDialog : ModalDialog
 {
@@ -14,6 +15,14 @@ public class UiConfirmDestructiveActionModalDialog : ModalDialog
   public static event ConfirmDestructiveAction OnConfirmDestructiveAction;
   public delegate void DenyDestructiveAction();
   public static event DenyDestructiveAction OnDenyDestructiveAction;
+
+  private void Update()
+  {
+    if (Input.GetButtonDown("Cancel"))
+    {
+      Cancel();
+    }
+  }
 
   public override void StringsSetup(string[] strings = null)
   {
