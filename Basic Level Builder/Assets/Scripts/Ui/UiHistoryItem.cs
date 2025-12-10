@@ -62,7 +62,7 @@ public class UiHistoryItem : MonoBehaviour
   {
     public TMPro.TMP_InputField m_VersionInputName;
     public TMPro.TextMeshProUGUI m_VersionName;
-    public RectTransform m_Arrow;
+    public UiIconRotator m_Arrow;
   }
 
   private string GenerateManualSaveName()
@@ -299,30 +299,27 @@ public class UiHistoryItem : MonoBehaviour
     m_IsExpanded = !m_IsExpanded;
 
     // Rotate arrow
-    if (m_IsExpanded)
-      m_ManualSaveInfo.m_Arrow.rotation = Quaternion.Euler(0f, 0f, 180f);
-    else
-      m_ManualSaveInfo.m_Arrow.rotation = Quaternion.Euler(0f, 0f, -90f);
+    m_ManualSaveInfo.m_Arrow.Toggle();
 
     // Loop and turn on/off all our autosaves
     for (int i = transform.GetSiblingIndex() + 1; i < transform.parent.childCount; i++)
-    {
-      var child = transform.parent.GetChild(i);
-      if (child != null && child.TryGetComponent<UiHistoryItem>(out var item))
       {
-        if (item.IsManualSave())
-          break;
-        else
-          child.gameObject.SetActive(m_IsExpanded);
+        var child = transform.parent.GetChild(i);
+        if (child != null && child.TryGetComponent<UiHistoryItem>(out var item))
+        {
+          if (item.IsManualSave())
+            break;
+          else
+            child.gameObject.SetActive(m_IsExpanded);
+        }
       }
-    }
   }
 
   public void SetArrowActive(bool state)
   {
     if (!IsManualSave()) return;
 
-    m_ManualSaveInfo.m_Arrow.parent.gameObject.SetActive(state);
+    m_ManualSaveInfo.m_Arrow.transform.parent.gameObject.SetActive(state);
   }
 
   public int CompareTo(UiHistoryItem other)

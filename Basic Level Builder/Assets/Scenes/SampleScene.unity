@@ -23449,7 +23449,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_ShownPosition: {x: 0, y: 0}
-  m_HiddenPosition: {x: -144, y: -33}
+  m_HiddenPosition: {x: -200, y: -33}
   m_ShownRotation: 0
   m_HiddenRotation: 90
   m_Duration: 0.25
