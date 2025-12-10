@@ -23449,7 +23449,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_ShownPosition: {x: 0, y: 0}
-  m_HiddenPosition: {x: -200, y: -33}
+  m_HiddenPosition: {x: -195, y: 35}
   m_ShownRotation: 0
   m_HiddenRotation: 90
   m_Duration: 0.25
@@ -33851,7 +33851,7 @@ MonoBehaviour:
   m_TileGrid: {fileID: 2031376952}
   m_UndoDepth: 128
   m_UseAutosaving: 1
-  m_AutosaveInterval: 4
+  m_AutosaveInterval: 10
 --- !u!4 &1295123611
 Transform:
   m_ObjectHideFlags: 0

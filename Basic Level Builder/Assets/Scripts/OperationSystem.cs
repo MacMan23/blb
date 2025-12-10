@@ -7,7 +7,7 @@ public class OperationSystem : MonoBehaviour
   static bool s_UseAutosaving;
   static int s_AutosaveInterval;
   static int s_OperationCounter = 0;
-  static List<Operation> s_Operations = new List<Operation>();
+  static List<Operation> s_Operations = new();
   static int s_StackIndex = 0;  // distance from the right side of the stack
 
   public static Operation s_CurrentOperation;
@@ -25,7 +25,9 @@ public class OperationSystem : MonoBehaviour
   public TileGrid m_TileGrid;
   public int m_UndoDepth = 64;
   public bool m_UseAutosaving = true;
-  public int m_AutosaveInterval = 10;
+
+  [SerializeField]
+  private int m_AutosaveInterval = 10;
 
 
   private void Awake()

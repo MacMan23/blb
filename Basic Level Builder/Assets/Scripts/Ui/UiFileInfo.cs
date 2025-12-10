@@ -108,7 +108,10 @@ public class UiFileInfo : MonoBehaviour
     foreach (var tab in m_Tabs)
     {
       tab.gameObject.SetActive(tab == tabRef);
-      tab.OpenTab();
+
+      // Let the opened tab know we have opened it
+      if (tab == tabRef)
+        tab.OpenTab();
 
       if (tab == tabRef)
       {
