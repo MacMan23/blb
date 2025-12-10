@@ -7,7 +7,6 @@ Copyright 2018-2025, DigiPen Institute of Technology
 
 using System;
 using UnityEngine;
-using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using static FileVersioning;
 
@@ -60,8 +59,7 @@ public class UiHistoryItem : MonoBehaviour
   [Serializable]
   private class ManualSaveInfo
   {
-    public TMPro.TMP_InputField m_VersionInputName;
-    public TMPro.TextMeshProUGUI m_VersionName;
+    public InputFieldUiHelper m_VersionNameInputFieldHelper;
     public UiIconRotator m_Arrow;
   }
 
@@ -78,14 +76,14 @@ public class UiHistoryItem : MonoBehaviour
     if (string.IsNullOrEmpty(levelData.m_Name))
     {
       if (IsManualSave())
-        m_ManualSaveInfo.m_VersionInputName.text = GenerateManualSaveName();
+        m_ManualSaveInfo.m_VersionNameInputFieldHelper.SetText(GenerateManualSaveName());
       else
         m_AutoSaveInfo.m_VersionName.text = "<i>" + s_AutoSaveName + levelData.m_Version.m_AutoVersion; //+ " ID: " + levelData.m_Id;
     }
     else
     {
       if (IsManualSave())
-        m_ManualSaveInfo.m_VersionInputName.text = levelData.m_Name;
+        m_ManualSaveInfo.m_VersionNameInputFieldHelper.SetText(levelData.m_Name);
       else
         m_AutoSaveInfo.m_VersionName.text = levelData.m_Name;
     }
@@ -93,29 +91,16 @@ public class UiHistoryItem : MonoBehaviour
     m_VersionData.text = GetVersionTimeStamp();
 
     m_ThumbnailImage.sprite = GetThumbnailSprite(levelData);
-
-    // Allow mouse pass though when clicking on the version name
-    if (IsManualSave())
-      m_ManualSaveInfo.m_VersionInputName.GetComponentInChildren<TMPro.TMP_SelectionCaret>(true).raycastTarget = false;
   }
 
-  public void EditName()
+  public void SetName(string newVersionName)
   {
-    m_ManualSaveInfo.m_VersionInputName.GetComponentInChildren<TMPro.TMP_SelectionCaret>(true).raycastTarget = true;
-    m_ManualSaveInfo.m_VersionInputName.ActivateInputField();
-  }
-
-  public void SetName()
-  {
-    FileSystem.Instance.SetVersionName(m_FullFilePath, m_LevelData.m_Version, m_ManualSaveInfo.m_VersionInputName.text);
+    FileSystem.Instance.SetVersionName(m_FullFilePath, m_LevelData.m_Version, newVersionName);
 
     // If we deleted the version name, reset it back to the generated name
-    if (string.IsNullOrEmpty(m_ManualSaveInfo.m_VersionInputName.text))
-      m_ManualSaveInfo.m_VersionInputName.text = GenerateManualSaveName();
+    if (string.IsNullOrEmpty(newVersionName) || string.IsNullOrWhiteSpace(newVersionName))
+      m_ManualSaveInfo.m_VersionNameInputFieldHelper.SetText(GenerateManualSaveName());
 
-    // Deletect all ui so that the input field will be deselected and update its text
-    var eventSystem = EventSystem.current;
-    if (!eventSystem.alreadySelecting) eventSystem.SetSelectedGameObject(null);
 
     // Call onselected to get the history tab to update the version preview ui
     OnSelected?.Invoke(this);
@@ -144,7 +129,7 @@ public class UiHistoryItem : MonoBehaviour
   public string GetVersionName()
   {
     return IsManualSave()
-        ? m_ManualSaveInfo.m_VersionInputName.text
+        ? m_ManualSaveInfo.m_VersionNameInputFieldHelper.GetText()
         : m_AutoSaveInfo.m_VersionName.text;
   }
 
@@ -325,28 +310,5 @@ public class UiHistoryItem : MonoBehaviour
   public int CompareTo(UiHistoryItem other)
   {
     return GetVersion().CompareTo(other.GetVersion());
-  }
-
-  public void OnInputFieldDeselect()
-  {
-    // Move text position back to the left
-    m_ManualSaveInfo.m_VersionInputName.textComponent.rectTransform.localPosition = Vector3.zero;
-    m_ManualSaveInfo.m_VersionInputName.caretPosition = 0;
-    // Re-disable mouse event blocking
-    m_ManualSaveInfo.m_VersionInputName.GetComponentInChildren<TMPro.TMP_SelectionCaret>(true).raycastTarget = false;
-
-    m_ManualSaveInfo.m_VersionInputName.textComponent.overflowMode = TMPro.TextOverflowModes.Ellipsis;
-    m_ManualSaveInfo.m_VersionName.overflowMode = TMPro.TextOverflowModes.Ellipsis;
-  }
-
-  public void OnInputFieldSelect()
-  {
-    m_ManualSaveInfo.m_VersionInputName.textComponent.overflowMode = TMPro.TextOverflowModes.Masking;
-    m_ManualSaveInfo.m_VersionName.overflowMode = TMPro.TextOverflowModes.Masking;
-  }
-
-  public void UpdateInputFieldText(string text)
-  {
-    m_ManualSaveInfo.m_VersionName.text = text + ".";
   }
 }

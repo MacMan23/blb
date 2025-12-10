@@ -7,9 +7,7 @@ Copyright 2018-2025, DigiPen Institute of Technology
 
 using System;
 using System.IO;
-using System.Linq;
 using UnityEngine;
-using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 public class UiGeneralInfoTab : UiTab
@@ -18,8 +16,6 @@ public class UiGeneralInfoTab : UiTab
   private UiFileInfo m_FileInfo;
 
   [Header("Visual Components")]
-  [SerializeField]
-  private TMPro.TextMeshProUGUI m_FileNameTxt;
   [SerializeField]
   private TMPro.TextMeshProUGUI m_SaveNumberTxt;
   [SerializeField]
@@ -31,7 +27,7 @@ public class UiGeneralInfoTab : UiTab
   [SerializeField]
   private TMPro.TMP_InputField m_DescriptionInputField;
   [SerializeField]
-  private TMPro.TMP_InputField m_FileNameInput;
+  private InputFieldUiHelper m_FileNameInputFieldHelper;
 
   private string m_FullFilePath;
 
@@ -44,8 +40,7 @@ public class UiGeneralInfoTab : UiTab
       return;
 
     // Set text from file data
-    m_FileNameTxt.text = Path.GetFileNameWithoutExtension(fullFilePath);
-    m_FileNameInput.text = m_FileNameTxt.text;
+    m_FileNameInputFieldHelper.SetText(Path.GetFileNameWithoutExtension(fullFilePath));
 
     UpdateLatestVersionPreview(fileInfo);
   }
@@ -80,7 +75,7 @@ public class UiGeneralInfoTab : UiTab
     m_SaveNumberTxt.text = fileInfo.m_FileData.m_ManualSaves.Count + " Manual Saves    " + fileInfo.m_FileData.m_AutoSaves.Count + " Auto Saves";
     string timeStamp = File.GetCreationTime(m_FullFilePath).ToString("M/d/yy h:mm:sstt").ToLower();
     m_CreationDateTxt.text = $"<b>Created on:</b> <color=#C6C6C6>{timeStamp}</color>";
-    
+
     // Set the text description for the file
     m_DescriptionInputField.text = fileInfo.m_FileData.m_Description;
     m_DescriptionInputField.ForceLabelUpdate();
@@ -119,58 +114,20 @@ public class UiGeneralInfoTab : UiTab
 
   // Name input field functions
 
-  public void OnInputFieldDeselect()
+  public void SetName(string newName)
   {
-    // Move text position back to the left
-    m_FileNameInput.textComponent.rectTransform.localPosition = Vector3.zero;
-    m_FileNameInput.caretPosition = 0;
-    // Re-disable mouse event blocking
-    m_FileNameInput.GetComponentInChildren<TMPro.TMP_SelectionCaret>(true).raycastTarget = false;
-
-    m_FileNameInput.textComponent.overflowMode = TMPro.TextOverflowModes.Ellipsis;
-    m_FileNameTxt.overflowMode = TMPro.TextOverflowModes.Ellipsis;
-  }
-
-  public void OnInputFieldSelect()
-  {
-    m_FileNameInput.textComponent.overflowMode = TMPro.TextOverflowModes.Masking;
-    m_FileNameTxt.overflowMode = TMPro.TextOverflowModes.Masking;
-  }
-
-  public void EditName()
-  {
-    m_FileNameInput.GetComponentInChildren<TMPro.TMP_SelectionCaret>(true).raycastTarget = true;
-    m_FileNameInput.ActivateInputField();
-  }
-
-  public void OnInputFieldValueChanged(string value)
-  {
-    m_FileNameTxt.text = value + ".";
-  }
-
-  public void SetName()
-  {
-    if (!FileDirUtilities.IsFileNameValid(m_FileNameInput.text))
+    if (FileDirUtilities.IsFileNameValid(newName))
     {
-      m_FileNameInput.text = Path.GetFileNameWithoutExtension(m_FullFilePath);
-      return;
+      string newFullFilePath = FileSystem.Instance.RenameFile(m_FullFilePath, newName);
+      // Check to see if rename was valid, as RenameFile returns old file path if can't rename
+      if (newFullFilePath != m_FullFilePath)
+      {
+        m_FullFilePath = newFullFilePath;
+        m_FileInfo.SetTitleBarText(newName);
+        return;
+      }
     }
 
-    // Set name
-    string newFullFilePath = FileSystem.Instance.RenameFile(m_FullFilePath, m_FileNameInput.text);
-    // Check to see if rename was valid, as RenameFile returns old file path if can't rename
-    if (newFullFilePath != m_FullFilePath)
-    {
-      m_FullFilePath = newFullFilePath;
-      m_FileInfo.SetTitleBarText(m_FileNameInput.text);
-    }
-    else
-    {
-      m_FileNameInput.text = Path.GetFileNameWithoutExtension(m_FullFilePath);
-    }
-
-    // Deletect all ui so that the input field will be deselected and update its text
-    var eventSystem = EventSystem.current;
-    if (!eventSystem.alreadySelecting) eventSystem.SetSelectedGameObject(null);
+    m_FileNameInputFieldHelper.SetText(Path.GetFileNameWithoutExtension(m_FullFilePath));
   }
 }
