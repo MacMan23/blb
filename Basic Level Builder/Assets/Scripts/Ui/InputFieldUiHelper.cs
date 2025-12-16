@@ -7,7 +7,7 @@ public class InputFieldUiHelper : MonoBehaviour
   [SerializeField]
   private TMPro.TMP_InputField m_InputField;
   [SerializeField]
-  private TMPro.TextMeshProUGUI m_ShownTxt;
+  private TMPro.TextMeshProUGUI m_ShownText;
 
   public void OnInputFieldDeselect()
   {
@@ -18,13 +18,13 @@ public class InputFieldUiHelper : MonoBehaviour
     m_InputField.GetComponentInChildren<TMPro.TMP_SelectionCaret>(true).raycastTarget = false;
 
     m_InputField.textComponent.overflowMode = TMPro.TextOverflowModes.Ellipsis;
-    m_ShownTxt.overflowMode = TMPro.TextOverflowModes.Ellipsis;
+    m_ShownText.overflowMode = TMPro.TextOverflowModes.Ellipsis;
   }
 
   public void OnInputFieldSelect()
   {
     m_InputField.textComponent.overflowMode = TMPro.TextOverflowModes.Masking;
-    m_ShownTxt.overflowMode = TMPro.TextOverflowModes.Masking;
+    m_ShownText.overflowMode = TMPro.TextOverflowModes.Masking;
   }
 
   public void StartEdit()
@@ -35,7 +35,7 @@ public class InputFieldUiHelper : MonoBehaviour
 
   public void OnInputFieldValueChanged(string value)
   {
-    m_ShownTxt.text = value + ".";
+    m_ShownText.text = value + ".";
   }
 
   public void EndEdit()
@@ -47,7 +47,7 @@ public class InputFieldUiHelper : MonoBehaviour
 
   public void SetText(string txt)
   {
-    m_ShownTxt.text = txt + ".";
+    m_ShownText.text = txt + ".";
     m_InputField.text = txt;
   }
 

@@ -23,12 +23,12 @@ public class FileDirUtilities : MonoBehaviour
   public UiListView m_SaveList;
 
   protected string m_CurrentDirectoryPath;
-  private System.IntPtr m_windowPtr;
+  private System.IntPtr m_WindowPtr;
 
   private void Awake()
   {
-    m_windowPtr = FindWindow(null, Application.productName);
-    if (m_windowPtr == System.IntPtr.Zero)
+    m_WindowPtr = FindWindow(null, Application.productName);
+    if (m_WindowPtr == System.IntPtr.Zero)
     {
       Debug.Log($"Error finding application window");
     }
@@ -140,12 +140,12 @@ public class FileDirUtilities : MonoBehaviour
   public void SetTitleBarFileName(string filePath)
   {
     // If the window is found, set the new title
-    if (m_windowPtr != System.IntPtr.Zero)
+    if (m_WindowPtr != System.IntPtr.Zero)
     {
       if (string.IsNullOrEmpty(filePath))
-        SetWindowText(m_windowPtr, Application.productName);
+        SetWindowText(m_WindowPtr, Application.productName);
       else
-        SetWindowText(m_windowPtr, Application.productName + " - " + Path.GetFileNameWithoutExtension(filePath));
+        SetWindowText(m_WindowPtr, Application.productName + " - " + Path.GetFileNameWithoutExtension(filePath));
     }
   }
 
