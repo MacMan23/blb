@@ -28,7 +28,6 @@ public class UiHistoryItem : MonoBehaviour
   public static event CloseInfoWindowAction OnCloseInfoWindow;
 
   private FileSystemInternal.LevelData m_LevelData;
-  private string m_FullFilePath;
 
   [SerializeField]
   private Image m_ThumbnailImage;
@@ -40,6 +39,8 @@ public class UiHistoryItem : MonoBehaviour
   private AutoSaveInfo m_AutoSaveInfo;
   [SerializeField]
   private ManualSaveInfo m_ManualSaveInfo;
+
+  private UiFileInfo m_FileInfo;
 
   private bool m_IsExpanded = true;
   private float m_LastPressedTime = float.MinValue;
@@ -68,10 +69,10 @@ public class UiHistoryItem : MonoBehaviour
     return s_ManualSaveName + m_LevelData.m_Version.m_ManualVersion; //+ " ID: " + m_LevelData.m_Id;
   }
 
-  public void Init(FileSystemInternal.LevelData levelData, string fullFilePath)
+  public void Init(FileSystemInternal.LevelData levelData, UiFileInfo fileInfo)
   {
     m_LevelData = levelData;
-    m_FullFilePath = fullFilePath;
+    m_FileInfo = fileInfo;
 
     if (string.IsNullOrEmpty(levelData.m_Name))
     {
@@ -95,7 +96,7 @@ public class UiHistoryItem : MonoBehaviour
 
   public void SetName(string newVersionName)
   {
-    FileSystem.Instance.SetVersionName(m_FullFilePath, m_LevelData.m_Version, newVersionName);
+    FileSystem.Instance.SetVersionName(m_FileInfo.FullFilePath, m_LevelData.m_Version, newVersionName);
 
     // If we deleted the version name, reset it back to the generated name
     if (string.IsNullOrEmpty(newVersionName) || string.IsNullOrWhiteSpace(newVersionName))
@@ -119,11 +120,6 @@ public class UiHistoryItem : MonoBehaviour
   public uint GetId()
   {
     return m_LevelData.m_Id;
-  }
-
-  public string GetFilePath()
-  {
-    return m_FullFilePath;
   }
 
   public string GetVersionName()
@@ -172,7 +168,7 @@ public class UiHistoryItem : MonoBehaviour
 
   public void Load()
   {
-    FileSystem.Instance.LoadFromFullFilePath(m_FullFilePath, m_LevelData.m_Version);
+    FileSystem.Instance.LoadFromFullFilePath(m_FileInfo.FullFilePath, m_LevelData.m_Version);
     OnCloseInfoWindow?.Invoke();
   }
 

@@ -14,6 +14,9 @@ using static FileVersioning;
 
 public class UiHistoryTab : UiTab
 {
+  [SerializeField]
+  private UiFileInfo m_FileInfo;
+
   [Header("Prefabs")]
   [SerializeField]
   private UiHistoryItem m_ManualSaveItemPrefab;
@@ -60,8 +63,6 @@ public class UiHistoryTab : UiTab
   // If the modifier is held, it will select all items between this index and the next selected item
   private int m_RangeSelectionFirstIndex = 0;
 
-  private string m_FullFilePath;
-
   void OnEnable()
   {
     UiHistoryItem.OnSelected += OnHistoryItemSelected;
@@ -74,7 +75,6 @@ public class UiHistoryTab : UiTab
 
   public override void InitLoad(string fullFilePath)
   {
-    m_FullFilePath = fullFilePath;
     LoadHistoryItemList();
     // Select the first item in the list
     OnHistoryItemSelected(GetAllHistoryItems()[0]);
@@ -99,11 +99,11 @@ public class UiHistoryTab : UiTab
 
       try
       {
-        FileSystem.Instance.GetFileInfoFromFullFilePath(m_FullFilePath, out fileInfo);
+        FileSystem.Instance.GetFileInfoFromFullFilePath(m_FileInfo.FullFilePath, out fileInfo);
       }
       catch (Exception e)
       {
-        Debug.LogWarning($"Failed to get data from file path: {m_FullFilePath}. {e.Message}");
+        Debug.LogWarning($"Failed to get data from file path: {m_FileInfo.FullFilePath}. {e.Message}");
         StatusBar.Print($"Error: Could not load file history.");
         FindObjectOfType<UiFileInfo>().CloseWindow();
         return;
@@ -113,16 +113,16 @@ public class UiHistoryTab : UiTab
 
       foreach (var levelData in fileInfo.m_FileData.m_ManualSaves)
       {
-        items.Add(CreateHistoryItem(levelData, m_FullFilePath, m_ManualSaveItemPrefab));
+        items.Add(CreateHistoryItem(levelData, m_FileInfo.FullFilePath, m_ManualSaveItemPrefab));
       }
       foreach (var levelData in fileInfo.m_FileData.m_AutoSaves)
       {
-        items.Add(CreateHistoryItem(levelData, m_FullFilePath, m_AutoSaveItemPrefab));
+        items.Add(CreateHistoryItem(levelData, m_FileInfo.FullFilePath, m_AutoSaveItemPrefab));
       }
 
       if (items.Count == 0)
       {
-        Debug.LogWarning($"No versions found in file: {m_FullFilePath}");
+        Debug.LogWarning($"No versions found in file: {m_FileInfo.FullFilePath}");
         StatusBar.Print($"Error: File empty");
         FindObjectOfType<UiFileInfo>().CloseWindow();
         return;
@@ -145,7 +145,7 @@ public class UiHistoryTab : UiTab
   {
     UiHistoryItem historyItem = Instantiate(prefab);
     // Give level data so it can init its text and thumbnail
-    historyItem.Init(levelData, fullFilePath);
+    historyItem.Init(levelData, m_FileInfo);
     // Add item to list view
     if (historyItem.TryGetComponent(out RectTransform rect))
     {
@@ -196,7 +196,7 @@ public class UiHistoryTab : UiTab
     if (m_Selection.Count > 1 || m_Selection[0].GetVersion().IsManual())
       return;
 
-    FileSystem.Instance.PromoteAutoSave(m_FullFilePath, m_Selection[0].GetVersion());
+    FileSystem.Instance.PromoteAutoSave(m_FileInfo.FullFilePath, m_Selection[0].GetVersion());
 
     RefreshUi();
   }
@@ -215,14 +215,14 @@ public class UiHistoryTab : UiTab
     }
 
     if (m_Selection.Count == 1)
-      FileSystem.Instance.ExportVersion(m_Selection[0].GetFilePath(), m_Selection[0].GetVersion());
+      FileSystem.Instance.ExportVersion(m_FileInfo.FullFilePath, m_Selection[0].GetVersion());
     else
-      FileSystem.Instance.ExportMultipleVersions(m_Selection[0].GetFilePath(), versions);
+      FileSystem.Instance.ExportMultipleVersions(m_FileInfo.FullFilePath, versions);
   }
 
   public void DeleteSelectedVersionsCoda()
   {
-    FileSystem.Instance.GetFileInfoFromFullFilePath(m_FullFilePath, out FileSystemInternal.FileInfo fileInfo);
+    FileSystem.Instance.GetFileInfoFromFullFilePath(m_FileInfo.FullFilePath, out FileSystemInternal.FileInfo fileInfo);
     int manualsSelected = 0;
     foreach (var item in m_Selection)
     {
@@ -288,7 +288,7 @@ public class UiHistoryTab : UiTab
       throw new Exception("Deleting version(s) with no version(s) selected");
     }
 
-    FileSystem.Instance.GetFileInfoFromFullFilePath(m_FullFilePath, out FileSystemInternal.FileInfo fileInfo);
+    FileSystem.Instance.GetFileInfoFromFullFilePath(m_FileInfo.FullFilePath, out FileSystemInternal.FileInfo fileInfo);
     if (m_Selection.Count > 1)
     {
       List<FileVersion> versions = new();
@@ -458,7 +458,7 @@ public class UiHistoryTab : UiTab
 
   private bool IsCameraDifferent(FileVersion version)
   {
-    FileSystem.Instance.GetFileInfoFromFullFilePath(m_FullFilePath, out FileSystemInternal.FileInfo fileInfo);
+    FileSystem.Instance.GetFileInfoFromFullFilePath(m_FileInfo.FullFilePath, out FileSystemInternal.FileInfo fileInfo);
     return FileVersioning.IsCameraDifferent(fileInfo.m_FileData, version);
   }
 

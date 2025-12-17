@@ -29,12 +29,8 @@ public class UiGeneralInfoTab : UiTab
   [SerializeField]
   private InputFieldUiHelper m_FileNameInputFieldHelper;
 
-  private string m_FullFilePath;
-
   public override void InitLoad(string fullFilePath)
   {
-    m_FullFilePath = fullFilePath;
-
     // Get data
     if (ReadFile(out FileSystemInternal.FileInfo fileInfo))
       return;
@@ -57,12 +53,12 @@ public class UiGeneralInfoTab : UiTab
   {
     try
     {
-      FileSystem.Instance.GetFileInfoFromFullFilePath(m_FullFilePath, out fileInfo);
+      FileSystem.Instance.GetFileInfoFromFullFilePath(m_FileInfo. FullFilePath, out fileInfo);
     }
     catch (Exception e)
     {
-      Debug.LogWarning($"Failed to get data from file path: {m_FullFilePath}. {e.Message}");
-      StatusBar.Print($"Error: Could not load file history for file \"{Path.GetFileName(m_FullFilePath)}\"");
+      Debug.LogWarning($"Failed to get data from file path: {m_FileInfo.FullFilePath}. {e.Message}");
+      StatusBar.Print($"Error: Could not load file history for file \"{Path.GetFileName(m_FileInfo.FullFilePath)}\"");
       FindObjectOfType<UiFileInfo>().CloseWindow();
       fileInfo = new();
       return true;
@@ -73,7 +69,7 @@ public class UiGeneralInfoTab : UiTab
   private void UpdateLatestVersionPreview(FileSystemInternal.FileInfo fileInfo)
   {
     m_SaveNumberTxt.text = fileInfo.m_FileData.m_ManualSaves.Count + " Manual Saves    " + fileInfo.m_FileData.m_AutoSaves.Count + " Auto Saves";
-    string timeStamp = File.GetCreationTime(m_FullFilePath).ToString("M/d/yy h:mm:sstt").ToLower();
+    string timeStamp = File.GetCreationTime(m_FileInfo.FullFilePath).ToString("M/d/yy h:mm:sstt").ToLower();
     m_CreationDateTxt.text = $"<b>Created on:</b> <color=#C6C6C6>{timeStamp}</color>";
 
     // Set the text description for the file
@@ -87,8 +83,8 @@ public class UiGeneralInfoTab : UiTab
       levelData = fileInfo.m_FileData.m_ManualSaves[^1];
     else
     {
-      Debug.LogWarning($"No saves found in file \"{m_FullFilePath}\"");
-      StatusBar.Print($"Error: Could not load file history. No saves found in file \"{Path.GetFileName(m_FullFilePath)}\"");
+      Debug.LogWarning($"No saves found in file \"{m_FileInfo.FullFilePath}\"");
+      StatusBar.Print($"Error: Could not load file history. No saves found in file \"{Path.GetFileName(m_FileInfo.FullFilePath)}\"");
       FindObjectOfType<UiFileInfo>().CloseWindow();
       return;
     }
@@ -109,25 +105,15 @@ public class UiGeneralInfoTab : UiTab
 
   public void SetFileDescription(string desc)
   {
-    FileSystem.Instance.SetFileDescription(m_FullFilePath, desc);
+    FileSystem.Instance.SetFileDescription(m_FileInfo.FullFilePath, desc);
   }
 
   // Name input field functions
 
   public void SetName(string newName)
   {
-    if (FileDirUtilities.IsFileNameValid(newName))
-    {
-      string newFullFilePath = FileSystem.Instance.RenameFile(m_FullFilePath, newName);
-      // Check to see if rename was valid, as RenameFile returns old file path if can't rename
-      if (newFullFilePath != m_FullFilePath)
-      {
-        m_FullFilePath = newFullFilePath;
-        m_FileInfo.SetTitleBarText(newName);
-        return;
-      }
-    }
-
-    m_FileNameInputFieldHelper.SetText(Path.GetFileNameWithoutExtension(m_FullFilePath));
+    // Set the name, and if an error occurs reset the input text to the old name
+    if (m_FileInfo.SetFileName(newName))
+      m_FileNameInputFieldHelper.SetText(Path.GetFileNameWithoutExtension(m_FileInfo.FullFilePath));
   }
 }

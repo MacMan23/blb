@@ -5688,6 +5688,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_TabButton: {fileID: 3571037575758357017}
+  m_FileInfo: {fileID: 5246880287999422094}
   m_ManualSaveItemPrefab: {fileID: 1787404898439501975, guid: 87b657dd444b511448127f4bfee8a9f8,
     type: 3}
   m_AutoSaveItemPrefab: {fileID: 5117128532516939510, guid: 4f848be52bb135c48bee4573e10ed0e5,

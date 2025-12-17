@@ -28,6 +28,8 @@ public class UiFileInfo : MonoBehaviour
 
   private List<UiTab> m_Tabs = new();
 
+  public string FullFilePath { get { return m_FullFilePath; } }
+
   private string m_FullFilePath;
 
   void Awake()
@@ -96,6 +98,23 @@ public class UiFileInfo : MonoBehaviour
     GlobalData.DecrementUiPopup();
 
     Destroy(gameObject);
+  }
+
+  // Returns true if an error occured
+  public bool SetFileName(string name)
+  {
+    if (FileDirUtilities.IsFileNameValid(name))
+    {
+      string newFullFilePath = FileSystem.Instance.RenameFile(m_FullFilePath, name);
+      // Check to see if rename was valid, as RenameFile returns old file path if can't rename
+      if (newFullFilePath != m_FullFilePath)
+      {
+        m_FullFilePath = newFullFilePath;
+        SetTitleBarText(name);
+        return false;
+      }
+    }
+    return true;
   }
 
   public void SetTitleBarText(string text)
