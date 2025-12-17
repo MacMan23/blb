@@ -241,11 +241,14 @@ public class FileSystem : FileSystemInternal
 
   public string RenameFile(string oldFilePath, string newFileName)
   {
-    if (IsFileMounted(oldFilePath))
+    string newFilePath = m_FileDirUtilities.RenameFile(oldFilePath, newFileName);
+    bool canRename = newFilePath != oldFilePath;
+
+    if (canRename && IsFileMounted(oldFilePath))
     {
       RenameMountedFile(newFileName);
       m_FileDirUtilities.SetTitleBarFileName(newFileName);
     }
-    return m_FileDirUtilities.RenameFile(oldFilePath, newFileName);
+    return newFilePath;
   }
 }
