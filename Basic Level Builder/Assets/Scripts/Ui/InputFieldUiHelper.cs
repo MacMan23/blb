@@ -9,6 +9,13 @@ public class InputFieldUiHelper : MonoBehaviour
   [SerializeField]
   private TMPro.TextMeshProUGUI m_ShownText;
 
+  public void OnEnable()
+  {
+    var caret = m_InputField.GetComponentInChildren<TMPro.TMP_SelectionCaret>(true);
+    if (caret != null)
+      caret.raycastTarget = false;
+  }
+
   public void OnInputFieldDeselect()
   {
     // Move text position back to the left
