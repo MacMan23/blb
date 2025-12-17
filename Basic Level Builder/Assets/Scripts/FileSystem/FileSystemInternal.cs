@@ -1,6 +1,6 @@
 ﻿/***************************************************
 Authors:        Douglas Zwick, Brenden Epp
-Last Updated:   3/24/2025
+Last Updated:   12/16/2025
 
 Copyright 2018-2025, DigiPen Institute of Technology
 ***************************************************/
@@ -18,7 +18,7 @@ using static FileVersioning;
 
 public class FileSystemInternal : MonoBehaviour
 {
-  public delegate void AnyFileSaved();
+  public delegate void AnyFileSaved(string fullFilePath);
   public static event AnyFileSaved OnAnyFileSaved;
 
   readonly static public string s_DateTimeFormat = "h-mm-ss.ff tt, ddd d MMM yyyy";
@@ -957,7 +957,7 @@ public class FileSystemInternal : MonoBehaviour
     }
 
     // Signal to any listeners
-    m_MainThreadDispatcher.Enqueue(() => OnAnyFileSaved?.Invoke());
+    m_MainThreadDispatcher.Enqueue(() => OnAnyFileSaved?.Invoke(destFilePath));
   }
 
   /// <summary>

@@ -1,6 +1,6 @@
 /***************************************************
 Authors:        Brenden Epp
-Last Updated:   7/09/2025
+Last Updated:   12/16/2025
 
 Copyright 2018-2025, DigiPen Institute of Technology
 ***************************************************/
@@ -163,10 +163,15 @@ public class FileDirUtilities : MonoBehaviour
     return true;
   }
 
+  public void FileItemSetSelected(string fullFilePath)
+  {
+    m_SaveList.ItemSetSelected(fullFilePath);
+  }
+
   public void MoveFileItemToTop(string fullFilePath)
   {
     var item = m_SaveList.GetItemByFullFilePath(fullFilePath);
-    m_SaveList.MoveToTop(item.transform);
+    m_SaveList.MoveToTop(item);
   }
 
   public void RemoveFileItem(string fullFilePath)

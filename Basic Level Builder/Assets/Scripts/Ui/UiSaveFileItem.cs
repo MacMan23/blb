@@ -1,6 +1,6 @@
 /***************************************************
 Authors:        Douglas Zwick, Brenden Epp
-Last Updated:   3/24/2025
+Last Updated:   12/16/2025
 
 Copyright 2018-2025, DigiPen Institute of Technology
 ***************************************************/
@@ -19,15 +19,11 @@ public class UiSaveFileItem : MonoBehaviour, IPointerEnterHandler, IPointerExitH
   public GameObject m_InfoButton;
   [SerializeField]
   private Image m_FileThumbnail;
+  private Image m_Background;
 
   public string m_FullFilePath { get; private set; }
 
   private bool m_IsMouseHovering = false;
-
-  private void OnDestroy()
-  {
-    FileSystem.OnAnyFileSaved -= UpdateThumbnail;
-  }
 
   public void Setup(string fullPath, string fileName, string timeStamp)
   {
@@ -35,10 +31,15 @@ public class UiSaveFileItem : MonoBehaviour, IPointerEnterHandler, IPointerExitH
     m_Text.text = fileName;
     m_TimeStamp.text = timeStamp;
 
-    FileSystem.OnAnyFileSaved += UpdateThumbnail;
+    m_Background = GetComponent<Image>();
+
     UpdateThumbnail();
   }
 
+  public void SetBackgroundColor(Color color)
+  {
+    m_Background.color = color;
+  }
 
   public void Load()
   {
@@ -99,8 +100,8 @@ public class UiSaveFileItem : MonoBehaviour, IPointerEnterHandler, IPointerExitH
     m_InfoButton.SetActive(false);
   }
 
-  private void UpdateThumbnail()
-  {
+  public void UpdateThumbnail()
+  {    
     FileSystemInternal.FileInfo fileInfo;
     try
     {

@@ -1,6 +1,6 @@
 ﻿/***************************************************
 Authors:        Douglas Zwick, Brenden Epp
-Last Updated:   3/24/2025
+Last Updated:   12/16/2025
 
 Copyright 2018-2025, DigiPen Institute of Technology
 ***************************************************/
@@ -13,32 +13,36 @@ using UnityEngine.UI;
 [RequireComponent(typeof(RectTransform))]
 public class UiListView : MonoBehaviour
 {
-  public Color m_EvenColor = new(0.3254902f, 0.3254902f, 0.3254902f);
-  public Color m_OddColor = new(0.2901961f, 0.2901961f, 0.2901961f);
-
-  public ColorBlock m_ButtonColors;
-
-  private ColorBlock m_EvenBlock;
-  private ColorBlock m_OddBlock;
+  private readonly static Color s_SelectedItemColor = new Color32(82, 111, 155, 255);
+  private readonly static Color s_UnselectedItemColor = new Color32(75, 75, 75, 255);
 
   RectTransform m_RectTransform;
 
+  private void OnDestroy()
+  {
+    FileSystem.OnAnyFileSaved -= FileUpdated;
+  }
 
   void Awake()
   {
     m_RectTransform = GetComponent<RectTransform>();
 
-    m_EvenBlock = m_OddBlock = m_ButtonColors;
-
-    m_EvenBlock.normalColor = m_EvenColor;
-    m_OddBlock.normalColor = m_OddColor;
+    FileSystem.OnAnyFileSaved += FileUpdated;
   }
 
+  public void ItemSetSelected(string fullFilePath)
+  {
+    var items = m_RectTransform.GetComponentsInChildren<UiSaveFileItem>();
+    foreach (var item in items)
+    {
+      Color color = item.m_FullFilePath == fullFilePath ? s_SelectedItemColor : s_UnselectedItemColor;
+      item.SetBackgroundColor(color);
+    }
+  }
 
   public void Add(RectTransform item)
   {
     AddHelper(item);
-    AssignColors();
   }
 
 
@@ -46,14 +50,12 @@ public class UiListView : MonoBehaviour
   {
     foreach (var item in items)
       AddHelper(item);
-    AssignColors();
   }
 
 
   public void Remove(RectTransform item)
   {
     RemoveHelper(item);
-    AssignColors();
   }
 
 
@@ -61,7 +63,6 @@ public class UiListView : MonoBehaviour
   {
     foreach (var item in items)
       RemoveHelper(item);
-    AssignColors();
   }
 
 
@@ -91,27 +92,12 @@ public class UiListView : MonoBehaviour
   }
 
 
-  void AssignColors()
-  {
-    var files = m_RectTransform.GetComponentsInChildren<UiSaveFileItem>();
-    var odd = false;
-
-    foreach (var file in files)
-    {
-      if (!file.TryGetComponent(out Button button))
-        return;
-      button.colors = odd ? m_OddBlock : m_EvenBlock;
-      odd = !odd;
-    }
-  }
-
-
   public UiSaveFileItem GetOldestItem()
   {
     var items = m_RectTransform.GetComponentsInChildren<UiSaveFileItem>();
     var returnIndex = items.Length - 1;
 
-    return returnIndex >= 0 ? items[items.Length - 1] : null;
+    return returnIndex >= 0 ? items[^1] : null;
   }
 
 
@@ -142,12 +128,25 @@ public class UiListView : MonoBehaviour
     Remove(removeItems);
   }
 
-  public void MoveToTop(Transform item)
+  public void FileUpdated(string fullFilePath)
   {
-    if (item.parent != m_RectTransform)
+    var items = m_RectTransform.GetComponentsInChildren<UiSaveFileItem>();
+    foreach (var item in items)
+    {
+      if (string.Compare(item.m_FullFilePath, fullFilePath, System.StringComparison.InvariantCultureIgnoreCase) == 0)
+      {
+        item.UpdateThumbnail();
+        MoveToTop(item);
+        break;
+      }
+    }
+  }
+
+  public void MoveToTop(UiSaveFileItem item)
+  {
+    if (item.transform.parent.parent != m_RectTransform)
       return;
 
-    item.SetAsFirstSibling();
-    AssignColors();
+    item.transform.parent.SetAsFirstSibling();
   }
 }

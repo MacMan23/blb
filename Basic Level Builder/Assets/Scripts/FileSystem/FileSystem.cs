@@ -1,6 +1,6 @@
 /***************************************************
 Authors:        Brenden Epp
-Last Updated:   7/09/2025
+Last Updated:   12/16/2025
 
 Copyright 2018-2025, DigiPen Institute of Technology
 ***************************************************/
@@ -125,6 +125,9 @@ public class FileSystem : FileSystemInternal
   public void LoadFromFullFilePath(string fullFilePath, FileVersion? version = null)
   {
     LoadFromFullFilePathEx(fullFilePath, version);
+
+    // Update file item ui
+    m_FileDirUtilities.FileItemSetSelected(fullFilePath);
   }
 
   public void LoadFromTextAsset(TextAsset level)
