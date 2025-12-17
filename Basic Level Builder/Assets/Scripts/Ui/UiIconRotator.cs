@@ -35,7 +35,7 @@ public class UiIconRotator : MonoBehaviour
   }
 
 
-  void Show()
+  public void Show()
   {
     m_Hidden = false;
 
@@ -44,7 +44,7 @@ public class UiIconRotator : MonoBehaviour
   }
 
 
-  void Hide()
+  public void Hide()
   {
     m_Hidden = true;
 

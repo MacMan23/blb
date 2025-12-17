@@ -171,10 +171,21 @@ public class UiHistoryTab : UiTab
       }
     }
 
+    ToggleExpandCollapseIcon(shouldExpand);
+  }
+
+  private void ToggleExpandCollapseIcon(bool expanded)
+  {
     // Update expand/collapse button icon
     foreach (var icon in m_ExpandCollapseIcon)
-      icon.Toggle();
-    m_ExpandCollapseButtonText.text = shouldExpand ? "Collapse All" : "Expand All";
+    {
+      if (expanded)
+        icon.Hide();
+      else
+        icon.Show();
+    }
+
+    m_ExpandCollapseButtonText.text = expanded ? "Collapse All" : "Expand All";
   }
 
   public void LoadSelectedVersion()
@@ -329,6 +340,8 @@ public class UiHistoryTab : UiTab
   private void LoadUiState()
   {
     m_Selection.Clear();
+
+    ToggleExpandCollapseIcon(m_ExpandedManuals.Count > 0);
 
     for (int i = 0; i < m_Content.childCount; i++)
     {
