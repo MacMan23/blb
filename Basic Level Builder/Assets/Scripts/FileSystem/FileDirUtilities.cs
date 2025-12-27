@@ -83,6 +83,8 @@ public class FileDirUtilities : MonoBehaviour
 
         // at this point, filePaths is already sorted chronologically
         AddFileItemsForFiles(validFilePaths);
+
+        FileItemSetSelected(FileSystem.Instance.GetMountedFilePath());
       }
     }
     catch (Exception e)
@@ -288,6 +290,7 @@ public class FileDirUtilities : MonoBehaviour
 
   // Skips rename if the file already exists
   // Returns new file path
+  // Expexts UpdateFilesList to be called later to update file names
   public string RenameFile(string oldFilePath, string newFileName)
   {
     string newFilePath = CreateFilePath(newFileName);
@@ -309,7 +312,6 @@ public class FileDirUtilities : MonoBehaviour
       return oldFilePath;
     }
 
-    UpdateFilesList();
     return newFilePath;
   }
 

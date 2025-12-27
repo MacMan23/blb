@@ -41,6 +41,11 @@ public class FileSystem : FileSystemInternal
   }
   #endregion
 
+  public string GetMountedFilePath()
+  {
+    return m_MountedFileInfo.m_SaveFilePath;
+  }
+
   /// <summary>
   /// Performs a manual save of the current level.
   /// </summary>
@@ -246,9 +251,13 @@ public class FileSystem : FileSystemInternal
 
     if (canRename && IsFileMounted(oldFilePath))
     {
-      RenameMountedFile(newFileName);
+      RenameMountedFile(newFilePath);
       m_FileDirUtilities.SetTitleBarFileName(newFileName);
     }
+
+    // Updates the file list after updating the cashed mounted files name
+    RefreshFileList();
+
     return newFilePath;
   }
 }

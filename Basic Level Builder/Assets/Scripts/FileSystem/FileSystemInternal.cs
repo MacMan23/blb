@@ -66,7 +66,7 @@ public class FileSystemInternal : MonoBehaviour
   private string m_PendingThumbnail = "";
   private Vector2 m_PendingCameraPos;
 
-  FileInfo m_MountedFileInfo;
+  protected FileInfo m_MountedFileInfo;
 
   // The version of the manual or autosave that is loaded
   FileVersion m_loadedVersion;

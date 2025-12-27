@@ -1,6 +1,6 @@
 /***************************************************
 Authors:        Brenden Epp
-Last Updated:   3/24/2025
+Last Updated:   12/27/2025
 
 Copyright 2018-2025, DigiPen Institute of Technology
 ***************************************************/
@@ -28,7 +28,7 @@ public class UiFileInfo : MonoBehaviour
 
   private List<UiTab> m_Tabs = new();
 
-  public string FullFilePath { get { return m_FullFilePath; } }
+  public string FullFilePath => m_FullFilePath;
 
   private string m_FullFilePath;
 
@@ -100,8 +100,8 @@ public class UiFileInfo : MonoBehaviour
     Destroy(gameObject);
   }
 
-  // Returns true if an error occured
-  public bool SetFileName(string name)
+  // Returns true if successfully renamed file
+  public bool TrySetFileName(string name)
   {
     if (FileDirUtilities.IsFileNameValid(name))
     {
@@ -111,10 +111,12 @@ public class UiFileInfo : MonoBehaviour
       {
         m_FullFilePath = newFullFilePath;
         SetTitleBarText(name);
-        return false;
+        // Rename successful
+        return true;
       }
     }
-    return true;
+    // File name is invalid or filesystem failed to rename the file
+    return false;
   }
 
   public void SetTitleBarText(string text)

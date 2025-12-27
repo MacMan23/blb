@@ -8,7 +8,6 @@ Copyright 2018-2025, DigiPen Institute of Technology
 using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
-using UnityEngine.UI;
 
 [RequireComponent(typeof(RectTransform))]
 public class UiListView : MonoBehaviour

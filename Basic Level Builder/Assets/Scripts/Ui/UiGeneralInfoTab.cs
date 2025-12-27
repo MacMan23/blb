@@ -53,7 +53,7 @@ public class UiGeneralInfoTab : UiTab
   {
     try
     {
-      FileSystem.Instance.GetFileInfoFromFullFilePath(m_FileInfo. FullFilePath, out fileInfo);
+      FileSystem.Instance.GetFileInfoFromFullFilePath(m_FileInfo.FullFilePath, out fileInfo);
     }
     catch (Exception e)
     {
@@ -113,7 +113,7 @@ public class UiGeneralInfoTab : UiTab
   public void SetName(string newName)
   {
     // Set the name, and if an error occurs reset the input text to the old name
-    if (m_FileInfo.SetFileName(newName))
+    if (m_FileInfo.TrySetFileName(newName))
       m_FileNameInputFieldHelper.SetText(Path.GetFileNameWithoutExtension(m_FileInfo.FullFilePath));
   }
 }
