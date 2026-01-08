@@ -676,6 +676,7 @@ PlayerSettings:
   XboxOneOverrideIdentityPublisher: 
   vrEditorSettings: {}
   cloudServicesEnabled:
+    Game Performance: 1
     UNet: 1
   luminIcon:
     m_Name: 
@@ -690,11 +691,11 @@ PlayerSettings:
     m_VersionName: 
   apiCompatibilityLevel: 6
   activeInputHandler: 0
-  cloudProjectId: 
+  cloudProjectId: 6583e973-0570-485a-bed9-0cf74b7d2e83
   framebufferDepthMemorylessMode: 0
   qualitySettingsNames: []
-  projectName: 
-  organizationId: 
+  projectName: Basic Level Builder
+  organizationId: digipen-team-blb
   cloudEnabled: 0
   legacyClampBlendShapeWeights: 0
   playerDataPath: 

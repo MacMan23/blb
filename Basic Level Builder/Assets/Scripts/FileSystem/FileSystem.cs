@@ -194,6 +194,11 @@ public class FileSystem : FileSystemInternal
     Application.OpenURL($"file://{m_FileDirUtilities.GetCurrentDirectoryPath()}");
   }
 
+  public string GetDirectoryPath()
+  {
+    return m_FileDirUtilities.GetCurrentDirectoryPath();
+  }
+
   public void MainThreadDispatcherQueue(System.Action action)
   {
     m_MainThreadDispatcher.Enqueue(action);

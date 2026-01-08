@@ -30,7 +30,7 @@ public class FileDirUtilities : MonoBehaviour
     m_WindowPtr = FindWindow(null, Application.productName);
     if (m_WindowPtr == System.IntPtr.Zero)
     {
-      Debug.Log($"Error finding application window");
+      Debug.LogWarning($"Error finding application window");
     }
   }
 
@@ -142,7 +142,7 @@ public class FileDirUtilities : MonoBehaviour
   public void SetTitleBarFileName(string filePath)
   {
     // If the window is found, set the new title
-    if (m_WindowPtr != System.IntPtr.Zero)
+    if (m_WindowPtr != System.IntPtr.Zero && !FileSystem.Instance.m_IsAppQuitting)
     {
       if (string.IsNullOrEmpty(filePath))
         SetWindowText(m_WindowPtr, Application.productName);

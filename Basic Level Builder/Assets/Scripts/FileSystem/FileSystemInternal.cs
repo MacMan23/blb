@@ -22,12 +22,15 @@ public class FileSystemInternal : MonoBehaviour
   public static event AnyFileSaved OnAnyFileSaved;
 
   readonly static public string s_DateTimeFormat = "h-mm-ss.ff tt, ddd d MMM yyyy";
-  
+
+  // Used only in FileDirUtilities in SetTitleBarFileName to skip renaming the title bar, as that frezes the app when closing and saving.
+  public bool m_IsAppQuitting = false;
+
   // TODO: Auto and manual save max count removed in code. Find a reason to add back in and a number or remove entierly
   // Search TODOMAXSAVES to find code section
   //readonly static public int s_MaxAutoSaveCount = 150;
   //readonly static public int s_MaxManualSaveCount = 100;
-  
+
   readonly static bool s_ShouldCompress = true;
   static Version s_EditorVersion; // major, minor, build, and revision number
 
@@ -258,6 +261,7 @@ public class FileSystemInternal : MonoBehaviour
 
   private void OnApplicationQuit()
   {
+    m_IsAppQuitting = true;
     // Force autosave if we have changes.
     bool isAutoSave = true;
     bool shouldPrintElapsedTime = false;
