@@ -214,7 +214,7 @@ public class FileSystem : FileSystemInternal
       bool isSaveAs = true;
       bool updateCameraPosButtonPressed = false;
       bool shouldPrintElapsedTime = true;
-      StartSavingThread(m_PendingSaveFullFilePath, autosave, isSaveAs, updateCameraPosButtonPressed, shouldPrintElapsedTime);
+      StartSavingThread(m_PendingSaveFullFilePath, m_TileGrid.GetGridDictionary(), autosave, isSaveAs, updateCameraPosButtonPressed, shouldPrintElapsedTime);
     }
     else
     {

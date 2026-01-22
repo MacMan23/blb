@@ -280,7 +280,7 @@ public class FileSystemInternal : MonoBehaviour
     // Mount temp file so we can check when the full file path isn't the temp file
     MountFile(destFilePath, m_MountedFileInfo);
   }
-  
+
   /// <summary>
   /// Creates new file data structures.
   /// </summary>
@@ -483,7 +483,7 @@ public class FileSystemInternal : MonoBehaviour
             // xSub and ySub are the x and y offsets within the tile
             var xSub = xTransformer(x, y);
             var ySub = yTransformer(x, y);
-            
+
             var bufferIndex = col * m_ThumbnailTileSize.x + xSub +
               (row * m_ThumbnailTileSize.y + ySub) * m_ThumbnailSize.x;
 
@@ -602,24 +602,21 @@ public class FileSystemInternal : MonoBehaviour
       }
     }
 
-    StartSavingThread(destFilePath, autosave, saveAsFileName != null, updateCameraPosButtonPressed, shouldPrintElapsedTime);
+    StartSavingThread(destFilePath, m_TileGrid.GetGridDictionary(), autosave, saveAsFileName != null, updateCameraPosButtonPressed, shouldPrintElapsedTime);
   }
 
-  protected void StartSavingThread(string destFilePath, bool autosave, bool isSaveAs, bool updateCameraPosButtonPressed, bool shouldPrintElapsedTime)
+  protected void StartSavingThread(string destFilePath, Dictionary<Vector2Int, TileGrid.Element> gridDictionary,
+                                   bool autosave, bool isSaveAs, bool updateCameraPosButtonPressed, bool shouldPrintElapsedTime)
   {
-
-    // Copy the map data into a buffer to use for the saving thread.
-    m_TileGrid.CopyGridBuffer();
-
     // Store camera position to the nearest tile
     m_PendingCameraPos = new Vector2(Camera.main.transform.position.x, Camera.main.transform.position.y);
 
     // Gernerate the version thumbnail to be used in the thread
     // EncodeToPNG can only be used on main thread
-    m_PendingThumbnail = GenerateThumbnail(m_TileGrid.GetGridBuffer());
+    m_PendingThumbnail = GenerateThumbnail(gridDictionary);
 
     // Define parameters for the branched thread function
-    object[] parameters = { destFilePath, autosave, shouldPrintElapsedTime, updateCameraPosButtonPressed};
+    object[] parameters = { destFilePath, autosave, shouldPrintElapsedTime, updateCameraPosButtonPressed, gridDictionary };
 
     // Create a new thread and pass the ParameterizedThreadStart delegate
     if (isSaveAs)
@@ -646,17 +643,20 @@ public class FileSystemInternal : MonoBehaviour
 
     // Access the parameters
     string destFilePath = (string)parameters[0];
+    Dictionary<Vector2Int, TileGrid.Element> gridDictionary = (Dictionary<Vector2Int, TileGrid.Element>)parameters[4];
     bool isOverwriting = File.Exists(destFilePath);
 
     // Create new file date to clear out the old and only write in the current tile grid
     m_MountedFileInfo.m_FileData = new();
 
-    m_TileGrid.GetLevelData(out LevelData levelData);
-
-    levelData.m_TimeStamp = DateTime.Now;
-    levelData.m_Version = new(1, 0);
-    levelData.m_Thumbnail = m_PendingThumbnail;
-    levelData.m_CameraPos = m_PendingCameraPos;
+    LevelData levelData = new()
+    {
+      m_AddedTiles = new List<TileGrid.Element>(gridDictionary.Values),
+      m_TimeStamp = DateTime.Now,
+      m_Version = new(1, 0),
+      m_Thumbnail = m_PendingThumbnail,
+      m_CameraPos = m_PendingCameraPos
+    };
 
     m_MountedFileInfo.m_FileData.m_ManualSaves.Add(levelData);
 
@@ -689,6 +689,7 @@ public class FileSystemInternal : MonoBehaviour
     bool autosave = (bool)parameters[1];
     bool shouldPrintElapsedTime = (bool)parameters[2];
     bool updateCameraPosButtonPressed = (bool)parameters[3];
+    Dictionary<Vector2Int, TileGrid.Element> gridDictionary = (Dictionary<Vector2Int, TileGrid.Element>)parameters[4];
     bool overwriting = File.Exists(destFilePath);
     // TODO, Don't auto save if the diffences from the last auto save are the same. Ie no unsaved changes.
     #region Add level changes to level data
@@ -711,7 +712,7 @@ public class FileSystemInternal : MonoBehaviour
 
     bool isCameraDifferent = m_PendingCameraPos != GetLastManualSaveData(m_MountedFileInfo.m_FileData).m_CameraPos;
     bool saveDiffs = isCameraDifferent && updateCameraPosButtonPressed;
-    
+
     // We can't update the camera pos if the camera is not different
     if (updateCameraPosButtonPressed && !isCameraDifferent)
     {
@@ -721,7 +722,7 @@ public class FileSystemInternal : MonoBehaviour
       return;
     }
 
-    bool hasDifferences = GetDifferences(out LevelData levelData, m_MountedFileInfo, m_TileGrid) || saveDiffs;
+    bool hasDifferences = GetDifferences(out LevelData levelData, m_MountedFileInfo, gridDictionary) || saveDiffs;
 
     levelData.m_Thumbnail = m_PendingThumbnail;
     levelData.m_CameraPos = m_PendingCameraPos;
@@ -802,7 +803,7 @@ public class FileSystemInternal : MonoBehaviour
         m_MountedFileInfo.m_FileData.m_ManualSaves.Add(levelData);
       }
       // If this is an auto save, store what version of the manual save we branched from to get these differences to save
-      else 
+      else
       {
         // Set the manual save version we are branching off from
         // Get the manual version or the branched manual version if we loaded an auto save
@@ -983,6 +984,75 @@ public class FileSystemInternal : MonoBehaviour
 
     // Save happened reset operations so we don't autosave again right away
     OperationSystem.ResetOperationCounter();
+  }
+
+  // Returns the file path to the new converted file
+  private string ConvertV0FileToV1File(string oldFilePath)
+  {
+    string tempFilePath = null;
+    try
+    {
+      string[] jsonStrings = File.ReadAllLines(oldFilePath);
+
+      bool autosave = false;
+      bool isSaveAs = true;
+      bool updateCameraPosButtonPressed = false;
+      bool shouldPrintElapsedTime = true;
+      tempFilePath = Path.GetDirectoryName(oldFilePath);
+      tempFilePath = Path.Combine(tempFilePath, Path.GetTempFileName() + s_FilenameExtension);
+
+      int failedLines = TryCreateDictonaryFromJsonStrings(jsonStrings, out Dictionary<Vector2Int, TileGrid.Element> gridDictionary);
+
+      if (failedLines == -1)
+      {
+        StatusBar.Print($"This level seems to be invalid and can not be converted.");
+        return null;
+      }
+      else if (failedLines > 0)
+      {
+        StatusBar.Print($"File converted with {failedLines} corrupted tiles");
+      }
+
+      StartSavingThread(tempFilePath, gridDictionary, autosave, isSaveAs, updateCameraPosButtonPressed, shouldPrintElapsedTime);
+    }
+    catch (Exception e)
+    {
+      Debug.LogError($"Error while loading. {e.Message} ({e.GetType()})");
+    }
+
+    return tempFilePath;
+  }
+
+  // Creates a grid of tiles from JSON strings from BLB V0
+  // Returns the number of failures. If there were no sucesses, returns -1.
+  private int TryCreateDictonaryFromJsonStrings(string[] jsonStrings, out Dictionary<Vector2Int, TileGrid.Element> gridDictionary)
+  {
+    int successes = 0;
+    int failures = 0;
+
+    gridDictionary = new();
+    foreach (var jsonString in jsonStrings)
+    {
+      try
+      {
+        TileGrid.Element element = JsonUtility.FromJson<TileGrid.Element>(jsonString);
+        Vector2Int index = element.m_GridIndex;
+        TileState state = element.ToState();
+
+        ++successes;
+      }
+      catch (System.ArgumentException e)
+      {
+        Debug.LogError($"Failed to parse the line \"{jsonString}\" " +
+          $"as a grid element. {e.Message} ({e.GetType()})");
+
+        ++failures;
+      }
+    }
+
+    if (successes > 0)
+      return failures;
+    return -1;
   }
 
   // Deprecated for now untill real use is found.
@@ -1227,7 +1297,7 @@ public class FileSystemInternal : MonoBehaviour
       StatusBar.Print($"Sucessfuly deleted {Path.GetFileName(fileInfo.m_SaveFilePath)}");
       return;
     }
-    
+
     // Write new file data to file
     try
     {

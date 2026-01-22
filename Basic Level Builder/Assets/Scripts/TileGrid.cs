@@ -245,15 +245,10 @@ public class TileGrid : MonoBehaviour
     m_WorldExtentsOutliner.OutlineWithBounds(m_MinBounds, m_MaxBounds);
   }
 
-  public void CopyGridBuffer()
+  public Dictionary<Vector2Int, Element> GetGridDictionary()
   {
-    m_GridSaveBuffer = m_Grid.ToDictionary(entry => entry.Key,
-                                           entry => (Element) entry.Value.Clone());
-  }
-
-  public Dictionary<Vector2Int, Element> GetGridBuffer()
-  {
-    return m_GridSaveBuffer;
+    return m_Grid.ToDictionary(entry => entry.Key,
+                                           entry => (Element)entry.Value.Clone());
   }
 
   public string ToJsonString()
