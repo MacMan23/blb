@@ -10,7 +10,7 @@ using System.IO;
 
 public class ErrorLogger : MonoBehaviour
 {
-  static public bool m_LogDefaultLogs = false;
+  static public bool s_LogDefaultLogs = false;
 
   void OnEnable()
   {
@@ -27,7 +27,7 @@ public class ErrorLogger : MonoBehaviour
   void HandleLog(string logString, string stackTrace, LogType type)
   {
     // Only log errors and exceptions
-    if (type is LogType.Error or LogType.Exception or LogType.Warning || (m_LogDefaultLogs && type is LogType.Log))
+    if (type is LogType.Error or LogType.Exception or LogType.Warning || (s_LogDefaultLogs && type is LogType.Log))
     {
       // Format the log entry
       string logEntry = $"[{System.DateTime.Now}] [{type}] {logString}\n{stackTrace}\n";

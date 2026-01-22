@@ -824,7 +824,7 @@ public class FileSystemInternal : MonoBehaviour
       // So just copy our file to the destination file
       copyFile = true;
     }
-#endregion Add level changes to level data
+    #endregion Add level changes to level data
 
     try
     {
@@ -989,7 +989,7 @@ public class FileSystemInternal : MonoBehaviour
   // Returns the file path to the new converted file
   protected string ConvertV0FileToV1FileEx(string oldFilePath)
   {
-    string tempFilePath = null;
+    string tempFilePath;
     try
     {
       string[] jsonStrings = File.ReadAllLines(oldFilePath);
@@ -1002,14 +1002,14 @@ public class FileSystemInternal : MonoBehaviour
 
       int failedLines = TryCreateDictonaryFromJsonStrings(jsonStrings, out Dictionary<Vector2Int, TileGrid.Element> gridDictionary);
 
-      if (failedLines == -1)
+      if (failedLines <= -1)
       {
         StatusBar.Print($"This level seems to be invalid and can not be converted.");
         return null;
       }
       else if (failedLines > 0)
       {
-        StatusBar.Print($"File converted with {failedLines} corrupted tiles");
+        StatusBar.Print($"File converted with {failedLines} read failures");
       }
 
       StartSavingThread(tempFilePath, gridDictionary, autosave, isSaveAs, updateCameraPosButtonPressed, shouldPrintElapsedTime);
@@ -1017,6 +1017,7 @@ public class FileSystemInternal : MonoBehaviour
     catch (Exception e)
     {
       Debug.LogError($"Error while loading. {e.Message} ({e.GetType()})");
+      return null;
     }
 
     return tempFilePath;
@@ -1029,6 +1030,11 @@ public class FileSystemInternal : MonoBehaviour
     int successes = 0;
     int failures = 0;
 
+    bool startTileFound = false;
+    Vector2 camPos = Vector2.zero;
+    Vector2 minBounds = Vector2.zero;
+    Vector2 maxBounds = Vector2.zero;
+
     gridDictionary = new();
     foreach (var jsonString in jsonStrings)
     {
@@ -1036,7 +1042,25 @@ public class FileSystemInternal : MonoBehaviour
       {
         TileGrid.Element element = JsonUtility.FromJson<TileGrid.Element>(jsonString);
         Vector2Int index = element.m_GridIndex;
-        TileState state = element.ToState();
+        gridDictionary.Add(index, element);
+
+        if (!startTileFound)
+        {
+          if (element.m_Type == TileType.START)
+          {
+            camPos = index;
+            startTileFound = true;
+          }
+
+          if (index.x < minBounds.x)
+            minBounds.x = index.x;
+          if (index.x > maxBounds.x)
+            maxBounds.x = index.x;
+          if (index.y < minBounds.y)
+            minBounds.y = index.y;
+          if (index.y > maxBounds.y)
+            maxBounds.y = index.y;
+        }
 
         ++successes;
       }
@@ -1050,7 +1074,13 @@ public class FileSystemInternal : MonoBehaviour
     }
 
     if (successes > 0)
+    {
+      if (!startTileFound)
+        camPos = maxBounds - minBounds;
+
+      Camera.main.transform.position = new Vector3(camPos.x, camPos.y, Camera.main.transform.position.z);
       return failures;
+    }
     return -1;
   }
 
