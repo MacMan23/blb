@@ -987,7 +987,7 @@ public class FileSystemInternal : MonoBehaviour
   }
 
   // Returns the file path to the new converted file
-  private string ConvertV0FileToV1File(string oldFilePath)
+  protected string ConvertV0FileToV1FileEx(string oldFilePath)
   {
     string tempFilePath = null;
     try
@@ -998,8 +998,7 @@ public class FileSystemInternal : MonoBehaviour
       bool isSaveAs = true;
       bool updateCameraPosButtonPressed = false;
       bool shouldPrintElapsedTime = true;
-      tempFilePath = Path.GetDirectoryName(oldFilePath);
-      tempFilePath = Path.Combine(tempFilePath, Path.GetTempFileName() + s_FilenameExtension);
+      tempFilePath = Path.Combine(m_FileDirUtilities.GetCurrentDirectoryPath(), Path.GetTempFileName() + s_FilenameExtension);
 
       int failedLines = TryCreateDictonaryFromJsonStrings(jsonStrings, out Dictionary<Vector2Int, TileGrid.Element> gridDictionary);
 

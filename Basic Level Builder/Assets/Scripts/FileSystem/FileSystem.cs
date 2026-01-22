@@ -140,6 +140,29 @@ public class FileSystem : FileSystemInternal
     LoadFromTextAssetEx(level);
   }
 
+  public void ConvertV0FileToV1File(string oldFilePath, bool overwrite)
+  {
+    string newFilePath = ConvertV0FileToV1FileEx(oldFilePath);
+    if (string.IsNullOrEmpty(newFilePath))
+    {
+      return;
+    }
+
+    // Delete old file and replace with the converted new file
+    if (overwrite)
+    {
+      File.Delete(oldFilePath);
+      File.Move(newFilePath, oldFilePath);
+    }
+    else
+    {
+      // TODO, what if the name is too long after concating?
+      string newPath = m_FileDirUtilities.GetCurrentDirectoryPath();
+      newPath = Path.Combine(newPath, Path.GetFileNameWithoutExtension(oldFilePath) + "(Converted)" + FileDirUtilities.s_FilenameExtension);
+      File.Move(newPath, oldFilePath);
+    }
+  }
+
   /// <summary>
   /// Removes a number od saved versions and saves the file
   /// Deletes file if there is no more manual saves left
