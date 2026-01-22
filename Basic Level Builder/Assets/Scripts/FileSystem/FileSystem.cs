@@ -1,6 +1,6 @@
 /***************************************************
 Authors:        Brenden Epp
-Last Updated:   12/16/2025
+Last Updated:   1/21/2026
 
 Copyright 2018-2025, DigiPen Institute of Technology
 ***************************************************/
@@ -140,27 +140,21 @@ public class FileSystem : FileSystemInternal
     LoadFromTextAssetEx(level);
   }
 
-  public void ConvertV0FileToV1File(string oldFilePath, bool overwrite)
+  // Returns the files version, or 0 value if unknown
+  static public Version GetFileVersion(string fullFilePath)
   {
-    string newFilePath = ConvertV0FileToV1FileEx(oldFilePath);
-    if (string.IsNullOrEmpty(newFilePath))
-    {
-      return;
-    }
+    if (!FileDirUtilities.TryGetHeader(fullFilePath, out FileHeader header))
+      return new Version();
 
-    // Delete old file and replace with the converted new file
-    if (overwrite)
-    {
-      File.Delete(oldFilePath);
-      File.Move(newFilePath, oldFilePath);
-    }
-    else
-    {
-      // TODO, what if the name is too long after concating?
-      string newPath = m_FileDirUtilities.GetCurrentDirectoryPath();
-      newPath = Path.Combine(newPath, Path.GetFileNameWithoutExtension(oldFilePath) + "(Converted)" + FileDirUtilities.s_FilenameExtension);
-      File.Move(newPath, oldFilePath);
-    }
+    return new Version(header.m_BlbVersion);
+
+  }
+
+  // Converts a file and saves it to the default saves directory
+  // Will overwite file if it is in the same directory
+  public void ConvertV0FileToV1File(string filePathToConvert)
+  {
+    ConvertV0FileToV1FileEx(filePathToConvert);
   }
 
   /// <summary>

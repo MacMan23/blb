@@ -16,6 +16,7 @@ using System.Runtime.InteropServices;
 public class FileDirUtilities : MonoBehaviour
 {
   readonly static public string s_RootDirectoryName = "Basic Level Builder";
+  readonly static public string s_DefaultDirectoryName = "Saves";
   readonly static public string s_FilenameExtension = ".blb";
   readonly static public string s_TempFilePrefix = "backup_file_";
 
@@ -34,12 +35,12 @@ public class FileDirUtilities : MonoBehaviour
     }
   }
 
-  public void SetDirectoryName(string name)
+  public void InitSavesDirectory()
   {
     if (GlobalData.AreEffectsUnderway())
       return;
 
-    if (!ValidateDirectoryName(name))
+    if (!ValidateDirectoryName(s_DefaultDirectoryName))
     {
       // modal: something's wrong with the file name
       return;
@@ -220,7 +221,7 @@ public class FileDirUtilities : MonoBehaviour
     return rt;
   }
 
-  private bool IsFileValid(string fullFilePath)
+  static public bool IsFileValid(string fullFilePath)
   {
     if (!isValidExtension(fullFilePath))
       return false;
@@ -231,29 +232,15 @@ public class FileDirUtilities : MonoBehaviour
     return true;
   }
 
-  private bool isValidExtension(string fullFilePath)
+  static public bool isValidExtension(string fullFilePath)
   {
     return fullFilePath.EndsWith(s_FilenameExtension);
   }
 
-  private bool IsTempFile(string fullFilePath)
+  static public bool IsTempFile(string fullFilePath)
   {
-    IEnumerable<string> lines = null;
-    try
-    {
-      lines = File.ReadLines(fullFilePath);
-    }
-    catch (Exception e)
-    {
-      string errorStr = $"Error reading save file {Path.GetFileName(fullFilePath)}. {e.Message} ({e.GetType()})";
-      Debug.Log(errorStr);
-    }
-
-    // We must have at least two lines. One for the header and one for the data
-    if (lines.Count() < 2) return false;
-
-    FileSystemInternal.FileHeader header;
-    header = JsonUtility.FromJson<FileSystemInternal.FileHeader>(lines.First());
+    if (!TryGetHeader(fullFilePath, out FileSystemInternal.FileHeader header))
+      return false;
 
     // If the save file was not read properly
     if (header.m_BlbVersion == null)
@@ -266,8 +253,10 @@ public class FileDirUtilities : MonoBehaviour
     return header.m_IsTempFile;
   }
 
-  private bool HasHeader(string fullFilePath)
+  static public bool TryGetHeader(string fullFilePath, out FileSystemInternal.FileHeader header)
   {
+    header = new();
+
     IEnumerable<string> lines = null;
     try
     {
@@ -282,9 +271,15 @@ public class FileDirUtilities : MonoBehaviour
     // We must have at least two lines. One for the header and one for the data
     if (lines.Count() < 2) return false;
 
-    FileSystemInternal.FileHeader header;
     header = JsonUtility.FromJson<FileSystemInternal.FileHeader>(lines.First());
 
+    return true;
+  }
+
+  static public bool HasHeader(string fullFilePath)
+  {
+    if (!TryGetHeader(fullFilePath, out FileSystemInternal.FileHeader header))
+      return false;
     return header.m_BlbVersion != null;
   }
 
@@ -328,7 +323,7 @@ public class FileDirUtilities : MonoBehaviour
       return true;
   }
 
-  private string GetDocumentsPath()
+  public static string GetDocumentsPath()
   {
     try
     {

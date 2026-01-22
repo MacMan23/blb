@@ -1,6 +1,6 @@
 ﻿/***************************************************
 Authors:        Douglas Zwick, Brenden Epp
-Last Updated:   12/16/2025
+Last Updated:   1/21/2026
 
 Copyright 2018-2025, DigiPen Institute of Technology
 ***************************************************/
@@ -34,7 +34,6 @@ public class FileSystemInternal : MonoBehaviour
   readonly static bool s_ShouldCompress = true;
   static Version s_EditorVersion; // major, minor, build, and revision number
 
-  public string m_DefaultDirectoryName = "Default Project";
   public TileGrid m_TileGrid;
   public FileDirUtilities m_FileDirUtilities;
 
@@ -193,7 +192,7 @@ public class FileSystemInternal : MonoBehaviour
     s_EditorVersion = new(Application.version);
     m_ModalDialogMaster = FindObjectOfType<ModalDialogMaster>();
 
-    m_FileDirUtilities.SetDirectoryName(m_DefaultDirectoryName);
+    m_FileDirUtilities.InitSavesDirectory();
 
     // Thumbnail generation init
     var tileHeight = (int)m_ThumbnailTileAtlas.rect.height;
@@ -255,7 +254,7 @@ public class FileSystemInternal : MonoBehaviour
       }
 
       // Update file list incase files were added or removed
-      m_FileDirUtilities.SetDirectoryName(m_DefaultDirectoryName);
+      m_FileDirUtilities.UpdateFilesList();
     }
   }
 
@@ -394,7 +393,7 @@ public class FileSystemInternal : MonoBehaviour
     // Texutre needs to be uncompressed and marked for read/write (Might be diffrent if the image is generated)
 
     var tex = new Texture2D(m_ThumbnailSize.x, m_ThumbnailSize.y, TextureFormat.RGBA32, false);
-    var colorBuffer = new Color[m_ThumbnailSize.x * m_ThumbnailSize.y];
+    var colorBuffer = new Color32[m_ThumbnailSize.x * m_ThumbnailSize.y];
 
     var cameraPosition = Camera.main.transform.position;
 
@@ -495,7 +494,7 @@ public class FileSystemInternal : MonoBehaviour
       }
     }
 
-    tex.SetPixels(colorBuffer);
+    tex.SetPixels32(colorBuffer);
     tex.Apply();
 
     byte[] bytes = tex.EncodeToPNG();
@@ -987,40 +986,34 @@ public class FileSystemInternal : MonoBehaviour
   }
 
   // Returns the file path to the new converted file
-  protected string ConvertV0FileToV1FileEx(string oldFilePath)
+  protected void ConvertV0FileToV1FileEx(string filePathToConvert)
   {
-    string tempFilePath;
     try
     {
-      string[] jsonStrings = File.ReadAllLines(oldFilePath);
-
-      bool autosave = false;
-      bool isSaveAs = true;
-      bool updateCameraPosButtonPressed = false;
-      bool shouldPrintElapsedTime = true;
-      tempFilePath = Path.Combine(m_FileDirUtilities.GetCurrentDirectoryPath(), Path.GetTempFileName() + s_FilenameExtension);
+      string[] jsonStrings = File.ReadAllLines(filePathToConvert);
 
       int failedLines = TryCreateDictonaryFromJsonStrings(jsonStrings, out Dictionary<Vector2Int, TileGrid.Element> gridDictionary);
 
       if (failedLines <= -1)
       {
         StatusBar.Print($"This level seems to be invalid and can not be converted.");
-        return null;
       }
       else if (failedLines > 0)
       {
         StatusBar.Print($"File converted with {failedLines} read failures");
       }
 
-      StartSavingThread(tempFilePath, gridDictionary, autosave, isSaveAs, updateCameraPosButtonPressed, shouldPrintElapsedTime);
+      bool autosave = false;
+      bool isSaveAs = true;
+      bool updateCameraPosButtonPressed = false;
+      bool shouldPrintElapsedTime = true;
+      string newFilePath = Path.Combine(m_FileDirUtilities.GetCurrentDirectoryPath(), Path.GetFileName(filePathToConvert));
+      StartSavingThread(newFilePath, gridDictionary, autosave, isSaveAs, updateCameraPosButtonPressed, shouldPrintElapsedTime);
     }
     catch (Exception e)
     {
       Debug.LogError($"Error while loading. {e.Message} ({e.GetType()})");
-      return null;
     }
-
-    return tempFilePath;
   }
 
   // Creates a grid of tiles from JSON strings from BLB V0
