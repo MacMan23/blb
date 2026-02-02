@@ -49,9 +49,9 @@ public class BlbTool : MonoBehaviour
   }
 
 
-  private void Update()
+  protected virtual void Update()
   {
-    if (!HotkeyMaster.s_HotkeysEnabled || GlobalData.IsInPlayMode())
+    if (!HotkeyMaster.s_HotkeysEnabled || GlobalData.IsInPlayMode() || GlobalData.IsInUiPopup())
       return;
 
     if (Input.GetButtonDown(m_KeyboardShortcut))

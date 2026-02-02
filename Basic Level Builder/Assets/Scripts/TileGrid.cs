@@ -1,12 +1,20 @@
-﻿using System;
+﻿/***************************************************
+Authors:        Douglas Zwick, Brenden Epp
+Last Updated:   3/24/2025
+
+Copyright 2018-2025, DigiPen Institute of Technology
+***************************************************/
+
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using UnityEngine;
 
 public class TileGrid : MonoBehaviour
 {
   [System.Serializable]
-  public class Element
+  public class Element : ICloneable
   {
     public Vector2Int m_GridIndex;
     public TileType m_Type;
@@ -28,15 +36,46 @@ public class TileGrid : MonoBehaviour
       m_Path = state.Path;
       m_GameObject = gameObject;
 
-      var colorCode = gameObject.GetComponent<ColorCode>();
-      if (colorCode != null)
+      if (gameObject.TryGetComponent<ColorCode>(out var colorCode))
         colorCode.m_Element = this;
 
-      var tileDirection = gameObject.GetComponent<TileDirection>();
-      if (tileDirection != null)
+      if (gameObject.TryGetComponent<TileDirection>(out var tileDirection))
         tileDirection.m_Element = this;
     }
 
+    public bool Equals(Element other)
+    {
+      if (m_GridIndex != other.m_GridIndex)
+        return false;
+      if (m_Type != other.m_Type)
+        return false;
+      if (m_TileColor != other.m_TileColor)
+        return false;
+      if (m_Direction != other.m_Direction)
+        return false;
+      if (!PathsEqual(other))
+        return false;
+      return true;
+    }
+
+    public bool PathsEqual(Element other)
+    {
+      // If both paths don't exist or the paths are equal
+      if ((other.m_Path == null && m_Path == null) || 
+        (other.m_Path != null && m_Path != null && m_Path.SequenceEqual(other.m_Path)))
+      {
+        return true;
+      }
+      return false;
+    }
+
+    public void SetState(TileState state)
+    {
+      m_Type = state.Type;
+      m_TileColor = state.Color;
+      m_Direction = state.Direction;
+      m_Path = state.Path;
+    }
 
     public TileState ToState()
     {
@@ -57,10 +96,24 @@ public class TileGrid : MonoBehaviour
 
       return m_GameObject.GetComponent<T>();
     }
+
+    public object Clone()
+    {
+      return new Element
+      {
+        m_GridIndex = m_GridIndex,
+        m_Type = m_Type,
+        m_TileColor = m_TileColor,
+        m_Direction = m_Direction,
+        m_Path = m_Path != null ? new List<Vector2Int>(m_Path) : null,
+        m_GameObject = null // intentionally not cloned
+      };
+    }
   }
 
 
-  Dictionary<Vector2Int, Element> m_Grid = new Dictionary<Vector2Int, Element>();
+  Dictionary<Vector2Int, Element> m_Grid = new();
+  Dictionary<Vector2Int, Element> m_GridSaveBuffer;
   public Transform m_BoundsRoot;
   public Transform m_MaskTransform;
   public Transform m_ColoredOutlineTransform;
@@ -70,7 +123,7 @@ public class TileGrid : MonoBehaviour
 
   Transform m_Transform;
 
-  Dictionary<TileType, Transform> m_Roots = new Dictionary<TileType, Transform>();
+  Dictionary<TileType, Transform> m_Roots = new();
 
   TilesPalette m_TilesPalette;
   SpriteMask m_Mask;
@@ -78,17 +131,16 @@ public class TileGrid : MonoBehaviour
   SpriteRenderer m_DarkOutlineRenderer;
 
   // The Z depth of objects placed in the grid.
-  // NOTENOTE: Is there any potential reason for this to be public...?
+  // NOTE: Is there any potential reason for this to be public...?
   readonly float m_GridZ = 0;
 
   [HideInInspector]
-  public Vector3 m_MinBounds = new Vector3(float.MaxValue, float.MaxValue, 0);
+  public Vector3 m_MinBounds = new(float.MaxValue, float.MaxValue, 0);
   [HideInInspector]
-  public Vector3 m_MaxBounds = new Vector3(float.MinValue, float.MinValue, 0);
+  public Vector3 m_MaxBounds = new(float.MinValue, float.MinValue, 0);
 
   GameObject m_MostRecentlyCreatedTile;
   List<Vector2Int> m_BatchedIndices;
-
 
   private void Awake()
   {
@@ -98,7 +150,7 @@ public class TileGrid : MonoBehaviour
     m_MaxBounds.z = m_GridZ;
 
     m_TilesPalette = FindObjectOfType<TilesPalette>();
-    
+
     m_Mask = m_MaskTransform.GetComponent<SpriteMask>();
     m_ColoredOutlineRenderer = m_ColoredOutlineTransform.GetComponent<SpriteRenderer>();
     m_DarkOutlineRenderer = m_DarkOutlineTransform.GetComponent<SpriteRenderer>();
@@ -118,9 +170,7 @@ public class TileGrid : MonoBehaviour
 
   public Element Get(Vector2Int index)
   {
-    m_Grid.TryGetValue(index, out Element output);
-
-    if (output == null)
+    if (!m_Grid.TryGetValue(index, out Element output))
     {
       output = new Element
       {
@@ -166,12 +216,11 @@ public class TileGrid : MonoBehaviour
     // our tile size is much larger than this epsilon, so at
     // worst, it's just a tiny tiny bit of extra work
 
-    var epsilon = 0.01f;
-    var greaterThanLeft = index.x > m_MinBounds.x + epsilon;
-    var lessThanRight = index.x < m_MaxBounds.x - epsilon;
-    var greaterThanBottom = index.y > m_MinBounds.y + epsilon;
-    var lessThanTop = index.y < m_MaxBounds.y - epsilon;
-
+    var greaterThanLeft = index.x > m_MinBounds.x + Mathf.Epsilon;
+    var lessThanRight = index.x < m_MaxBounds.x - Mathf.Epsilon;
+    var greaterThanBottom = index.y > m_MinBounds.y + Mathf.Epsilon;
+    var lessThanTop = index.y < m_MaxBounds.y - Mathf.Epsilon;
+    
     if (greaterThanLeft && lessThanRight && greaterThanBottom && lessThanTop)
       return;
 
@@ -196,25 +245,82 @@ public class TileGrid : MonoBehaviour
     m_WorldExtentsOutliner.OutlineWithBounds(m_MinBounds, m_MaxBounds);
   }
 
+  public void CopyGridBuffer()
+  {
+    m_GridSaveBuffer = m_Grid.ToDictionary(entry => entry.Key,
+                                           entry => (Element) entry.Value.Clone());
+  }
+
+  public Dictionary<Vector2Int, Element> GetGridBuffer()
+  {
+    return m_GridSaveBuffer;
+  }
 
   public string ToJsonString()
   {
     var gridStringBuilder = new StringBuilder();
 
-    foreach (var element in m_Grid.Values)
-      gridStringBuilder.AppendLine(JsonUtility.ToJson(element));
+    foreach (var element in m_GridSaveBuffer)
+      gridStringBuilder.AppendLine(JsonUtility.ToJson(element.Value));
 
     return gridStringBuilder.ToString();
   }
 
+  public void GetLevelData(out FileSystemInternal.LevelData levelData)
+  {
+    levelData = new()
+    {
+      m_AddedTiles = new List<Element>(m_Grid.Values)
+    };
+  }
 
+  public void LoadFromDictonary(Dictionary<Vector2Int, Element> grid)
+  {
+    var startTime = DateTime.Now;
+
+    ForceClearGrid();
+
+    // Create a shallow copy of the dictonary
+    m_Grid = grid.ToDictionary(pair => pair.Key, pair => pair.Value);
+
+    var successes = 0;
+    var failures = 0;
+
+    foreach (var element in m_Grid)
+    {
+      // Create this tile for the new grid.
+      try
+      {
+        var index = element.Value.m_GridIndex;
+        var state = element.Value.ToState();
+
+        CreateTile(index, state, false);
+
+        ++successes;
+      }
+      catch (System.ArgumentException e)
+      {
+        Debug.LogError($"Failed to create the tile:\n \"{element.Value.ToState()}\" " +
+          $"\nas a grid element. {e.Message} ({e.GetType()})");
+
+        ++failures;
+      }
+    }
+
+    // Reset so dialog pop ups don't appear when the user places its first tile
+    m_MostRecentlyCreatedTile = null;
+
+    RecomputeBounds();
+
+    PrintLoadErrors(failures, successes, startTime);
+  }
+
+  // Loads a file with no undoing.
   public void LoadFromJsonStrings(string[] jsonStrings)
   {
     var startTime = DateTime.Now;
 
-    BeginBatch("Load Level", incrementOperationCounter: false);
-
-    ClearGrid(false, false);
+    ForceClearGrid();
 
     var successes = 0;
     var failures = 0;
@@ -227,7 +333,7 @@ public class TileGrid : MonoBehaviour
         var index = element.m_GridIndex;
         var state = element.ToState();
 
-        AddRequest(index, state, false, false);
+        CreateTile(index, state, false);
 
         ++successes;
       }
@@ -240,6 +346,17 @@ public class TileGrid : MonoBehaviour
       }
     }
 
+    // Reset so dialog pop ups don't appear when the user places its first tile
+    m_MostRecentlyCreatedTile = null;
+
+    RecomputeBounds();
+
+    PrintLoadErrors(failures, successes, startTime);
+  }
+
+  // Create debug output for amount of successes and failures.
+  public static void PrintLoadErrors(int failures, int successes, DateTime startTime)
+  {
     var thingWord = failures == 1 ? "thing" : "things";
     var failString = $"{failures} {thingWord}";
 
@@ -278,13 +395,9 @@ public class TileGrid : MonoBehaviour
       }
       else
       {
-        StatusBar.Print("Loading failed because the level seems to be empty.");
+        StatusBar.Print("Loading save file results in an empty level.");
       }
     }
-
-    RecomputeBounds();
-
-    EndBatch(createDialogs: false);
   }
 
 
@@ -293,18 +406,34 @@ public class TileGrid : MonoBehaviour
     if (beginAndEndBatch)
       BeginBatch("Clear Grid");
 
-    var count = m_Grid.Count;
-    var indices = new Vector2Int[count];
-    m_Grid.Keys.CopyTo(indices, 0);
-
-    for (var i = 0; i < count; ++i)
-      AddRequest(indices[i], TileType.EMPTY);
+    foreach (var kvp in m_Grid)
+    {
+      // Record the removal of this tile
+      OperationSystem.AddDelta(kvp.Value, null);
+      Destroy(kvp.Value.m_GameObject);
+    }
+    m_Grid.Clear();
 
     if (beginAndEndBatch)
       EndBatch();
 
     if (recomputeBounds)
       RecomputeBounds();
+  }
+
+
+  // Clears the level and OperationSystem
+  public void ForceClearGrid()
+  {
+    foreach (var kvp in m_Grid)
+    {
+      Destroy(kvp.Value.m_GameObject);
+    }
+    m_Grid.Clear();
+
+    RecomputeBounds();
+
+    OperationSystem.ClearOperations();
   }
 
 
@@ -483,8 +612,20 @@ public class TileGrid : MonoBehaviour
     var newTile = Instantiate(prefab, tileWorldPosition, Quaternion.identity, parent);
 
     // fill the grid location
-    var newGridElement = new Element(gridIndex, state, newTile);
-    m_Grid[gridIndex] = newGridElement;
+    // If the grid already has the element, just fill it out,
+    // else make a new element
+    // The first case it mainly used for looping the grid in the load function
+    // as elements cant be changed in a foreach loop
+    if (m_Grid.ContainsKey(gridIndex))
+    {
+      m_Grid[gridIndex].m_GameObject = newTile;
+      m_Grid[gridIndex].SetState(state);
+      m_Grid[gridIndex].m_GridIndex = gridIndex;
+    }
+    else
+    {
+      m_Grid[gridIndex] = new Element(gridIndex, state, newTile);
+    }
 
     // call ColorCode.Set with the TileState's Color value, so
     // that:
@@ -492,31 +633,28 @@ public class TileGrid : MonoBehaviour
     //   will be colored with the default color rather than white
     // - tiles being created via undo/redo state enactment will have
     //   their proper color and letter
-    var colorCode = newTile.GetComponent<ColorCode>();
-    if (colorCode != null)
+    if (newTile.TryGetComponent<ColorCode>(out var colorCode))
       colorCode.Set(state.Color);
 
-    var tileDirection = newTile.GetComponent<TileDirection>();
-    if (tileDirection != null)
+    if (newTile.TryGetComponent<TileDirection>(out var tileDirection))
       tileDirection.Set(state.Direction);
 
     if (state.Path != null && state.Path.Count > 0)
     {
       var pathMover = newTile.AddComponent<PathMover>();
       pathMover.Setup(state.Path);
-      var rigidbody = newTile.GetComponent<Rigidbody2D>();
-      if (rigidbody == null)
+
+      if (!newTile.TryGetComponent<Rigidbody2D>(out var rigidbody))
         rigidbody = newTile.AddComponent<Rigidbody2D>();
       rigidbody.isKinematic = true;
-      var collider = newTile.GetComponent<Collider2D>();
-      if (collider != null && !collider.isTrigger)
+
+      if (newTile.TryGetComponent<Collider2D>(out var collider) && !collider.isTrigger)
       {
         newTile.AddComponent<ContactParent>();
       }
     }
 
-    var solidEdgeOutliner = newTile.GetComponent<SolidEdgeOutliner>();
-    if (solidEdgeOutliner != null)
+    if (newTile.TryGetComponent<SolidEdgeOutliner>(out var solidEdgeOutliner))
       solidEdgeOutliner.Setup(gridIndex);
 
     if (!cloning)
@@ -534,7 +672,7 @@ public class TileGrid : MonoBehaviour
     // tile from the tiles palette. This would remove some of the complication of
     // setting all that stuff up at the moment that a tile is placed
 
-    return newGridElement;
+    return m_Grid[gridIndex];
   }
 
 
@@ -581,15 +719,13 @@ public class TileGrid : MonoBehaviour
 
   void EraseTileHelper(Vector2Int index, GameObject gameObjectToDestroy)
   {
-    var solidEdgeOutliner = gameObjectToDestroy.GetComponent<SolidEdgeOutliner>();
-    if (solidEdgeOutliner != null)
+    if (gameObjectToDestroy.TryGetComponent<SolidEdgeOutliner>(out var solidEdgeOutliner))
       solidEdgeOutliner.Erase(index);
 
     // destroy the old game object and remove the element from the grid
     Destroy(gameObjectToDestroy);
     m_Grid.Remove(index);
   }
-
 
   bool ConfirmUniqueness(Vector2Int gridIndexToCheck)
   {
@@ -610,9 +746,9 @@ public struct TileState
   public Direction Direction;
   public List<Vector2Int> Path;
 
-  public override bool Equals(object rhsObj)
+  public override readonly bool Equals(object rhsObj)
   {
-    if (!(rhsObj is TileState))
+    if (rhsObj is not TileState)
       return false;
 
     var rhs = (TileState)rhsObj;
@@ -645,7 +781,7 @@ public struct TileState
     return !lhs.Equals(rhs);
   }
 
-  public override int GetHashCode()
+  public override readonly int GetHashCode()
   {
     // the bit pattern:
     // tttttttt tttttttt tttttttt ccccccdd
@@ -658,8 +794,8 @@ public struct TileState
     //   A. we'll definitely never need more than two bits for the four directions
     //   B. we'll almost certainly never need more than 24 bits for tile types
 
-    var maskedType      = ((int)Type)      & 0b00000000111111111111111111111111;
-    var maskedColor     = ((int)Color)     & 0b00000000000000000000000000111111;
+    var maskedType = ((int)Type) & 0b00000000111111111111111111111111;
+    var maskedColor = ((int)Color) & 0b00000000000000000000000000111111;
     var maskedDirection = ((int)Direction) & 0b00000000000000000000000000000011;
     var shiftedType = maskedType << 8;
     var shiftedColor = maskedColor << 2;

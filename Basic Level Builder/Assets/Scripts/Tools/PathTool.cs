@@ -1,4 +1,14 @@
-﻿using System.Collections;
+﻿/***************************************************
+File:           PathTool.cs
+Authors:        ?
+Last Updated:   7/10/2025
+
+Description:
+  Script for path tool control.
+
+Copyright 2018-2025, DigiPen Institute of Technology
+***************************************************/
+
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -60,8 +70,10 @@ public class PathTool : BlbTool
   }
 
 
-  private void Update()
+  protected override void Update()
   {
+    base.Update();
+
     if (Input.GetButtonDown("Cancel") && m_State != State.Idle)
     {
       EnterIdle();
@@ -357,7 +369,7 @@ public class PathTool : BlbTool
     StatusBar.Print(message);
   }
 
-  
+
   //void EnterModifyingPathPoint()
   //{
   //  m_State = State.ModifyingPathPoint;
@@ -455,7 +467,7 @@ public class PathTool : BlbTool
 
   void AddNewPathPoint(Vector2Int gridIndex)
   {
-    if(m_Path.Count == 0 && m_AnchorIndex == gridIndex)
+    if (m_Path.Count == 0 && m_AnchorIndex == gridIndex)
     {
       StatusBar.Print("You cannot make the first point of a path the same as the Anchor point.");
       return;
@@ -652,7 +664,7 @@ public class PathTool : BlbTool
     var difference = m_PointerDragEndPosition - m_PointerDownPosition;
     var width = Mathf.Abs(difference.x) + 1;
     var height = Mathf.Abs(difference.y) + 1;
-    var diagonal = Mathf.Sqrt(width * width + height * height);
+    var diagonal = Mathf.Sqrt((width * width) + (height * height));
     var diagonalString = diagonal.ToString("f2");
     var message = $"Selection size: <b>{width}</b> wide x <b>{height}</b> high, " +
       $"<b>{diagonalString}</b> diagonal";
@@ -689,15 +701,15 @@ public class PathTool : BlbTool
 
     if (count == 1)
     {
-      message += $"{m_Path[0].ToString()}</b></color>";
+      message += $"{m_Path[0]}</b></color>";
     }
     else if (count <= 6)
     {
-      message += $"{m_Path[0].ToString()}</b></color>";
+      message += $"{m_Path[0]}</b></color>";
 
       for (var i = 1; i < count; ++i)
       {
-        message += $" > <color=#FFFF00><b>{m_Path[i].ToString()}</b></color>";
+        message += $" > <color=#FFFF00><b>{m_Path[i]}</b></color>";
       }
     }
     else
