@@ -12,6 +12,8 @@ using System.IO.Compression;
 using System.Linq;
 using UnityEngine;
 using System.Runtime.InteropServices;
+using System.Collections.Concurrent;
+using System.Threading.Tasks;
 
 public class FileDirUtilities : MonoBehaviour
 {
@@ -102,31 +104,32 @@ public class FileDirUtilities : MonoBehaviour
     if (!Directory.Exists(m_CurrentDirectoryPath))
       return null;
 
-    List<string> results = new();
-
     try
     {
       var filePaths = Directory.GetFiles(m_CurrentDirectoryPath);
-      var validFilePaths = filePaths.Where(path => isValidExtension(path)).ToArray();
+
+      var validFilePaths = filePaths
+          .Where(path => isValidExtension(path))
+          .ToArray();
 
       if (validFilePaths.Length == 0)
         return null;
 
-      SortByDateModified(validFilePaths);
+      var results = new ConcurrentBag<string>();
 
-      foreach (var fullFilePath in validFilePaths)
+      Parallel.ForEach(validFilePaths, fullFilePath =>
       {
         if (IsTempFile(fullFilePath))
           results.Add(fullFilePath);
-      }
+      });
+
+      return results.Count == 0 ? null : results.ToArray();
     }
     catch (Exception e)
     {
-      // this probably can't happen, but....
       StatusBar.Print($"Error getting files in directory. {e.Message} ({e.GetType()})");
+      return null;
     }
-
-    return results.ToArray();
   }
 
   public string GetCurrentDirectoryPath()
@@ -220,7 +223,7 @@ public class FileDirUtilities : MonoBehaviour
     return rt;
   }
 
-  private bool IsFileValid(string fullFilePath)
+  static private bool IsFileValid(string fullFilePath)
   {
     if (!isValidExtension(fullFilePath))
       return false;
@@ -231,29 +234,15 @@ public class FileDirUtilities : MonoBehaviour
     return true;
   }
 
-  private bool isValidExtension(string fullFilePath)
+  static public bool isValidExtension(string fullFilePath)
   {
     return fullFilePath.EndsWith(s_FilenameExtension);
   }
 
-  private bool IsTempFile(string fullFilePath)
+  static public bool IsTempFile(string fullFilePath)
   {
-    IEnumerable<string> lines = null;
-    try
-    {
-      lines = File.ReadLines(fullFilePath);
-    }
-    catch (Exception e)
-    {
-      string errorStr = $"Error reading save file {Path.GetFileName(fullFilePath)}. {e.Message} ({e.GetType()})";
-      Debug.Log(errorStr);
-    }
-
-    // We must have at least two lines. One for the header and one for the data
-    if (lines.Count() < 2) return false;
-
-    FileSystemInternal.FileHeader header;
-    header = JsonUtility.FromJson<FileSystemInternal.FileHeader>(lines.First());
+    if (!TryGetHeader(fullFilePath, out FileSystemInternal.FileHeader header))
+      return false;
 
     // If the save file was not read properly
     if (header.m_BlbVersion == null)
@@ -266,9 +255,9 @@ public class FileDirUtilities : MonoBehaviour
     return header.m_IsTempFile;
   }
 
-  private bool HasHeader(string fullFilePath)
+  static public bool TryGetHeader(string fullFilePath, out FileSystemInternal.FileHeader header)
   {
-    IEnumerable<string> lines = null;
+    IEnumerable<string> lines;
     try
     {
       lines = File.ReadLines(fullFilePath);
@@ -277,14 +266,21 @@ public class FileDirUtilities : MonoBehaviour
     {
       string errorStr = $"Error reading save file {Path.GetFileName(fullFilePath)}. {e.Message} ({e.GetType()})";
       Debug.Log(errorStr);
+
+      header = new();
+      return false;
     }
 
-    // We must have at least two lines. One for the header and one for the data
-    if (lines.Count() < 2) return false;
-
-    FileSystemInternal.FileHeader header;
     header = JsonUtility.FromJson<FileSystemInternal.FileHeader>(lines.First());
 
+    // Check if one of the header values are valid to confirm if the JSON was read correctly
+    return header.m_BlbVersion != null;
+  }
+
+  static public bool HasHeader(string fullFilePath)
+  {
+    if (!TryGetHeader(fullFilePath, out FileSystemInternal.FileHeader header))
+      return false;
     return header.m_BlbVersion != null;
   }
 
