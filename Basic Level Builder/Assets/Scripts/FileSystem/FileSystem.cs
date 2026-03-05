@@ -75,6 +75,11 @@ public class FileSystem : FileSystemInternal
     Save(false, name, false, shouldPrintElapsedTime);
   }
 
+  public void CreateNewLevel()
+  {
+    TryCreateNewLevel();
+  }
+
   public void ExportMultipleVersions(string sourcePath, List<LevelVersion> versions)
   {
     // Gather the level data to export
@@ -127,12 +132,17 @@ public class FileSystem : FileSystemInternal
     GetFileInfoFromFullFilePathEx(fullFilePath, out fileInfo);
   }
 
-  public void LoadFromFullFilePath(string fullFilePath, LevelVersion? version = null)
+  /// <summary>
+  /// Loads a file from a fill file path as the new mounted file
+  /// </summary>
+  /// <param name="fullFilePath">The full path to the file.</param>
+  /// <param name="askToSave">If there are unsaved changes in the editor, will ask to save them first.</param>
+  /// <param name="version">The version of the level to load.</param>
+  /// <exception cref="Exception">Thrown when the file cannot be found.</exception>
+  public void LoadFromFullFilePath(string fullFilePath, bool askToSave, LevelVersion? version = null)
   {
-    LoadFromFullFilePathEx(fullFilePath, version);
-
-    // Update file item ui
-    m_FileDirUtilities.FileItemSetSelected(fullFilePath);
+    // Load, returns false if we needed to ask to save
+    LoadFromFullFilePathEx(fullFilePath, askToSave, version);
   }
 
   public void LoadFromTextAsset(TextAsset level)
@@ -191,7 +201,14 @@ public class FileSystem : FileSystemInternal
     if (Application.platform == RuntimePlatform.WebGLPlayer)
       return;
 
-    Application.OpenURL($"file://{m_FileDirUtilities.GetCurrentDirectoryPath()}");
+    if (Application.platform is RuntimePlatform.OSXEditor or RuntimePlatform.OSXPlayer)
+    {
+      FileDirUtilities.OpenInFinder(GetDirectoryPath());
+    }
+    else
+    {
+      Application.OpenURL($"file://{GetDirectoryPath()}");
+    }
   }
 
   public string GetDirectoryPath()
@@ -214,7 +231,7 @@ public class FileSystem : FileSystemInternal
       bool isSaveAs = true;
       bool updateCameraPosButtonPressed = false;
       bool shouldPrintElapsedTime = true;
-      StartSavingThread(m_PendingSaveFullFilePath, autosave, isSaveAs, updateCameraPosButtonPressed, shouldPrintElapsedTime);
+      StartSavingThread(m_PendingSaveFullFilePath, m_TileGrid.GetGridDictionary(), autosave, isSaveAs, updateCameraPosButtonPressed, shouldPrintElapsedTime);
     }
     else
     {

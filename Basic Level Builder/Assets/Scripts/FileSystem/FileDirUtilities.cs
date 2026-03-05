@@ -26,10 +26,12 @@ public class FileDirUtilities : MonoBehaviour
 
   protected string m_CurrentDirectoryPath;
   private System.IntPtr m_WindowPtr;
+  private string m_AppName;
 
   private void Awake()
   {
-    m_WindowPtr = FindWindow(null, Application.productName);
+    m_AppName = Application.productName;
+    m_WindowPtr = FindWindow(null, m_AppName);
     if (m_WindowPtr == System.IntPtr.Zero)
     {
       Debug.LogWarning($"Error finding application window");
@@ -109,7 +111,7 @@ public class FileDirUtilities : MonoBehaviour
       var filePaths = Directory.GetFiles(m_CurrentDirectoryPath);
 
       var validFilePaths = filePaths
-          .Where(path => isValidExtension(path))
+          .Where(path => IsValidExtension(path))
           .ToArray();
 
       if (validFilePaths.Length == 0)
@@ -148,9 +150,9 @@ public class FileDirUtilities : MonoBehaviour
     if (m_WindowPtr != System.IntPtr.Zero && !FileSystem.Instance.m_IsAppQuitting)
     {
       if (string.IsNullOrEmpty(filePath))
-        SetWindowText(m_WindowPtr, Application.productName);
+        SetWindowText(m_WindowPtr, m_AppName);
       else
-        SetWindowText(m_WindowPtr, Application.productName + " - " + Path.GetFileNameWithoutExtension(filePath));
+        SetWindowText(m_WindowPtr, m_AppName + " - " + Path.GetFileNameWithoutExtension(filePath));
     }
   }
 
@@ -171,6 +173,11 @@ public class FileDirUtilities : MonoBehaviour
   public void FileItemSetSelected(string fullFilePath)
   {
     m_SaveList.ItemSetSelected(fullFilePath);
+  }
+
+  public void DeselectAll()
+  {
+    m_SaveList.DeselectAll();
   }
 
   public void MoveFileItemToTop(string fullFilePath)
@@ -225,7 +232,7 @@ public class FileDirUtilities : MonoBehaviour
 
   static private bool IsFileValid(string fullFilePath)
   {
-    if (!isValidExtension(fullFilePath))
+    if (!IsValidExtension(fullFilePath))
       return false;
     if (!HasHeader(fullFilePath))
       return false;
@@ -234,7 +241,7 @@ public class FileDirUtilities : MonoBehaviour
     return true;
   }
 
-  static public bool isValidExtension(string fullFilePath)
+  static public bool IsValidExtension(string fullFilePath)
   {
     return fullFilePath.EndsWith(s_FilenameExtension);
   }
@@ -332,6 +339,11 @@ public class FileDirUtilities : MonoBehaviour
       {
         case RuntimePlatform.OSXEditor:
         case RuntimePlatform.OSXPlayer:
+          // Documents folder can not be directly pathed with the SpecialFolder,
+          // so we need to find the home path and navigate to the document from there
+          string homePath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+          return Path.Combine(homePath, "Documents");
+
         case RuntimePlatform.WindowsPlayer:
         case RuntimePlatform.WindowsEditor:
         case RuntimePlatform.LinuxPlayer:
@@ -350,6 +362,46 @@ public class FileDirUtilities : MonoBehaviour
       Debug.LogError($"Error getting document path. Defaulting to persistent data path. {e.Message} ({e.GetType()})");
 
       return Application.persistentDataPath;
+    }
+  }
+
+  public static void OpenInFinder(string path)
+  {
+    bool openInsidesOfFolder = false;
+
+    // try mac
+    string macPath = path.Replace("\\", "/"); // mac finder doesn't like backward slashes
+
+    if (Directory.Exists(macPath)) // if path requested is a folder, automatically open insides of that folder
+    {
+      openInsidesOfFolder = true;
+    }
+
+    if (!macPath.StartsWith("\""))
+    {
+      macPath = "\"" + macPath;
+    }
+
+    if (!macPath.EndsWith("\""))
+    {
+      macPath += "\"";
+    }
+
+    string arguments = (openInsidesOfFolder ? "" : "-R ") + macPath;
+    try
+    {
+      System.Diagnostics.Process.Start("open", arguments);
+    }
+    catch (Exception e)
+    {
+      e.HelpLink = ""; // do anything with this variable to silence warning about not using it
+
+#if UNITY_EDITOR
+      // EditorUtility.RevealInFinder is sure to work, but for files, it doesn't allow us to pre-select the file specified.
+      // For folders, it can't open the insides of a folder, instead it will open the parent folder.
+      // Very strange behavior, so we use EditorUtility.RevealInFinder only as our last resort.
+      UnityEditor.EditorUtility.RevealInFinder(path);
+#endif
     }
   }
 
