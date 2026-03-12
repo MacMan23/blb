@@ -12,8 +12,8 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
+using System.Threading.Tasks;
 using UnityEngine;
-using static FileDirUtilities;
 using static LevelVersioning;
 
 public class FileSystemInternal : MonoBehaviour
@@ -31,7 +31,6 @@ public class FileSystemInternal : MonoBehaviour
   //readonly static public int s_MaxAutoSaveCount = 150;
   //readonly static public int s_MaxManualSaveCount = 100;
 
-  readonly static bool s_ShouldCompress = true;
   static Version s_EditorVersion; // major, minor, build, and revision number
 
   public string m_DefaultDirectoryName = "Default Project";
@@ -74,19 +73,11 @@ public class FileSystemInternal : MonoBehaviour
   protected FileData m_PendingExportFileData = null;
   protected List<LevelVersion> m_PendingExportVersions = null;
 
-  private string m_PendingThumbnail = "";
-  private Vector2 m_PendingCameraPos;
-  private bool m_ForceEmptyLevelSave;
-
-
   protected FileInfo m_MountedFileInfo;
-
-  // The version of the manual or autosave that is loaded
-  LevelVersion m_loadedVersion;
 
   // A thread to run when saving should be performed.
   // Only one save thread is run at once.
-  private Thread m_SavingThread;
+  private Task m_SavingThread;
   private static int mainThreadId;
   public static bool IsMainThread
   {
@@ -95,6 +86,7 @@ public class FileSystemInternal : MonoBehaviour
       return Thread.CurrentThread.ManagedThreadId == mainThreadId;
     }
   }
+
   // A queue of events that the saving thread will enqueue for the main thread
   protected readonly MainThreadDispatcher m_MainThreadDispatcher = new();
 
@@ -103,50 +95,34 @@ public class FileSystemInternal : MonoBehaviour
 
   #region FileStructure classes
 
-  [Serializable]
-  public struct JsonDateTime
-  {
-    public long value;
-    public static implicit operator DateTime(JsonDateTime jdt)
-    {
-      return DateTime.FromFileTime(jdt.value);
-    }
-    public static implicit operator JsonDateTime(DateTime dt)
-    {
-      JsonDateTime jdt = new();
-      jdt.value = dt.ToFileTime();
-      return jdt;
-    }
-  }
-
   public struct FileInfo
   {
     public string m_SaveFilePath;
+    // The version of the manual or autosave that is loaded
+    public LevelVersion m_LoadedVersion;
     public FileData m_FileData;
     public FileHeader m_FileHeader;
   }
 
-  [Serializable]
   public class FileHeader
   {
-    public FileHeader(string ver = "", bool shouldCompress = true, bool isTempFile = false)
+    public FileHeader(string ver = "", bool isTempFile = false)
     {
-      m_BlbVersion = ver;
-      m_IsDataCompressed = shouldCompress;
+      m_BlbVersion = new(ver);
       m_IsTempFile = isTempFile;
     }
-    public string m_BlbVersion;
-    public bool m_IsDataCompressed = false;
+
+    public Version m_BlbVersion;
     public bool m_IsTempFile = false;
   }
 
-  [Serializable]
   public class FileData
   {
     public FileData()
     {
       m_ManualSaves = new List<LevelData>();
       m_AutoSaves = new List<LevelData>();
+      m_Description = "";
     }
     public List<LevelData> m_ManualSaves;
     public List<LevelData> m_AutoSaves;
@@ -154,13 +130,13 @@ public class FileSystemInternal : MonoBehaviour
     public string m_Description;
   }
 
-  [Serializable]
   public class LevelData
   {
     public LevelData()
     {
       m_AddedTiles = new List<TileGrid.Element>();
       m_RemovedTiles = new List<Vector2Int>();
+      m_Name = "";
     }
 
     public LevelVersion m_Version;
@@ -168,7 +144,7 @@ public class FileSystemInternal : MonoBehaviour
     public uint m_Id;
     public Vector2 m_CameraPos;
     public string m_Thumbnail;
-    public JsonDateTime m_TimeStamp;
+    public DateTime m_TimeStamp;
     public List<TileGrid.Element> m_AddedTiles;
     public List<Vector2Int> m_RemovedTiles;
   }
@@ -259,6 +235,9 @@ public class FileSystemInternal : MonoBehaviour
   {
     if (focus)
     {
+      // If we have a saving thread running, wait for it to finish before checking if a file was removed
+      m_SavingThread?.Wait();
+
       if (IsFileMounted() && !FileExists(m_MountedFileInfo.m_SaveFilePath))
       {
         var errorString = $"Error: File with path \"{m_MountedFileInfo.m_SaveFilePath}\" could not be found. " +
@@ -280,10 +259,7 @@ public class FileSystemInternal : MonoBehaviour
   private bool OnWantsToQuit()
   {
     // If we have a saving thread running, wait for it to finish before closing the program
-    if (m_SavingThread != null && m_SavingThread.IsAlive)
-    {
-      m_SavingThread.Join();
-    }
+    m_SavingThread?.Wait();
 
     // Check if we already asked to quit
     if (m_IsAppQuitting)
@@ -295,17 +271,20 @@ public class FileSystemInternal : MonoBehaviour
     {
       // Ask to save
       m_AskToSaveDialogAdder.RequestDialogsAtCenterWithStrings(Path.GetFileNameWithoutExtension(m_MountedFileInfo.m_SaveFilePath));
+
+      void cancelQuit() => m_IsAppQuitting = false;
+
       void removeHandler()
       {
-        UiAskToSaveModalDialog.OnCancelAction -= CancelQuit;
+        UiAskToSaveModalDialog.OnCancelAction -= cancelQuit;
         UiAskToSaveModalDialog.OnConfirmSave -= SaveAndQuit;
-        UiAskToSaveModalDialog.OnDenySave -= QuitWithoutSave;
+        UiAskToSaveModalDialog.OnDenySave -= Application.Quit;
         UiAskToSaveModalDialog.OnRemoveSub -= removeHandler;
       }
 
-      UiAskToSaveModalDialog.OnCancelAction += CancelQuit;
+      UiAskToSaveModalDialog.OnCancelAction += cancelQuit;
       UiAskToSaveModalDialog.OnConfirmSave += SaveAndQuit;
-      UiAskToSaveModalDialog.OnDenySave += QuitWithoutSave;
+      UiAskToSaveModalDialog.OnDenySave += Application.Quit;
       UiAskToSaveModalDialog.OnRemoveSub += removeHandler;
 
       // No matter which option the user presses, we will still quit after saving or not.
@@ -327,33 +306,9 @@ public class FileSystemInternal : MonoBehaviour
     bool shouldMountFile = false;
     Save(isAutoSave, null, false, shouldPrintElapsedTime, shouldMountFile);
     // If we have a saving thread running, wait for it to finish before closing the program
-    if (m_SavingThread != null && m_SavingThread.IsAlive)
-    {
-      m_SavingThread.Join();
-    }
+    m_SavingThread?.Wait();
 
     Application.Quit();
-  }
-
-  private void QuitWithoutSave()
-  {
-    // Force autosave if we have changes.
-    bool isAutoSave = true;
-    bool shouldPrintElapsedTime = false;
-    bool shouldMountFile = false;
-    Save(isAutoSave, null, false, shouldPrintElapsedTime, shouldMountFile);
-    // If we have a saving thread running, wait for it to finish before closing the program
-    if (m_SavingThread != null && m_SavingThread.IsAlive)
-    {
-      m_SavingThread.Join();
-    }
-
-    Application.Quit();
-  }
-
-  private void CancelQuit()
-  {
-    FileSystem.Instance.m_IsAppQuitting = false;
   }
 
   protected void TryCreateNewLevel()
@@ -395,9 +350,6 @@ public class FileSystemInternal : MonoBehaviour
   {
     UnmountFile();
     m_TileGrid.ForceClearGrid();
-    // Set this variable so we can save an empty level
-    // This will be reset in the save function
-    m_ForceEmptyLevelSave = true;
     m_SaveAsDialogAdder.RequestDialogsAtCenter();
   }
 
@@ -411,7 +363,7 @@ public class FileSystemInternal : MonoBehaviour
     m_MountedFileInfo.m_FileData.m_ManualSaves.Add(new LevelData());
     m_MountedFileInfo.m_FileData.m_ManualSaves[0].m_TimeStamp = DateTime.Now;
     // Mount temp file so we can check when the full file path isn't the temp file
-    MountFile(destFilePath, m_MountedFileInfo);
+    MountFile(destFilePath, m_MountedFileInfo, new(0,0));
   }
 
   /// <summary>
@@ -425,7 +377,7 @@ public class FileSystemInternal : MonoBehaviour
     fileInfo = new()
     {
       m_SaveFilePath = filePath,
-      m_FileHeader = new(s_EditorVersion.ToString(), s_ShouldCompress, false),
+      m_FileHeader = new(s_EditorVersion.ToString(), false),
       m_FileData = new()
     };
   }
@@ -454,8 +406,6 @@ public class FileSystemInternal : MonoBehaviour
   private void UnmountFile()
   {
     m_MountedFileInfo.m_SaveFilePath = "";
-    // Reset the loaded version to none
-    m_loadedVersion = new();
     m_FileDirUtilities.SetTitleBarFileName(null);
     m_FileDirUtilities.DeselectAll();
   }
@@ -464,10 +414,11 @@ public class FileSystemInternal : MonoBehaviour
   /// Mounts a file at the specified path.
   /// </summary>
   /// <param name="filePath">The path to the file to mount</param>
-  private void MountFile(string filePath, FileInfo fileInfo)
+  private void MountFile(string filePath, FileInfo fileInfo, LevelVersion? levelVersion = null)
   {
     m_MountedFileInfo = fileInfo;
     m_MountedFileInfo.m_SaveFilePath = filePath;
+    m_MountedFileInfo.m_LoadedVersion = levelVersion ?? new(GetLastManualSaveVersion(m_MountedFileInfo.m_FileData), 0);
     m_FileDirUtilities.SetTitleBarFileName(filePath);
     if (IsMainThread)
     {
@@ -509,7 +460,7 @@ public class FileSystemInternal : MonoBehaviour
     if (validPaths.Count == 0)
       StatusBar.Print("Drag and drop only supports <b>.blb</b> files.");
     else
-      LoadFromFullFilePathEx(validPaths[0], true);
+      LoadFromFullFilePathExAndAskToSave(validPaths[0]);
   }
 
   /// <summary>
@@ -658,23 +609,8 @@ public class FileSystemInternal : MonoBehaviour
     if (GlobalData.AreEffectsUnderway())
       return;
 
-    m_TileGrid.GetLevelData(out LevelData levelData);
-    // Check if we are going to save an empty level
-    if (levelData.m_AddedTiles.Count == 0 && !m_ForceEmptyLevelSave)
-    {
-      var errorString = "Failed to save because the level is empty";
-      m_MainThreadDispatcher.Enqueue(() => StatusBar.Print(errorString));
-      Debug.Log(errorString);
-      return;
-    }
-    // Reset this flag if it was set to true
-    m_ForceEmptyLevelSave = false;
-
     // If we have a thread running
-    if (m_SavingThread != null && m_SavingThread.IsAlive)
-    {
-      m_SavingThread.Join();
-    }
+    m_SavingThread?.Wait();
 
     if (!FileDataExists(m_MountedFileInfo.m_FileData))
     {
@@ -752,45 +688,58 @@ public class FileSystemInternal : MonoBehaviour
   }
 
   protected void StartSavingThread(string destFilePath, Dictionary<Vector2Int, TileGrid.Element> gridDictionary,
-                                   bool autosave, bool isSaveAs, bool updateCameraPosButtonPressed, bool shouldPrintElapsedTime, bool shouldMountFile = true)
+    bool autosave, bool isSaveAs, bool updateCameraPosButtonPressed, bool shouldPrintElapsedTime, bool shouldMountFile = true)
   {
     // Store camera position to the nearest tile
-    m_PendingCameraPos = new Vector2(Camera.main.transform.position.x, Camera.main.transform.position.y);
+    Vector2 cameraPos = new(Camera.main.transform.position.x, Camera.main.transform.position.y);
 
     // Gernerate the version thumbnail to be used in the thread
     // EncodeToPNG can only be used on main thread
-    m_PendingThumbnail = GenerateThumbnail(gridDictionary);
-
-    // Define parameters for the branched thread function
-    object[] parameters = { m_MountedFileInfo, destFilePath, autosave, shouldPrintElapsedTime, updateCameraPosButtonPressed, gridDictionary, shouldMountFile };
+    string thumbnail = GenerateThumbnail(gridDictionary);
 
     // Create a new thread and pass the ParameterizedThreadStart delegate
     if (isSaveAs)
-      m_SavingThread = new Thread(new ParameterizedThreadStart(SavingThreadFlatten));
+    {
+      m_SavingThread = Task.Run(() =>
+      {
+        SavingThreadFlatten(
+            m_MountedFileInfo,
+            destFilePath,
+            shouldPrintElapsedTime,
+            gridDictionary,
+            cameraPos,
+            thumbnail,
+            shouldMountFile);
+      });
+    }
     else
-      m_SavingThread = new Thread(new ParameterizedThreadStart(SavingThread));
-
-    m_SavingThread.Start(parameters);
+    {
+      m_SavingThread = Task.Run(() =>
+      {
+        SavingThread(
+            m_MountedFileInfo,
+            destFilePath,
+            autosave,
+            shouldPrintElapsedTime,
+            updateCameraPosButtonPressed,
+            gridDictionary,
+            cameraPos,
+            thumbnail,
+            shouldMountFile);
+      });
+    }
   }
 
   protected void StartExportSavingThread(string destFilePath)
   {
-    m_SavingThread = new Thread(new ParameterizedThreadStart(ExportSavingThread));
-
-    m_SavingThread.Start(destFilePath);
+    m_SavingThread = Task.Run(() => ExportSavingThread(destFilePath));
   }
 
-  private void SavingThreadFlatten(object threadParameters)
+  private void SavingThreadFlatten(FileInfo sourceFileInfo, string destFilePath, bool shouldPrintElapsedTime,
+    Dictionary<Vector2Int, TileGrid.Element> gridDictionary, Vector2 cameraPos, string thumbnail, bool shouldMountFile)
   {
     var startTime = DateTime.Now;
 
-    // Extract the parameters from the object array
-    object[] parameters = (object[])threadParameters;
-
-    // Access the parameters
-    FileInfo sourceFileInfo = (FileInfo)parameters[0];
-    string destFilePath = (string)parameters[1];
-    Dictionary<Vector2Int, TileGrid.Element> gridDictionary = (Dictionary<Vector2Int, TileGrid.Element>)parameters[5];
     bool isOverwriting = File.Exists(destFilePath);
 
     // With a temp save we just need to add manual save v1, as v0 is the first and only manual save
@@ -806,8 +755,8 @@ public class FileSystemInternal : MonoBehaviour
       m_AddedTiles = new List<TileGrid.Element>(gridDictionary.Values),
       m_TimeStamp = DateTime.Now,
       m_Version = new(1, 0),
-      m_Thumbnail = m_PendingThumbnail,
-      m_CameraPos = m_PendingCameraPos
+      m_Thumbnail = thumbnail,
+      m_CameraPos = cameraPos
     };
 
     sourceFileInfo.m_FileData.m_ManualSaves.Add(levelData);
@@ -815,35 +764,25 @@ public class FileSystemInternal : MonoBehaviour
     try
     {
       bool isAutosave = false;
-      bool shouldMountFile = (bool)parameters[6];
       bool shouldCopyFile = false;
-      bool shouldPrintElapsedTime = (bool)parameters[3];
       WriteDataToFile(destFilePath, sourceFileInfo, shouldMountFile, isOverwriting, startTime, isAutosave, shouldCopyFile, shouldPrintElapsedTime);
-      m_loadedVersion = levelData.m_Version;
     }
     catch (Exception e)
     {
       var errorString = $"Error while flattening and saving file: {e.Message} ({e.GetType()})";
       m_MainThreadDispatcher.Enqueue(() => StatusBar.Print(errorString));
       Debug.LogError(errorString);
+      // If we couldn't finish the save, remove the corrupted file, then unmount
+      File.Delete(destFilePath);
+      UnmountFile();
     }
   }
 
-  private void SavingThread(object threadParameters)
+  private void SavingThread(FileInfo sourceFileInfo, string destFilePath, bool autosave, bool shouldPrintElapsedTime,
+    bool updateCameraPosButtonPressed, Dictionary<Vector2Int, TileGrid.Element> gridDictionary, Vector2 cameraPos, string thumbnail, bool shouldMountFile)
   {
     var startTime = DateTime.Now;
 
-    // Extract the parameters from the object array
-    object[] parameters = (object[])threadParameters;
-
-    // Access the parameters
-    FileInfo sourceFileInfo = (FileInfo)parameters[0];
-    string destFilePath = (string)parameters[1];
-    bool autosave = (bool)parameters[2];
-    bool shouldPrintElapsedTime = (bool)parameters[3];
-    bool updateCameraPosButtonPressed = (bool)parameters[4];
-    Dictionary<Vector2Int, TileGrid.Element> gridDictionary = (Dictionary<Vector2Int, TileGrid.Element>)parameters[5];
-    bool shouldMountFile = (bool)parameters[6];
     bool overwriting = File.Exists(destFilePath);
     // TODO, Don't auto save if the diffences from the last auto save are the same. Ie no unsaved changes.
     #region Add level changes to level data
@@ -864,7 +803,7 @@ public class FileSystemInternal : MonoBehaviour
     // If we will be copying the mounted file over to a diffrent file
     bool copyFile = false;
 
-    bool isCameraDifferent = m_PendingCameraPos != GetLastManualSaveData(sourceFileInfo.m_FileData).m_CameraPos;
+    bool isCameraDifferent = cameraPos != GetLastManualSaveData(sourceFileInfo.m_FileData).m_CameraPos;
     bool saveDiffs = isCameraDifferent && updateCameraPosButtonPressed;
 
     // We can't update the camera pos if the camera is not different
@@ -878,8 +817,8 @@ public class FileSystemInternal : MonoBehaviour
 
     bool hasDifferences = GetDifferences(out LevelData levelData, sourceFileInfo, gridDictionary) || saveDiffs;
 
-    levelData.m_Thumbnail = m_PendingThumbnail;
-    levelData.m_CameraPos = m_PendingCameraPos;
+    levelData.m_Thumbnail = thumbnail;
+    levelData.m_CameraPos = cameraPos;
 
     // If we are writting to our own file yet we have no changes, skip the save
     // Or we are writting to a temp file with no changes, ignore write
@@ -899,38 +838,6 @@ public class FileSystemInternal : MonoBehaviour
     {
       Debug.LogError("Damn, This should not happen. Check why file data doesn't exist here.");
     }
-
-    // Return to skip checking if we reached the max number of saves.
-    // Add back in later if a reason to keep is found
-    // TODOMAXSAVES (Quick find tag for later)
-#if false
-    // If we are doing an auto check if we have to many
-    if (autosave)
-    {
-      // first of all, if m_MaxAutosaveCount <= 0, then no autosaving
-      // should occur at all
-      // TODO: do we still want to disable autsaves?
-      if (s_MaxAutoSaveCount <= 0)
-        return;
-
-      // now, if the autosave count is at its limit, then we should
-      // get rid of the oldest autosave
-      if (sourceFileInfo.m_FileData.m_AutoSaves.Count >= s_MaxAutoSaveCount)
-      {
-        sourceFileInfo.m_FileData.m_AutoSaves.RemoveAt(0);
-      }
-    }
-    else
-    {
-      // now, if the manual count is at its limit, then we should
-      // get rid of the oldest save
-      // TODO: Add warning pop up if first time.
-      if (sourceFileInfo.m_FileData.m_ManualSaves.Count >= s_MaxManualSaveCount)
-      {
-        sourceFileInfo.m_FileData.m_ManualSaves.RemoveAt(0);
-      }
-    }
-#endif
 
     // TODO, check if the auto save has differences from the last auto save, if not, discard save,
     // TODO, check if manual save is the same as the last auto save, if so just move auto to manual
@@ -961,11 +868,11 @@ public class FileSystemInternal : MonoBehaviour
       {
         // Set the manual save version we are branching off from
         // Get the manual version or the branched manual version if we loaded an auto save
-        levelData.m_Version.m_ManualVersion = m_loadedVersion.m_ManualVersion;
+        levelData.m_Version.m_ManualVersion = m_MountedFileInfo.m_LoadedVersion.m_ManualVersion;
 
         // Check if there are other autosaves branched from this manual
         // If so, our version will be 1 more than the newest one
-        int lastVersion = GetLastAutoSaveVersion(sourceFileInfo.m_FileData, m_loadedVersion.m_ManualVersion);
+        int lastVersion = GetLastAutoSaveVersion(sourceFileInfo.m_FileData, m_MountedFileInfo.m_LoadedVersion.m_ManualVersion);
         levelData.m_Version.m_AutoVersion = lastVersion + 1;
 
         sourceFileInfo.m_FileData.m_AutoSaves.Add(levelData);
@@ -984,12 +891,6 @@ public class FileSystemInternal : MonoBehaviour
     {
       WriteDataToFile(destFilePath, sourceFileInfo, shouldMountFile,
       overwriting, startTime, autosave, copyFile, shouldPrintElapsedTime);
-
-      // If we are saving to the file we have mounted, set our loaded version to that new save
-      if (sourceFileInfo.m_SaveFilePath == destFilePath && shouldMountFile)
-      {
-        m_loadedVersion = levelData.m_Version;
-      }
     }
     catch (Exception e)
     {
@@ -999,12 +900,9 @@ public class FileSystemInternal : MonoBehaviour
     }
   }
 
-  private void ExportSavingThread(object threadParameter)
+  private void ExportSavingThread(string destFilePath)
   {
     var startTime = DateTime.Now;
-
-    // Extract the parameters from the object array
-    string destFilePath = (string)threadParameter;
 
     bool isOverwriting = File.Exists(destFilePath);
 
@@ -1124,19 +1022,53 @@ public class FileSystemInternal : MonoBehaviour
   /// <param name="destFilePath">The destination file path.</param>
   /// <param name="sourceFileInfo">The source file info.</param>
   /// <exception cref="Exception">Thrown when an error occurs during file operations.</exception>
-  protected void WriteDataToFile(string destFilePath, FileInfo sourceFileInfo)
+  public void WriteDataToFile(string destFilePath, FileInfo sourceFileInfo)
   {
-    List<byte> data = new();
-    data.AddRange(System.Text.Encoding.Default.GetBytes(JsonUtility.ToJson(sourceFileInfo.m_FileHeader) + "\n"));
-    if (sourceFileInfo.m_FileHeader.m_IsDataCompressed)
-      data.AddRange(StringCompression.Compress(JsonUtility.ToJson(sourceFileInfo.m_FileData)));
-    else
-      data.AddRange(System.Text.Encoding.Default.GetBytes(JsonUtility.ToJson(sourceFileInfo.m_FileData)));
+    using FileStream stream = new(destFilePath, FileMode.Create, FileAccess.Write, FileShare.None);
+    using BinaryWriter writer = new(stream);
 
-    File.WriteAllBytes(destFilePath, data.ToArray());
+    // Write file version first so we can later check for future file changes and adapt
+    writer.Write(sourceFileInfo.m_FileHeader.m_BlbVersion.ToString());
+    writer.Write(sourceFileInfo.m_FileHeader.m_IsTempFile);
+    writer.Write(sourceFileInfo.m_FileData.m_Description);
+
+    writer.Write((ushort)sourceFileInfo.m_FileData.m_ManualSaves.Count);
+    foreach (LevelData levelData in sourceFileInfo.m_FileData.m_ManualSaves)
+    {
+      WriteBinaryLevelData(writer, levelData);
+    }
+
+    writer.Write((ushort)sourceFileInfo.m_FileData.m_AutoSaves.Count);
+    foreach (LevelData levelData in sourceFileInfo.m_FileData.m_AutoSaves)
+    {
+      WriteBinaryLevelData(writer, levelData);
+    }
 
     // Save happened reset operations so we don't autosave again right away
     OperationSystem.ResetOperationCounter();
+  }
+
+  private void WriteBinaryLevelData(BinaryWriter writer, LevelData levelData)
+  {
+    levelData.m_Version.WriteBinary(writer);
+    writer.Write(levelData.m_Name);
+    writer.Write((short)levelData.m_CameraPos.x);
+    writer.Write((short)levelData.m_CameraPos.y);
+    writer.Write(levelData.m_Thumbnail ?? "");
+    writer.Write(levelData.m_TimeStamp.Ticks);
+
+    writer.Write((ushort)levelData.m_AddedTiles.Count);
+    foreach (TileGrid.Element tile in levelData.m_AddedTiles)
+    {
+      tile.WriteBinary(writer);
+    }
+
+    writer.Write((ushort)levelData.m_RemovedTiles.Count);
+    foreach (Vector2Int pos in levelData.m_RemovedTiles)
+    {
+      writer.Write((short)pos.x);
+      writer.Write((short)pos.y);
+    }
   }
 
   // Deprecated for now untill real use is found.
@@ -1147,14 +1079,14 @@ public class FileSystemInternal : MonoBehaviour
     if (GlobalData.AreEffectsUnderway())
       return;
 
-    var jsonString = m_TileGrid.ToJsonString();
+    //var jsonString = m_TileGrid.ToJsonString();
     // If we are useing a compression alg for loading/saving, copy this level as a copressed string
     //if (s_ShouldCompress)
     //jsonString = StringCompression.Compress(jsonString);
 
-    var te = new TextEditor { text = jsonString };
-    te.SelectAll();
-    te.Copy();
+    //var te = new TextEditor { text = jsonString };
+    //te.SelectAll();
+    //te.Copy();
 
     StatusBar.Print("Level copied to clipboard.");
   }
@@ -1195,84 +1127,101 @@ public class FileSystemInternal : MonoBehaviour
       throw new Exception($"File not found: {fullFilePath}");
     }
 
-    GetDataFromJson(File.ReadAllBytes(fullFilePath), ref fileInfo);
+    try
+    {
+      using FileStream stream = new(fullFilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+      using BinaryReader reader = new(stream);
+      ReadBinaryStream(reader, ref fileInfo);
+    }
+    catch (Exception e)
+    {
+      var errorString = $"Error reading save file {Path.GetFileName(fileInfo.m_SaveFilePath)}. The file data may be corrupted.\n {e.Message} ({e.GetType()})";
+      m_MainThreadDispatcher.Enqueue(() => StatusBar.Print(errorString));
+      Debug.LogError(errorString);
+      throw new Exception(errorString);
+    }
+  }
+
+  /// <summary>
+  /// If there are unsaved changes, asks to save first then, loads a file from a fill file path as the new mounted file
+  /// </summary>
+  /// <param name="fullFilePath">The full path to the file.</param>
+  /// <param name="version">The version of the level to load.</param>
+  /// <returns>True if we loaded the file, false if there was an exeption or if we needed to ask to save.</returns>
+  /// <exception cref="Exception">Thrown when the file cannot be found.</exception>
+  protected void LoadFromFullFilePathExAndAskToSave(string fullFilePath, LevelVersion? version = null)
+  {
+    if (GlobalData.AreEffectsUnderway())
+      return;
+
+    // Check if we have unsaved changes, then ask to save if so
+    if (IsFileMounted() && GetDifferences(out LevelData _, m_MountedFileInfo, m_TileGrid.GetGridDictionary()))
+    {
+      // Ask to save
+      m_AskToSaveDialogAdder.RequestDialogsAtCenterWithStrings(Path.GetFileNameWithoutExtension(m_MountedFileInfo.m_SaveFilePath));
+
+      void loadPendingFile() => LoadFromFullFilePathEx(fullFilePath, version);
+
+      void saveThenLoad()
+      {
+        bool isAutoSave = false;
+        bool shouldPrintElapsedTime = false;
+        bool shouldMountFile = false;
+        Save(isAutoSave, null, false, shouldPrintElapsedTime, shouldMountFile);
+        loadPendingFile();
+      }
+
+      void removeHandler()
+      {
+        UiAskToSaveModalDialog.OnConfirmSave -= saveThenLoad;
+        UiAskToSaveModalDialog.OnDenySave -= loadPendingFile;
+        UiAskToSaveModalDialog.OnRemoveSub -= removeHandler;
+      }
+
+      UiAskToSaveModalDialog.OnConfirmSave += saveThenLoad;
+      UiAskToSaveModalDialog.OnDenySave += loadPendingFile;
+      UiAskToSaveModalDialog.OnRemoveSub += removeHandler;
+
+      // Stops the load from happening
+      return;
+    }
+
+    LoadFromFullFilePathEx(fullFilePath, version);
   }
 
   /// <summary>
   /// Loads a file from a fill file path as the new mounted file
   /// </summary>
   /// <param name="fullFilePath">The full path to the file.</param>
-  /// <param name="askToSave">If there are unsaved changes in the editor, will ask to save them first.</param>
   /// <param name="version">The version of the level to load.</param>
   /// <returns>True if we loaded the file, false if there was an exeption or if we needed to ask to save.</returns>
   /// <exception cref="Exception">Thrown when the file cannot be found.</exception>
-  protected void LoadFromFullFilePathEx(string fullFilePath, bool askToSave, LevelVersion? version = null)
+  protected void LoadFromFullFilePathEx(string fullFilePath, LevelVersion? version = null)
   {
     if (GlobalData.AreEffectsUnderway())
       return;
 
     try
     {
-      // Check if we have unsaved changes, then ask to save if so
-      if (askToSave && IsFileMounted() && GetDifferences(out LevelData _, m_MountedFileInfo, m_TileGrid.GetGridDictionary()))
-      {
-        // Ask to save
-        m_AskToSaveDialogAdder.RequestDialogsAtCenterWithStrings(Path.GetFileNameWithoutExtension(m_MountedFileInfo.m_SaveFilePath));
+      using FileStream stream = new(fullFilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+      using BinaryReader reader = new(stream);
+      LoadFromBinaryStream(reader, version);
+      MountFile(fullFilePath, m_MountedFileInfo, version);
 
-        void saveThenLoad()
-        {
-          bool isAutoSave = false;
-          bool shouldPrintElapsedTime = false;
-          bool shouldMountFile = false;
-          Save(isAutoSave, null, false, shouldPrintElapsedTime, shouldMountFile);
-          LoadPendingFile();
-        }
-
-        void removeHandler()
-        {
-          UiAskToSaveModalDialog.OnConfirmSave -= saveThenLoad;
-          UiAskToSaveModalDialog.OnDenySave -= LoadPendingFile;
-          UiAskToSaveModalDialog.OnRemoveSub -= removeHandler;
-        }
-
-        UiAskToSaveModalDialog.OnConfirmSave += saveThenLoad;
-        UiAskToSaveModalDialog.OnDenySave += LoadPendingFile;
-        UiAskToSaveModalDialog.OnRemoveSub += removeHandler;
-
-        // Add the file to the pending list
-        m_PendingSaveFullFilePath = fullFilePath;
-        m_PendingExportVersions ??= new();
-        m_PendingExportVersions.Clear();
-        if (version != null)
-          m_PendingExportVersions.Add(version ?? new(0, 0));
-
-        // Stops the load from happening
-        return;
-      }
-
-      LoadFromJson(File.ReadAllBytes(fullFilePath), version);
-      MountFile(fullFilePath, m_MountedFileInfo);
-
-      m_loadedVersion = version ?? new(GetLastManualSaveVersion(m_MountedFileInfo.m_FileData), 0);
-
-      GetVersionLevelData(m_MountedFileInfo.m_FileData, m_loadedVersion, out LevelData level);
+      GetVersionLevelData(m_MountedFileInfo.m_FileData, m_MountedFileInfo.m_LoadedVersion, out LevelData level);
       Camera.main.transform.position = new Vector3(level.m_CameraPos.x, level.m_CameraPos.y, Camera.main.transform.position.z);
     }
     catch (Exception e)
     {
       // File not loaded, remove file mount
       UnmountFile();
-      Debug.LogError($"Error while loading. {e.Message} ({e.GetType()})");
+      var errorString = $"Error loading save file {Path.GetFileName(fullFilePath)}. The file data may be corrupted.\n {e.Message} ({e.GetType()})";
+      Debug.LogError(errorString);
+      m_MainThreadDispatcher.Enqueue(() => StatusBar.Print(errorString));
     }
   }
 
-  protected void LoadPendingFile()
-  {
-    LevelVersion? version = m_PendingExportVersions.Count >= 1 ? m_PendingExportVersions[0] : null;
-
-    LoadFromFullFilePathEx(m_PendingSaveFullFilePath, false, version);
-  }
-
+  [Obsolete]
   protected void LoadFromTextAssetEx(TextAsset level)
   {
     if (GlobalData.AreEffectsUnderway())
@@ -1282,10 +1231,11 @@ public class FileSystemInternal : MonoBehaviour
     UnmountFile();
     try
     {
-      LoadFromJson(level.bytes);
+      // TODO, if we want websupport, make new function to take webstring
+      //LoadFromJson(level.bytes);
 
-      GetVersionLevelData(m_MountedFileInfo.m_FileData, new(GetLastManualSaveVersion(m_MountedFileInfo.m_FileData), 0), out LevelData levelData);
-      Camera.main.transform.position = new Vector3(levelData.m_CameraPos.x, levelData.m_CameraPos.y, Camera.main.transform.position.z);
+      //GetVersionLevelData(m_MountedFileInfo.m_FileData, new(GetLastManualSaveVersion(m_MountedFileInfo.m_FileData), 0), out LevelData levelData);
+      //Camera.main.transform.position = new Vector3(levelData.m_CameraPos.x, levelData.m_CameraPos.y, Camera.main.transform.position.z);
     }
     catch (Exception e)
     {
@@ -1294,97 +1244,71 @@ public class FileSystemInternal : MonoBehaviour
   }
 
   // Intermidiatarty load function. Calls the rest of the load functions.
-  private void LoadFromJson(byte[] json, LevelVersion? version = null)
+  private void LoadFromBinaryStream(BinaryReader reader, LevelVersion? version = null)
   {
-    // Make sure we have file data for the load
-    if (!FileDataExists(m_MountedFileInfo.m_FileData))
-      CreateFileInfo(out m_MountedFileInfo);
+    CreateFileInfo(out m_MountedFileInfo);
 
-    GetDataFromJson(json, ref m_MountedFileInfo);
+    ReadBinaryStream(reader, ref m_MountedFileInfo);
 
     m_TileGrid.LoadFromDictonary(GetGridDictionaryFromFileData(m_MountedFileInfo, version));
   }
 
-  /// <summary>
-  /// Grabs data from file and stores it in passed in FileData and a Header.
-  /// </summary>
-  /// <param name="json">The JSON data as bytes.</param>
-  /// <param name="fileInfo">The file info to populate.</param>
-  /// <exception cref="FormatException">Thrown when the file format is invalid.</exception>
-  private void GetDataFromJson(byte[] json, ref FileInfo fileInfo)
+  private void ReadBinaryStream(BinaryReader reader, ref FileInfo fileInfo)
   {
-    // Read the header first
-    // The header is always uncompressed, and the data might be
-    byte[] headerBytes;
-    byte[] dataBytes;
+    // Write file version first so we can later check for future file changes and adapt
+    fileInfo.m_FileHeader.m_BlbVersion = new(reader.ReadString());
+    // TODO, from here add check to see if the file is new or old and how to proceed with the read
+    fileInfo.m_FileHeader.m_IsTempFile = reader.ReadBoolean();
+    fileInfo.m_FileData.m_Description = reader.ReadString();
 
-    try
+    ushort count = reader.ReadUInt16();
+    fileInfo.m_FileData.m_ManualSaves = new(count);
+    for (ushort i = 0; i < count; ++i)
     {
-      SplitNewLineBytes(json, out headerBytes, out dataBytes);
-    }
-    catch (FormatException e)
-    {
-      throw new FormatException("Header and/or level data cannot be found", e);
-    }
-
-    fileInfo.m_FileHeader = JsonUtility.FromJson<FileHeader>(System.Text.Encoding.Default.GetString(headerBytes));
-
-    // If the save file was not read properly
-    if (fileInfo.m_FileHeader == null)
-    {
-      string errorStr = $"Error reading save file {Path.GetFileName(fileInfo.m_SaveFilePath)}. It may have been made with a different BLB version or is corrupted.";
-      Debug.Log(errorStr);
-      m_MainThreadDispatcher.Enqueue(() => StatusBar.Print(errorStr));
-      throw new FormatException(errorStr);
+      fileInfo.m_FileData.m_ManualSaves.Add(ReadLevelDataBinarySteam(reader));
+      fileInfo.m_FileData.m_ManualSaves[i].m_Id = i;
     }
 
-    string data;
+    // Start the id count at the last manual save id for the auto saves
+    uint id = (uint)fileInfo.m_FileData.m_ManualSaves.Count;
 
-    // Decompress string if needed
-    if (fileInfo.m_FileHeader.m_IsDataCompressed)
-      data = StringCompression.Decompress(dataBytes);
-    else
-      data = System.Text.Encoding.Default.GetString(dataBytes);
-
-    fileInfo.m_FileData = JsonUtility.FromJson<FileData>(data);
-
-    // If the save file was not read properly
-    if (fileInfo.m_FileData == null)
+    count = reader.ReadUInt16();
+    fileInfo.m_FileData.m_AutoSaves = new(count);
+    for (ushort i = 0; i < count; ++i)
     {
-      string errorStr = $"Error reading save file {Path.GetFileName(fileInfo.m_SaveFilePath)}. The file data may be corrupted.";
-      Debug.Log(errorStr);
-      m_MainThreadDispatcher.Enqueue(() => StatusBar.Print(errorStr));
-      throw new FormatException(errorStr);
+      fileInfo.m_FileData.m_AutoSaves.Add(ReadLevelDataBinarySteam(reader));
+      fileInfo.m_FileData.m_AutoSaves[i].m_Id = id + i;
     }
+
+    fileInfo.m_FileData.m_LastId = id + (uint)fileInfo.m_FileData.m_AutoSaves.Count - 1;
   }
 
-  /// <summary>
-  /// Splits a byte array at the first newline character.
-  /// </summary>
-  /// <param name="data">The data to split.</param>
-  /// <param name="left">The left part of the split (before the newline).</param>
-  /// <param name="right">The right part of the split (after the newline).</param>
-  /// <exception cref="FormatException">Thrown when no newline character is found.</exception>
-  private void SplitNewLineBytes(in byte[] data, out byte[] left, out byte[] right)
+  private LevelData ReadLevelDataBinarySteam(BinaryReader reader)
   {
-    left = new byte[0];
-    int i;
-    for (i = 0; i < data.Length; i++)
+    LevelData levelData = new()
     {
-      if (data[i] == '\n')
-      {
-        // copy all the data from 0 to i - 1 to the left buffer
-        left = data.Take(i).ToArray();
-        break;
-      }
-    }
-    // copy all the data from i + 1 to data.Length - 1 to the right buffer
-    right = data.Skip(i + 1).ToArray();
+      m_Version = LevelVersion.ReadBinary(reader),
+      m_Name = reader.ReadString(),
+      m_CameraPos = new(reader.ReadInt16(), reader.ReadInt16()),
+      m_Thumbnail = reader.ReadString(),
+      m_TimeStamp = new(reader.ReadInt64()),
+    };
 
-    if (left.Length == 0)
+    ushort count = reader.ReadUInt16();
+    levelData.m_AddedTiles = new(count);
+    for (ushort i = 0; i < count; ++i)
     {
-      throw new FormatException("No newline character found in the data");
+      levelData.m_AddedTiles.Add(TileGrid.Element.ReadBinary(reader));
     }
+
+    count = reader.ReadUInt16();
+    levelData.m_RemovedTiles = new(count);
+    for (ushort i = 0; i < count; ++i)
+    {
+      levelData.m_RemovedTiles.Add(new(reader.ReadInt16(), reader.ReadInt16()));
+    }
+
+    return levelData;
   }
 
   public void DeleteFileEx(string fullFilePath)
@@ -1408,9 +1332,9 @@ public class FileSystemInternal : MonoBehaviour
     if (m_MountedFileInfo.m_SaveFilePath == fileInfo.m_SaveFilePath)
     {
       // Mark the version we have loaded from to be the newest one
-      if (m_loadedVersion.m_ManualVersion == version.m_ManualVersion && fileInfo.m_FileData.m_ManualSaves.Count > 0)
+      if (m_MountedFileInfo.m_LoadedVersion.m_ManualVersion == version.m_ManualVersion && fileInfo.m_FileData.m_ManualSaves.Count > 0)
       {
-        m_loadedVersion = fileInfo.m_FileData.m_ManualSaves[^1].m_Version;
+        m_MountedFileInfo.m_LoadedVersion = fileInfo.m_FileData.m_ManualSaves[^1].m_Version;
       }
     }
   }

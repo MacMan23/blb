@@ -8,19 +8,16 @@ Copyright 2018-2025, DigiPen Institute of Technology
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using UnityEngine;
 
 public class TileGrid : MonoBehaviour
 {
-  [System.Serializable]
   public class Element : ICloneable
   {
     public Vector2Int m_GridIndex;
     public TileType m_Type;
     public TileColor m_TileColor;
     public Direction m_Direction;
-    [System.NonSerialized]
     public GameObject m_GameObject;
     public List<Vector2Int> m_Path;
 
@@ -43,6 +40,49 @@ public class TileGrid : MonoBehaviour
         tileDirection.m_Element = this;
     }
 
+    public void WriteBinary(System.IO.BinaryWriter writer)
+    {
+      writer.Write((short)m_GridIndex.x);
+      writer.Write((short)m_GridIndex.y);
+      writer.Write((byte)m_Type);
+      // Write both enums as haf a byte (nibble)
+      writer.Write((byte)(((byte)m_TileColor << 4) | (byte)m_Direction));
+
+      // Make sure the path exists before trying to write it
+      if (m_Path != null) {
+        writer.Write((ushort)m_Path.Count);
+        foreach (Vector2Int pos in m_Path)
+        {
+          writer.Write((short)pos.x);
+          writer.Write((short)pos.y);
+        }
+      }
+      else
+      {
+        writer.Write((ushort)0);
+      }
+    }
+
+    public static Element ReadBinary(System.IO.BinaryReader reader)
+    {
+      Element element = new();
+
+      element.m_GridIndex = new(reader.ReadInt16(), reader.ReadInt16());
+      element.m_Type = (TileType)reader.ReadByte();
+
+      byte combinedEnum = reader.ReadByte();
+      element.m_TileColor = (TileColor)((combinedEnum >> 4) & 0x0F);
+      element.m_Direction = (Direction)(combinedEnum & 0x0F);
+
+      ushort pathLength = reader.ReadUInt16();
+      element.m_Path = new(pathLength);
+      for (ushort i = 0; i < pathLength; ++i)
+      {
+        element.m_Path.Add(new(reader.ReadInt16(), reader.ReadInt16()));
+      }
+      return element;
+    }
+
     public bool Equals(Element other)
     {
       if (m_GridIndex != other.m_GridIndex)
@@ -61,7 +101,7 @@ public class TileGrid : MonoBehaviour
     public bool PathsEqual(Element other)
     {
       // If both paths don't exist or the paths are equal
-      if ((other.m_Path == null && m_Path == null) || 
+      if ((other.m_Path == null && m_Path == null) ||
         (other.m_Path != null && m_Path != null && m_Path.SequenceEqual(other.m_Path)))
       {
         return true;
@@ -219,7 +259,7 @@ public class TileGrid : MonoBehaviour
     var lessThanRight = index.x < m_MaxBounds.x - Mathf.Epsilon;
     var greaterThanBottom = index.y > m_MinBounds.y + Mathf.Epsilon;
     var lessThanTop = index.y < m_MaxBounds.y - Mathf.Epsilon;
-    
+
     if (greaterThanLeft && lessThanRight && greaterThanBottom && lessThanTop)
       return;
 
@@ -249,24 +289,6 @@ public class TileGrid : MonoBehaviour
     return m_Grid.ToDictionary(entry => entry.Key, entry => (Element)entry.Value.Clone());
   }
 
-  public string ToJsonString()
-  {
-    var gridStringBuilder = new StringBuilder();
-
-    foreach (var element in m_Grid)
-      gridStringBuilder.AppendLine(JsonUtility.ToJson(element.Value));
-
-    return gridStringBuilder.ToString();
-  }
-
-  public void GetLevelData(out FileSystemInternal.LevelData levelData)
-  {
-    levelData = new()
-    {
-      m_AddedTiles = new List<Element>(m_Grid.Values)
-    };
-  }
-
   public void LoadFromDictonary(Dictionary<Vector2Int, Element> grid)
   {
     var startTime = DateTime.Now;
@@ -274,7 +296,7 @@ public class TileGrid : MonoBehaviour
     ForceClearGrid();
 
     // Create a shallow copy of the dictonary
-    m_Grid = grid.ToDictionary(pair => pair.Key, pair => pair.Value);
+    m_Grid = grid;
 
     var successes = 0;
     var failures = 0;
@@ -295,45 +317,6 @@ public class TileGrid : MonoBehaviour
       {
         Debug.LogError($"Failed to create the tile:\n \"{element.Value.ToState()}\" " +
           $"\nas a grid element. {e.Message} ({e.GetType()})");
-
-        ++failures;
-      }
-    }
-
-    // Reset so dialog pop ups don't appear when the user places its first tile
-    m_MostRecentlyCreatedTile = null;
-
-    RecomputeBounds();
-
-    PrintLoadErrors(failures, successes, startTime);
-  }
-
-  // Loads a file with no undoing.
-  public void LoadFromJsonStrings(string[] jsonStrings)
-  {
-    var startTime = DateTime.Now;
-
-    ForceClearGrid();
-
-    var successes = 0;
-    var failures = 0;
-
-    foreach (var jsonString in jsonStrings)
-    {
-      try
-      {
-        var element = JsonUtility.FromJson<Element>(jsonString);
-        var index = element.m_GridIndex;
-        var state = element.ToState();
-
-        CreateTile(index, state, false);
-
-        ++successes;
-      }
-      catch (System.ArgumentException e)
-      {
-        Debug.LogError($"Failed to parse the line \"{jsonString}\" " +
-          $"as a grid element. {e.Message} ({e.GetType()})");
 
         ++failures;
       }
