@@ -386,7 +386,16 @@ public class TileGrid : MonoBehaviour
     {
       // Record the removal of this tile
       OperationSystem.AddDelta(kvp.Value, null);
-      Destroy(kvp.Value.m_GameObject);
+      
+      // Return SOLID tiles to pool; destroy others
+      if (kvp.Value.m_Type == TileType.SOLID)
+      {
+        m_TilesPalette.ReturnSolidTileToPool(kvp.Value.m_GameObject);
+      }
+      else
+      {
+        Destroy(kvp.Value.m_GameObject);
+      }
     }
     m_Grid.Clear();
 
@@ -403,7 +412,15 @@ public class TileGrid : MonoBehaviour
   {
     foreach (var kvp in m_Grid)
     {
-      Destroy(kvp.Value.m_GameObject);
+      // Return SOLID tiles to pool; destroy others
+      if (kvp.Value.m_Type == TileType.SOLID)
+      {
+        m_TilesPalette.ReturnSolidTileToPool(kvp.Value.m_GameObject);
+      }
+      else
+      {
+        Destroy(kvp.Value.m_GameObject);
+      }
     }
     m_Grid.Clear();
 
@@ -583,9 +600,24 @@ public class TileGrid : MonoBehaviour
     // composite collider every time we add or subtract a tile.
     // if so, that should happen here (and in EraseTile)
 
-    // instantiate the tile
+    // instantiate the tile - use pool for SOLID tiles
     var tileWorldPosition = new Vector3(gridIndex.x, gridIndex.y, m_GridZ);
-    var newTile = Instantiate(prefab, tileWorldPosition, Quaternion.identity, parent);
+    GameObject newTile = null;
+    
+    if (state.Type == TileType.SOLID)
+    {
+      newTile = m_TilesPalette.GetSolidTileFromPool();
+      if (newTile != null)
+      {
+        newTile.transform.position = tileWorldPosition;
+        newTile.transform.SetParent(parent);
+      }
+    }
+    
+    if (newTile == null)
+    {
+      newTile = Instantiate(prefab, tileWorldPosition, Quaternion.identity, parent);
+    }
 
     // fill the grid location
     // If the grid already has the element, just fill it out,
@@ -698,8 +730,15 @@ public class TileGrid : MonoBehaviour
     if (gameObjectToDestroy.TryGetComponent<SolidEdgeOutliner>(out var solidEdgeOutliner))
       solidEdgeOutliner.Erase(index);
 
-    // destroy the old game object and remove the element from the grid
-    Destroy(gameObjectToDestroy);
+    // Check if this is a SOLID tile and return to pool, otherwise destroy
+    if (m_Grid.TryGetValue(index, out var element) && element.m_Type == TileType.SOLID)
+    {
+      m_TilesPalette.ReturnSolidTileToPool(gameObjectToDestroy);
+    }
+    else
+    {
+      Destroy(gameObjectToDestroy);
+    }
     m_Grid.Remove(index);
   }
 

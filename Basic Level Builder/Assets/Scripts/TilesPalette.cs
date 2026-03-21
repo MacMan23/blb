@@ -6,11 +6,17 @@ public class TilesPalette : MonoBehaviour
   // The container holding all the prefabs, keyed by tile type
   Dictionary<TileType, GameObject> m_TilePrefabs = new Dictionary<TileType, GameObject>();
 
+  // Object pool for SOLID tiles
+  private ObjectPool m_SolidTilePool;
+  private int m_SolidPoolInitialSize = 1000;
+  private int m_SolidPoolMaxSize = 1500;
+
 
   // Start is called before the first frame update
   void Start()
   {
     LoadPrefabs();
+    InitializeSolidTilePool();
   }
 
 
@@ -69,10 +75,53 @@ public class TilesPalette : MonoBehaviour
     }
   }
 
+  void InitializeSolidTilePool()
+  {
+    var solidPrefab = GetPrefabFromType(TileType.SOLID);
+    if (solidPrefab == null)
+    {
+      Debug.LogError("Cannot initialize SOLID tile pool: prefab not found.");
+      return;
+    }
+
+    var poolParent = new GameObject("SolidTilePool").transform;
+    poolParent.SetParent(transform);
+
+    m_SolidTilePool = new ObjectPool(
+      solidPrefab,
+      m_SolidPoolInitialSize,
+      m_SolidPoolMaxSize,
+      poolParent
+    );
+
+    Debug.Log($"SOLID tile pool initialized with {m_SolidPoolInitialSize} tiles (max {m_SolidPoolMaxSize})");
+  }
+
 
   public GameObject GetPrefabFromType(TileType type)
   {
     m_TilePrefabs.TryGetValue(type, out var prefab);
     return prefab;
+  }
+
+  public GameObject GetSolidTileFromPool()
+  {
+    if (m_SolidTilePool == null)
+      return null;
+    return m_SolidTilePool.GetObject();
+  }
+
+  public void ReturnSolidTileToPool(GameObject tile)
+  {
+    if (m_SolidTilePool == null)
+      return;
+    m_SolidTilePool.ReturnToPool(tile);
+  }
+
+  public void ClearSolidTilePool()
+  {
+    if (m_SolidTilePool == null)
+      return;
+    m_SolidTilePool.ClearPool();
   }
 }
